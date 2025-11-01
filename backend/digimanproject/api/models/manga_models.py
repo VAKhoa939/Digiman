@@ -5,7 +5,7 @@ from django.db import models
 from django.utils import timezone
 
 import uuid
-from ..helper_functions import update_instance
+from ..utils.helper_functions import update_instance
 
 from typing import TYPE_CHECKING
 

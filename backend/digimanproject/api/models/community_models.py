@@ -7,7 +7,7 @@ from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 
 import uuid
-from ..helper_functions import get_target_object
+from ..utils.helper_functions import get_target_object
 
 from typing import TYPE_CHECKING
 
