@@ -7,7 +7,7 @@ import uuid
 
 from typing import TYPE_CHECKING
 
-from ..helper_functions import get_target_object, update_instance
+from ..utils.helper_functions import get_target_object, update_instance
 
 if TYPE_CHECKING:
     from .manga_models import MangaTitle, Chapter, Genre, Author, Page

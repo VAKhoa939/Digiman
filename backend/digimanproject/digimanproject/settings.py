@@ -12,8 +12,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
-import sys
 import environ
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,17 +30,27 @@ environ.Env.read_env(os.path.join(BASE_DIR, 'backend.env'))
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-d577iyj&q^7y4#8uvjr4gze+wo+q1&qkw)ox)u$$d*%2w&3mo$'
+SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env("DEBUG", default=False)
 
-ALLOWED_HOSTS = []
+# Set allowed hosts
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+
+# Set security & proxy settings
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{host}" for host in env.list("ALLOWED_HOSTS", default=[])
+    if not host.startswith("localhost")
+]
+
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -49,6 +59,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'api',
+    'rest_framework_simplejwt',
+    'dj_database_url',
 ]
 
 MIDDLEWARE = [
@@ -84,21 +96,41 @@ WSGI_APPLICATION = 'digimanproject.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': env('DB_NAME'),
+#         'USER': env('DB_USER'),
+#         'PASSWORD': env('DB_PASSWORD'),
+#         'HOST': env('DB_HOST'),
+#         'PORT': env('DB_PORT'),
+#         'OPTIONS': {
+#             'sslmode': 'require' if env.bool('DB_SSL_REQUIRE', default=True) else 'prefer',
+#         },
+#     }
+# }
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('DB_NAME'),
-        'USER': env('DB_USER'),
-        'PASSWORD': env('DB_PASSWORD'),
-        'HOST': env('DB_HOST'),
-        'PORT': env('DB_PORT'),
-        'OPTIONS': {
-            'sslmode': 'require' if env.bool('DB_SSL_REQUIRE', default=True) else 'prefer',
-        },
-    }
+    "default": dj_database_url.config(
+        default=env("DB_URL", default=""),
+        conn_max_age=600,
+        ssl_require=True,
+    )
 }
 
 AUTH_USER_MODEL = 'api.User'
+
+
+# REST Framework
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+}
 
 
 # Password validation
@@ -137,7 +169,55 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Collect static files from all apps into this directory (for production)
+STATIC_ROOT = BASE_DIR / 'collected_static'
+
+# Additional directories to look for static files
+# STATICFILES_DIRS = [
+#     BASE_DIR / "static",  # Global static files
+# ]
+
+# WhiteNoise for static file serving
+MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Jazzmin Settings For Styling Admin UI
+
+JAZZMIN_SETTINGS = {
+    # --- Basic UI branding (optional) ---
+    "site_title": "Digiman Admin",
+    "site_header": "Digiman Administration",
+    "welcome_sign": "Welcome to Digiman Admin",
+    "copyright": "© 2025 Digiman",
+    
+    # --- Sidebar configuration ---
+    "show_sidebar": True,
+    "navigation_expanded": False,
+
+    # --- custom group title --- 
+    "side_menu": [
+        {
+            "app": "api",
+            "label": "User Accounts",
+            "models": [
+                "api.User",
+                "api.Reader",
+                "api.Administrator",
+            ],
+        },
+    ],
+
+    # --- Optional visuals ---
+    "icons": {
+        "api.User": "fas fa-user",
+        "api.Reader": "fas fa-book-reader",
+        "api.Administrator": "fas fa-user-shield",
+    },
+}
+
