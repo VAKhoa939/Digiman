@@ -15,22 +15,36 @@ class ImageService:
             file_bytes: bytes = file.read()
 
             response: dict = supabase.storage.from_(bucket).upload(file_name, file_bytes)
-            if response.get("error"):
+            # Check if the upload was successful
+            if hasattr(response, "error") and response.error:
                 raise Exception(response["error"]["message"])
 
             public_url: str = supabase.storage.from_(bucket).get_public_url(file_name)
+            # Verify the public URL (optional, depending on your requirements)
+            if not public_url:
+                raise RuntimeError("Failed to retrieve the public URL of the uploaded file.")
             return public_url
 
         except Exception as e:
+            # Rollback: Attempt to delete the file if it was uploaded
+            try:
+                supabase.storage.from_(bucket).remove([file_name])
+            except Exception as rollback_error:
+                # Log the rollback error (optional)
+                print(f"Rollback failed: {rollback_error}")
             raise RuntimeError(f"Failed to upload image to bucket '{bucket}': {str(e)}")
 
 
-    def delete_image(self, bucket: str, file_path: str) -> bool:
+    def delete_image(self, bucket: str, file_path: str) -> None:
         """
         Delete an image from a given Supabase bucket.
         Returns True if deletion succeeded.
         """
         response: dict = supabase.storage.from_(bucket).remove([file_path])
-        if response.get("error"):
+        if hasattr(response, "error") and response.error:
             raise RuntimeError(response["error"]["message"])
-        return True
+    
+class BucketNames:
+    USER_AVATARS = "user-avatars"
+    COMMENT_IMAGES = "comment-images"
+    MANGA_CONTENT = "manga-content"

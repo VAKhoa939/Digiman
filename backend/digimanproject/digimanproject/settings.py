@@ -12,7 +12,6 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
-import sys
 import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -41,6 +40,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'api',
+    'rest_framework_simplejwt',
 ]
 
 MIDDLEWARE = [
@@ -101,6 +102,19 @@ DATABASES = {
 AUTH_USER_MODEL = 'api.User'
 
 
+# REST Framework
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+}
+
+
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -137,7 +151,51 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Collect static files from all apps into this directory (for production)
+STATIC_ROOT = BASE_DIR / 'collected_static'
+
+# Additional directories to look for static files
+# STATICFILES_DIRS = [
+#     BASE_DIR / "static",  # Global static files
+# ]
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Jazzmin Settings For Styling Admin UI
+
+JAZZMIN_SETTINGS = {
+    # --- Basic UI branding (optional) ---
+    "site_title": "Digiman Admin",
+    "site_header": "Digiman Administration",
+    "welcome_sign": "Welcome to Digiman Admin",
+    "copyright": "© 2025 Digiman",
+    
+    # --- Sidebar configuration ---
+    "show_sidebar": True,
+    "navigation_expanded": False,
+
+    # --- custom group title --- 
+    "side_menu": [
+        {
+            "app": "api",
+            "label": "User Accounts",
+            "models": [
+                "api.User",
+                "api.Reader",
+                "api.Administrator",
+            ],
+        },
+    ],
+
+    # --- Optional visuals ---
+    "icons": {
+        "api.User": "fas fa-user",
+        "api.Reader": "fas fa-book-reader",
+        "api.Administrator": "fas fa-user-shield",
+    },
+}
+

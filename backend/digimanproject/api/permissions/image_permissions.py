@@ -1,6 +1,7 @@
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from ..models.user_models import User
+from ..services.image_service import BucketNames
 
 
 class CanManageImage(BasePermission):
@@ -16,7 +17,7 @@ class CanManageImage(BasePermission):
 
         bucket = request.data.get("bucket") or request.query_params.get("bucket")
 
-        if bucket not in ["user-avatars", "comment-images", "manga-content"]:
+        if bucket not in BucketNames.values():
             return False
 
         if bucket == "manga-content" and request.user.role != User.RoleChoices.ADMIN:

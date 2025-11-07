@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from typing import Any
 
-from ..serializers.image_serializer import ImageDeleteSerializer, ImageUploadSerializer
+from ..serializers.image_serializers import ImageDeleteSerializer, ImageUploadSerializer
 from ..services.image_service import ImageService
 from ..permissions.image_permissions import CanManageImage
 

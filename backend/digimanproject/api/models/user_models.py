@@ -30,13 +30,18 @@ class User(AbstractUser):
         primary_key=True, default=uuid.uuid4, editable=False)
     role: str = models.CharField(
         max_length=20,
-        choices=RoleChoices.choices, 
+        choices=RoleChoices.choices,
         default=RoleChoices.READER)
     status: str = models.CharField(
         max_length=20, 
         choices=StatusChoices.choices, 
         default=StatusChoices.ACTIVE)
-    created_at: datetime = models.DateTimeField(default=timezone.now)
+    created_at: datetime = models.DateTimeField(
+        default=timezone.now, editable=False)
+    
+    class Meta:
+        verbose_name = "User"
+        verbose_name_plural = "Users"
 
     def __str__(self):
         return self.username
@@ -44,41 +49,25 @@ class User(AbstractUser):
     def get_display_name(self):
         return self.username
 
-    def update_profile(self, **profile_data: Any) -> None:
-        """Allowed fields: username, email"""
-        update_instance(self, {"username", "email"}, profile_data)
-
     def update_password(self, password: str) -> None:
         self.set_password(password)
         self.save(update_fields=["password"])
-    
-    def update_role(self, role: str) -> None:
-        if role not in self.RoleChoices.values:
-            raise ValueError(f"Invalid role: {role}")
-        self.role = role
-        self.save(update_fields=["role"])
-
-    def update_status(self, status: str):
-        if status not in self.StatusChoices.values:
-            raise ValueError(f"Invalid status: {status}")
-        self.status = status
-        self.save(update_fields=["status"])
 
 
 class Reader(User):
-    display_name: str = models.CharField(max_length=100, blank=True)
-    avatar: str = models.URLField(blank=True)
+    display_name: str = models.CharField(max_length=100, blank=True, default="")
+    avatar: str = models.URLField(blank=True, null=True, default="")
     age: Optional[int] = models.PositiveIntegerField(null=True, blank=True)
+    
+    class Meta:
+        verbose_name = "Reader"
+        verbose_name_plural = "Readers"
 
     def __str__(self):
         return self.get_display_name()
     
     def get_display_name(self):
         return self.display_name if self.display_name != "" else self.username
-
-    def update_profile(self, **profile_data: Any) -> None:
-        """Allowed fields: username, email, display_name, avatar, age"""
-        update_instance(self, {"display_name", "avatar", "age"}, profile_data)
     
     # Library List Management
     def get_library_lists(self) -> models.QuerySet["LibraryList"]:
@@ -220,4 +209,7 @@ class Reader(User):
         )
 
 class Administrator(Reader):
-    pass
+    
+    class Meta:
+        verbose_name = "Admin"
+        verbose_name_plural = "Admins"
