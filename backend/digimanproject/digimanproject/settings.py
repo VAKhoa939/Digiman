@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 import environ
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -29,12 +30,21 @@ environ.Env.read_env(os.path.join(BASE_DIR, 'backend.env'))
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-d577iyj&q^7y4#8uvjr4gze+wo+q1&qkw)ox)u$$d*%2w&3mo$'
+SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env("DEBUG", default=False)
 
-ALLOWED_HOSTS = []
+# Set allowed hosts
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+
+# Set security & proxy settings
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{host}" for host in env.list("ALLOWED_HOSTS", default=[])
+    if not host.startswith("localhost")
+]
+
 
 
 # Application definition
@@ -50,6 +60,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'api',
     'rest_framework_simplejwt',
+    'dj_database_url',
 ]
 
 MIDDLEWARE = [
@@ -85,18 +96,25 @@ WSGI_APPLICATION = 'digimanproject.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': env('DB_NAME'),
+#         'USER': env('DB_USER'),
+#         'PASSWORD': env('DB_PASSWORD'),
+#         'HOST': env('DB_HOST'),
+#         'PORT': env('DB_PORT'),
+#         'OPTIONS': {
+#             'sslmode': 'require' if env.bool('DB_SSL_REQUIRE', default=True) else 'prefer',
+#         },
+#     }
+# }
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('DB_NAME'),
-        'USER': env('DB_USER'),
-        'PASSWORD': env('DB_PASSWORD'),
-        'HOST': env('DB_HOST'),
-        'PORT': env('DB_PORT'),
-        'OPTIONS': {
-            'sslmode': 'require' if env.bool('DB_SSL_REQUIRE', default=True) else 'prefer',
-        },
-    }
+    "default": dj_database_url.config(
+        default=env("DB_URL", default=""),
+        conn_max_age=600,
+        ssl_require=True,
+    )
 }
 
 AUTH_USER_MODEL = 'api.User'
@@ -158,6 +176,10 @@ STATIC_ROOT = BASE_DIR / 'collected_static'
 # STATICFILES_DIRS = [
 #     BASE_DIR / "static",  # Global static files
 # ]
+
+# WhiteNoise for static file serving
+MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
