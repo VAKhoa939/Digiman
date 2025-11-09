@@ -1,5 +1,4 @@
-from rest_framework import viewsets, status
-from rest_framework.response import Response
+from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
@@ -11,7 +10,7 @@ from ..services.user_service import UserService
 
 from typing import Union
 
-UserSerializerUnion = Union[UserSerializer, ReaderSerializer, AdministratorSerializer]
+UserSerializerType = Union[UserSerializer, ReaderSerializer, AdministratorSerializer]
 
 # ------------------- Base ViewSet ------------------- #
 
@@ -23,7 +22,7 @@ class BaseUserViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]
     permission_classes = [AllowAny]
 
-    def perform_create(self, serializer: UserSerializerUnion):
+    def perform_create(self, serializer: UserSerializerType):
         # Get uploaded avatar file (if provided)
         request = self.request
         avatar_file = request.FILES.get("avatar") or request.FILES.get("avatar_upload")
@@ -32,7 +31,7 @@ class BaseUserViewSet(viewsets.ModelViewSet):
         user = UserService.create_user(serializer.validated_data, avatar_file)
         serializer.instance = user  # attach instance for response
 
-    def perform_update(self, serializer: UserSerializerUnion):
+    def perform_update(self, serializer: UserSerializerType):
         request = self.request
         avatar_file = request.FILES.get("avatar") or request.FILES.get("avatar_upload")
 

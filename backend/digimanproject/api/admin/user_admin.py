@@ -6,7 +6,7 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django import forms
 from ..models.user_models import User, Reader, Administrator
-from ..services.user_service import UserService, UserUnion
+from ..services.user_service import UserService, UserType
 
 class UserAdminForm(forms.ModelForm):
     password = forms.CharField(
@@ -67,7 +67,7 @@ class UserAdmin(admin.ModelAdmin):
 
     def get_fields(
         self, request: HttpRequest, 
-        obj: UserUnion = None
+        obj: UserType = None
     ) -> list[str]:
         """
         Dynamically control fields displayed in the form.
@@ -78,7 +78,7 @@ class UserAdmin(admin.ModelAdmin):
 
     def save_model(
         self, request: HttpRequest, 
-        obj: UserUnion, 
+        obj: UserType, 
         form: Any, change: bool
     ) -> None:
         """
