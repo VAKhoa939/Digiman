@@ -31,9 +31,9 @@ class Comment(models.Model):
     owner: Optional["User"] = models.ForeignKey(
         "User", null=True, blank=True, on_delete=models.SET_NULL, related_name="comments")
     manga_title: Optional["MangaTitle"] = models.ForeignKey(
-        "MangaTitle", on_delete=models.CASCADE, null=True, blank=True)
+        "MangaTitle", on_delete=models.CASCADE, null=True, blank=True, related_name="comments")
     chapter: Optional["Chapter"] = models.ForeignKey(
-        "Chapter", on_delete=models.CASCADE, null=True, blank=True)
+        "Chapter", on_delete=models.CASCADE, null=True, blank=True, related_name="comments")
     parent_comment: Optional["Comment"] = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.CASCADE)
     is_image: bool = models.BooleanField(default=False)
