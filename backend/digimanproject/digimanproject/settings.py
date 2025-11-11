@@ -211,6 +211,15 @@ JAZZMIN_SETTINGS = {
                 "api.Administrator",
             ],
         },
+        {
+            "app": "api",
+            "label": "Manga Content",
+            "models": [
+                "api.MangaTitle",
+                "api.Author",
+                "api.Genre",
+            ],
+        },
     ],
 
     # --- Optional visuals ---
@@ -218,6 +227,9 @@ JAZZMIN_SETTINGS = {
         "api.User": "fas fa-user",
         "api.Reader": "fas fa-book-reader",
         "api.Administrator": "fas fa-user-shield",
+        "api.MangaTitle": "fas fa-book",
+        "api.Author": "fas fa-user-tie",
+        "api.Genre": "fas fa-list",
     },
 }
 
