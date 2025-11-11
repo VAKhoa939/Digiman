@@ -1,0 +1,164 @@
+/* custom.css */
+.body {
+  background-color: #121212; /* Dark background for the entire app */
+  color: #FFFFFF; /* Light text for better contrast */
+}
+/* Change the background color of the primary button */
+.btn-primary {
+  background-color: #FFCB3D; /* Green color */
+  border-color: #FFCB3D;
+}
+.btn-primary:hover {
+  background-color: #e6b233; /* Darker green on hover */
+  border-color: #e6b233;
+}
+.text-primary {
+  color: #FFCB3D !important; /* Ensure text-primary uses the yellow color */
+}
+/* Ensure active/click and focus styles stay yellow instead of Bootstrap's blue */
+.btn-primary:active,
+.btn-primary.active,
+.btn-primary:not(:disabled):not(.disabled):active,
+.btn-primary:focus,
+.btn-primary:focus-visible {
+  background-color: #e6c000;
+  border-color: #e6c000;
+  color: #000;
+  outline: none; /* remove default outline */
+  box-shadow: 0 0 0 0.2rem rgba(230, 192, 0, 0.25) !important;
+}
+
+/* Remove mobile tap highlight color if seen on mobile browsers */
+button.btn-primary {
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+/* Change the navbar background to dark */
+.navbar {
+  background-color: #000000; /* Dark background for navbar */
+  color:rgb(255, 255, 255);
+}
+.navbar-brand, .navbar-nav .nav-link {
+  color: rgb(255, 255, 255); /* White text for navbar links */
+}
+
+/* Style the Digi part as white and man part as yellow in the navbar brand */
+.brand-white { color: white; }
+.brand-yellow { color: yellow; }
+
+/* App-wide dark theme ------------------------------------------------------ */
+:root {
+  --app-bg: #070708; /* deep near-black */
+  --app-fg: #E8EDF3; /* light text */
+  --app-muted: #9AA3B2;
+  --card-bg: rgba(255,255,255,0.02);
+}
+
+html, body, #root {
+  height: 100%;
+  background-color: var(--app-bg) !important;
+  color: var(--app-fg) !important;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Make container text inherit and slightly reduce default link brightness */
+.container, .container-fluid, .row, .col {
+  color: inherit;
+}
+
+a { color: #FFCB3D; }
+
+/* Slightly darken panels/list items while keeping borders subtle */
+.card, .card-body, .list-group-item, .dropdown-menu {
+  background-color: transparent; /* let modal/card components control their own bg */
+  border-color: rgba(255,255,255,0.04);
+}
+
+/* Muted text color utility */
+.text-muted, .small, .manga-page .manga-meta .small {
+  color: var(--app-muted) !important;
+}
+
+
+
+/* Modal close (X) alignment and customization -------------------------------- */
+/* Ensure modal header is positioned so an absolutely positioned close button can align */
+.modal-header {
+  position: relative; /* safe-guard: header should be the positioning context */
+}
+
+/* Vertically center the close button and give an easily-adjustable offset */
+.modal-header .btn-close {
+  position: absolute; /* keep absolute so it can float over a centered title */
+  top: 50%;
+  right: 1rem; /* horizontal offset from the right edge */
+  transform: translateY(-50%); /* vertical centering */
+  width: 1.5rem; /* slightly larger touch target if desired */
+  height: 1.5rem;
+  opacity: 0.95;
+}
+
+/* Make sure the X is visible on dark modal backgrounds */
+.modal-content.bg-dark .btn-close,
+.modal-header.bg-dark .btn-close {
+  filter: invert(1) brightness(1.2);
+}
+
+/* Focus outline consistent with your yellow theme */
+.modal-header .btn-close:focus {
+  box-shadow: 0 0 0 0.2rem rgba(255,203,61,0.25);
+}
+
+/* Optional smaller variant: add the class .btn-close-sm to slightly reduce size */
+.modal-header .btn-close-sm {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+/* Manga page styles --------------------------------------------------------- */
+.manga-page .manga-cover {
+  max-width: 100%;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+}
+.manga-page .manga-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #fff;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+}
+.manga-page .manga-meta .badge {
+  font-weight: 600;
+}
+.manga-page .manga-synopsis h5 {
+  color: #fff;
+}
+.manga-page .chapter-list .list-group-item {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.manga-page .chapter-list .list-group-item + .list-group-item {
+  border-top: 1px solid rgba(255,255,255,0.02);
+}
+
+/* Make chapter titles high-contrast (light) for readability */
+.manga-page .chapter-list .chapter-title {
+  color: var(--app-fg);
+  font-size: 1rem;
+}
+
+/* Responsive tweaks */
+@media (max-width: 767px) {
+  .manga-page .manga-title {
+    font-size: 1.5rem;
+  }
+  .manga-page .manga-cover {
+    max-width: 180px;
+  }
+}
+
+
+
