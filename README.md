@@ -73,7 +73,7 @@ You should now see `(venv)` at the start of your terminal prompt.
 ## 4. Install Dependencies
 
 ```
-pip install --upgrade pip
+python.exe -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
