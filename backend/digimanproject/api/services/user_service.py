@@ -4,7 +4,7 @@ from ..services.image_service import ImageService, BucketNames
 
 from typing import Union
 
-UserUnion = Union[User, Reader, Administrator]
+UserType = Union[User, Reader, Administrator]
 
 class UserService:
     """
@@ -14,7 +14,7 @@ class UserService:
 
     @staticmethod
     @transaction.atomic
-    def create_user(data: dict, avatar_file=None) -> UserUnion:
+    def create_user(data: dict, avatar_file=None) -> UserType:
         """
         Create a Reader or Administrator instance depending on role.
         Optionally uploads avatar.
@@ -43,7 +43,7 @@ class UserService:
 
     @staticmethod
     @transaction.atomic
-    def update_user(user: UserUnion, data: dict, avatar_file=None) -> UserUnion:
+    def update_user(user: UserType, data: dict, avatar_file=None) -> UserType:
         """
         Update a user instance, optionally replacing avatar (and deleting old one).
         """
@@ -69,7 +69,7 @@ class UserService:
 
     @staticmethod
     @transaction.atomic
-    def delete_user(user: UserUnion) -> None:
+    def delete_user(user: UserType) -> None:
         """
         Delete a user instance, optionally deleting their avatar.
         """
