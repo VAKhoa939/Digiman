@@ -51,7 +51,7 @@ class ReaderAdminForm(forms.ModelForm):
 
 class BaseUserAdmin(BasePermissionAdmin):
     list_display: tuple[str, ...] = ("username", "email", "role", "status", "created_at")
-    list_filter: tuple[str, ...] = ("role", "status")
+    list_filter: tuple[str, ...] = ("role", "status", "created_at")
     search_fields: tuple[str, ...] = ("username", "email")
     ordering: tuple[str, ...] = ("-created_at",)
     readonly_fields: tuple[str, ...] = ("created_at", "status")

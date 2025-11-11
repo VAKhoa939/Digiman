@@ -3,19 +3,23 @@ from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
 
 
 class MangaTitleSerializer(serializers.ModelSerializer):
+    author_name = serializers.SerializerMethodField()
     chapter_count = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
 
     class Meta:
         model = MangaTitle
         fields = [
-            "id", "title", "author_id", "description", "cover_image", 
+            "id", "title", "author_name", "description", "cover_image", 
             "preview_chapter_id", "publication_status", "publication_date", 
             "is_visible", "chapter_count", "comment_count"
         ]
         read_only_fields = [
             "id", "publication_date", "chapter_count", "comment_count"
         ]
+
+    def get_author_name(self, obj: MangaTitle) -> str:
+        return obj.get_author_name()
 
     def get_chapter_count(self, obj: MangaTitle) -> int:
         return obj.get_chapter_count()
