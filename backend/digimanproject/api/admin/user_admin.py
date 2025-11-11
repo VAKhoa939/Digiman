@@ -1,12 +1,14 @@
-from typing import Any, Union
 from django.contrib import admin
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.http import HttpRequest
-from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django import forms
+from .base_permission_admin import BasePermissionAdmin
 from ..models.user_models import User, Reader, Administrator
-from ..services.user_service import UserService, UserUnion
+from ..services.user_service import UserService, UserType
+
+
+# --- Form classes ---
 
 class UserAdminForm(forms.ModelForm):
     password = forms.CharField(
@@ -45,41 +47,41 @@ class ReaderAdminForm(forms.ModelForm):
         fields = "__all__"
 
 
-@admin.register(User)
-class UserAdmin(admin.ModelAdmin):
-    form = UserAdminForm
+# --- Base User Admin class ---
+
+class BaseUserAdmin(BasePermissionAdmin):
     list_display: tuple[str, ...] = ("username", "email", "role", "status", "created_at")
     list_filter: tuple[str, ...] = ("role", "status")
     search_fields: tuple[str, ...] = ("username", "email")
     ordering: tuple[str, ...] = ("-created_at",)
-    readonly_fields: tuple[str, ...] = ("created_at",)
+    readonly_fields: tuple[str, ...] = ("created_at", "status")
 
     fields: tuple[str, ...] = ("username", "email", "password", "role", "status", "created_at")
 
     class Media:
         js = ("api/admin/password_generator.js",)
 
-    def formfield_for_dbfield(self, db_field: Any, **kwargs: Any) -> Any:
+    def formfield_for_dbfield(self, db_field, **kwargs):
         formfield = super().formfield_for_dbfield(db_field, **kwargs)
         if db_field.name == "password":
             formfield.widget = forms.PasswordInput(attrs={"style": "width: 300px;"})
         return formfield
 
-    def get_fields(
-        self, request: HttpRequest, 
-        obj: UserUnion = None
-    ) -> list[str]:
-        """
-        Dynamically control fields displayed in the form.
-        """
-        if not obj:  # If obj is None, this is a create form
-            return [field for field in self.fields if field != "created_at"]
-        return list(self.fields)  # For update form, show all fields
+    def get_fields(self, request, obj=None):
+        if not obj: # If this is a create form
+            return [field for field in self.fields if field not in {"created_at", "status"}]
+        return list(self.fields)
+
+
+# --- User Admin classes ---
+
+@admin.register(User)
+class UserAdmin(BaseUserAdmin):
+    form = UserAdminForm
 
     def save_model(
-        self, request: HttpRequest, 
-        obj: UserUnion, 
-        form: Any, change: bool
+        self, request: HttpRequest, obj: UserType, 
+        form: forms.ModelForm, change: bool
     ) -> None:
         """
         Dynamically control model saving based on role field 
@@ -92,51 +94,25 @@ class UserAdmin(admin.ModelAdmin):
 
 
 @admin.register(Reader)
-class ReaderAdmin(admin.ModelAdmin):
+class ReaderAdmin(BaseUserAdmin):
     form = ReaderAdminForm
-    list_display: tuple[str, ...] = (*UserAdmin.list_display, "display_name", "age")
-    search_fields: tuple[str, ...] = (*UserAdmin.search_fields, "display_name")
-    fields: tuple[str, ...] = (*UserAdmin.fields, "display_name", "avatar", "avatar_upload", "age")
-    readonly_fields: tuple[str, ...] = (*UserAdmin.readonly_fields,)
-
-    class Media:
-        js = UserAdmin.Media.js
+    list_display: tuple[str, ...] = (*BaseUserAdmin.list_display, "display_name", "age")
+    search_fields: tuple[str, ...] = (*BaseUserAdmin.search_fields, "display_name")
+    readonly_fields: tuple[str, ...] = (*BaseUserAdmin.readonly_fields,)
+    
+    fields: tuple[str, ...] = (*BaseUserAdmin.fields, "display_name", "avatar", "avatar_upload", "age")
     
     def get_queryset(self, request: HttpRequest):
         """Filter the queryset to only include readers."""
         return UserAdmin.get_queryset(self, request).filter(role=User.RoleChoices.READER)
 
-    def formfield_for_dbfield(self, db_field: Any, **kwargs: Any) -> Any:
-        """
-        Hook for specifying the form Field instance for a given database Field instance.
-
-        If kwargs are given, they're passed to the form Field's constructor.
-        """
-        formfield = super().formfield_for_dbfield(db_field, **kwargs)
-        if db_field.name == "password":
-            formfield.widget = forms.PasswordInput(attrs={"style": "width: 300px;"})
-        return formfield
-
-    def get_fields(
-        self, request: HttpRequest, 
-        obj: Union[User, Reader, Administrator] = None
-    ) -> list[str]:
-        """
-        Dynamically control fields displayed in the form.
-
-        This method calls the UserAdmin's get_fields method.
-        """
-        return UserAdmin.get_fields(self, request, obj)
 
     def save_model(
-        self, request: HttpRequest, 
-        obj: Union[User, Reader, Administrator], 
-        form: Any, change: bool
+        self, request: HttpRequest, obj: UserType, 
+        form: forms.ModelForm, change: bool
     ) -> None:
         """
         Override save_model to handle avatar image upload.
-
-        This method also calls the UserAdmin's save_model method.
         """
         # Get the uploaded avatar file
         avatar_file: InMemoryUploadedFile = form.cleaned_data.get("avatar_upload")
@@ -150,53 +126,20 @@ class ReaderAdmin(admin.ModelAdmin):
 
 
 @admin.register(Administrator)
-class AdministratorAdmin(admin.ModelAdmin):
+class AdministratorAdmin(BaseUserAdmin):
     form = ReaderAdminForm
     list_display: tuple[str, ...] = (*ReaderAdmin.list_display,)
     search_fields: tuple[str, ...] = (*ReaderAdmin.search_fields,)
     fields: tuple[str, ...] = (*ReaderAdmin.fields,)
     readonly_fields: tuple[str, ...] = (*ReaderAdmin.readonly_fields,)
 
-    class Media:
-        js = UserAdmin.Media.js
-
     def get_queryset(self, request):
         """Filter the queryset to only include administrators."""
         return UserAdmin.get_queryset(self, request).filter(role=User.RoleChoices.ADMIN)
 
-    def avatar_image(self, obj: Union[Reader, Administrator]) -> str:
-        """Display the avatar image in the admin interface."""
-        if obj.avatar:
-            return format_html('<img src="{}" width="100" height="100" style="border-radius:8px;" />', obj.avatar)
-        return "(no avatar)"
-    avatar_image.short_description = "Avatar"
-
-    def formfield_for_dbfield(self, db_field: Any, **kwargs: Any) -> Any:
-        """
-        Hook for specifying the form Field instance for a given database Field instance.
-
-        If kwargs are given, they're passed to the form Field's constructor.
-        """
-        formfield = super().formfield_for_dbfield(db_field, **kwargs)
-        if db_field.name == "password":
-            formfield.widget = forms.PasswordInput(attrs={"style": "width: 300px;"})
-        return formfield
-
-    def get_fields(
-        self, request: HttpRequest, 
-        obj: Union[User, Reader, Administrator] = None
-    ) -> list[str]:
-        """
-        Dynamically control fields displayed in the form.
-
-        This method calls the ReaderAdmin's get_fields method.
-        """
-        return ReaderAdmin.get_fields(self, request, obj)
-
     def save_model(
-        self, request: HttpRequest, 
-        obj: Union[User, Reader, Administrator], 
-        form: Any, change: bool
+        self, request: HttpRequest, obj: UserType, 
+        form: forms.ModelForm, change: bool
     ) -> None:
         """
         Override save_model to handle avatar image upload.
