@@ -3,6 +3,7 @@ from typing import Any, Optional
 from datetime import datetime
 from django.db import models
 from django.utils import timezone
+from django.contrib import admin
 
 import uuid
 from ..utils.helper_functions import update_instance
@@ -15,10 +16,22 @@ if TYPE_CHECKING:
 class Author(models.Model):
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
-    name: str = models.CharField(max_length=100)
+    name: str = models.CharField(max_length=100, unique=True)
 
     def __str__(self) -> str:
         return self.name
+    
+    def get_name(self) -> str:
+        return self.name
+    
+    def get_manga_titles(self) -> list["MangaTitle"]:
+        manga_titles: models.Manager["MangaTitle"] = self.manga_titles
+        return manga_titles.all()
+    
+    @admin.display(description="Number Of Manga Titles")
+    def get_manga_title_count(self) -> int:
+        manga_titles: models.Manager["MangaTitle"] = self.manga_titles
+        return manga_titles.count()
     
 
 class Genre(models.Model):
@@ -28,6 +41,18 @@ class Genre(models.Model):
 
     def __str__(self) -> str:
         return self.name
+    
+    def get_name(self) -> str:
+        return self.name
+    
+    def get_manga_titles(self) -> list["MangaTitle"]:
+        manga_titles: models.Manager["MangaTitle"] = self.manga_titles
+        return manga_titles.all()
+    
+    @admin.display(description="Number Of Manga Titles")
+    def get_manga_title_count(self) -> int:
+        manga_titles: models.Manager["MangaTitle"] = self.manga_titles
+        return manga_titles.count()
 
 
 class MangaTitle(models.Model):
@@ -38,11 +63,12 @@ class MangaTitle(models.Model):
 
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
-    title: str = models.CharField(max_length=200)
+    title: str = models.CharField(max_length=200, unique=True)
     author: Optional["Author"] = models.ForeignKey(
-        "Author", on_delete=models.SET_NULL, null=True)
+        "Author", on_delete=models.SET_NULL, null=True, 
+        related_name="manga_titles")
     description: str = models.TextField(blank=True)
-    cover_image: str = models.URLField(blank=True)
+    cover_image: str = models.URLField(blank=True, null=True, default="")
     publication_status: str = models.CharField(
         max_length=30,
         choices=PublicationStatusChoices.choices,
@@ -57,13 +83,32 @@ class MangaTitle(models.Model):
     def __str__(self) -> str:
         return self.title
     
+    @admin.display(
+        description="Number Of Chapters"
+    )
     def get_chapter_count(self) -> int:
         chapters: models.Manager["Chapter"] = self.chapters
         return chapters.count()
     
+    @admin.display(
+        description="Number Of Comments"
+    )
     def get_comment_count(self) -> int:
         comments: models.Manager["Comment"] = self.comments
         return comments.count()
+    
+    @admin.display(
+        description="Author",
+        ordering="author__name"
+    )
+    def get_author_name(self) -> str:
+        return self.author.get_name()
+    
+    @admin.display(
+        description="Preview Chapter"
+    )
+    def get_preview_chapter_number(self) -> int:
+        return self.preview_chapter.get_chapter_number()
     
     def get_genres(self) -> models.QuerySet["Genre"]:
         genres: models.Manager["Genre"] = self.genres
@@ -131,13 +176,30 @@ class Chapter(models.Model):
     def __str__(self) -> str:
         return f"{self.manga_title} - Chapter {self.chapter_number}"
     
+    def get_chapter_number(self) -> int:
+        return self.chapter_number
+    
+    @admin.display(
+        description="Number Of Pages"
+    )
     def get_page_count(self) -> int:
         pages: models.Manager["Page"] = self.pages
         return pages.count()
     
+    @admin.display(
+        description="Number Of Comments"
+    )
+    def get_comment_count(self) -> int:
+        comments: models.Manager["Comment"] = self.comments
+        return comments.count()
+    
     def get_pages(self) -> models.QuerySet["Page"]:
         pages: models.Manager["Page"] = self.pages
         return pages.all()
+    
+    def get_comments(self) -> models.QuerySet["Comment"]:
+        comments: models.Manager["Comment"] = self.comments
+        return comments.all()
     
     def get_manga_title(self) -> "MangaTitle":
         return self.manga_title
@@ -173,7 +235,7 @@ class Page(models.Model):
     chapter: "Chapter" = models.ForeignKey(
         "Chapter", related_name="pages", on_delete=models.CASCADE)
     page_number: int = models.IntegerField()
-    image_url: str = models.URLField()
+    image_url: str = models.URLField(blank=True, null=True, default="")
 
     class Meta:
         constraints = [
