@@ -1,3 +1,4 @@
+import uuid
 from django.db import transaction
 from ..models.user_models import User, Reader, Administrator
 from ..services.image_service import ImageService, BucketNames
@@ -30,6 +31,10 @@ class UserService:
         data = data.copy()
         if avatar_url:
             data["avatar"] = avatar_url
+
+        # Handle id generation
+        if not data.get("id"):
+            data["id"] = uuid.uuid4()
 
         # Role-based user creation
         if role == User.RoleChoices.READER:

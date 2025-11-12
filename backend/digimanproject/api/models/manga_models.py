@@ -123,36 +123,26 @@ class MangaTitle(models.Model):
         return comments.all()
 
     def update_metadata(self, **metadata: Any) -> None:
-        """allowed_fields: title, description, cover_image, preview_chapter,
-        author_name, publication_status"""
+        """allowed_fields: title, author, description, cover_image,
+        publication_status, is_visible, preview_chapter"""
 
-        if "author_name" in metadata:
-            self.add_author(metadata["author_name"])
-            del metadata["author_name"]
-
-        allowed_fields = {"title", "description", "cover_image", 
-                          "preview_chapter", "publication_status"}
+        allowed_fields = {
+            "title", "author", "description", "cover_image", 
+            "publication_status", "is_visible", "preview_chapter",
+        }
         update_instance(self, allowed_fields, **metadata)
 
-    def add_author(self, author_name: str) -> "Author":
-        author, _ = Author.objects.get_or_create(name=author_name)
-        self.author = author
-        self.save()
-
-    def toggle_visibility(self) -> None:
-        self.is_visible = not self.is_visible
-        self.save()
-
-    def add_genre(self, genre_name: str) -> "Genre":
-        genre, _ = Genre.objects.get_or_create(name=genre_name)
+    def add_genre(self, genre: "Genre") -> None:
         self.genres.add(genre)
-        return genre
 
-    def remove_genre(self, genre: Genre) -> bool:
+    def remove_genre(self, genre: "Genre") -> bool:
         if genre in self.genres.all():
             self.genres.remove(genre)
             return True
         return False
+    
+    def clear_genres(self) -> None:
+        self.genres.clear()
 
     def add_chapter(self, title: str, chapter_number: int) -> "Chapter":
         return Chapter.objects.create(
@@ -176,18 +166,33 @@ class Chapter(models.Model):
     def __str__(self) -> str:
         return f"{self.manga_title} - Chapter {self.chapter_number}"
     
+    @admin.display(
+        description="Title"
+    )
+    def get_title(self) -> str:
+        return self.title if self.title else f"Chapter {self.chapter_number}"
+    
+    def get_manga_title(self) -> "MangaTitle":
+        return self.manga_title
+    
+    @admin.display(
+        description="Manga Title"
+    )
+    def get_manga_title_title(self) -> str:
+        return self.manga_title
+    
     def get_chapter_number(self) -> int:
         return self.chapter_number
     
     @admin.display(
-        description="Number Of Pages"
+        description="Number of pages"
     )
     def get_page_count(self) -> int:
         pages: models.Manager["Page"] = self.pages
         return pages.count()
     
     @admin.display(
-        description="Number Of Comments"
+        description="Number of of comments"
     )
     def get_comment_count(self) -> int:
         comments: models.Manager["Comment"] = self.comments
@@ -201,31 +206,26 @@ class Chapter(models.Model):
         comments: models.Manager["Comment"] = self.comments
         return comments.all()
     
-    def get_manga_title(self) -> "MangaTitle":
-        return self.manga_title
-    
     def update_metadata(self, **metadata: Any) -> None:
         """allowed_fields: title, chapter_number"""
         allowed_fields = {"title", "chapter_number"}
         update_instance(self, allowed_fields, **metadata)
 
-    def add_page(self, image_url: str) -> "Page":
+    def get_last_page_number(self) -> int:
         pages: models.Manager["Page"] = self.pages
-        last_page_number = (
+        return (
             pages.aggregate(models.Max("page_number"))["page_number__max"] or 0
         )
+
+    def add_page(self, page_number: int, image_url: str) -> "Page":
         return Page.objects.create(
             chapter=self,
-            page_number=last_page_number + 1,
+            page_number=page_number,
             image_url=image_url,
         )
 
     def remove_page(self, page: "Page") -> bool:
-        current_number = page.page_number
         deleted, _ = page.delete()
-        Page.objects.filter(
-            chapter=self, page_number__gt=current_number
-        ).update(page_number=models.F("page_number") - 1)
         return deleted > 0
 
 
