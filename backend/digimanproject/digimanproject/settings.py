@@ -201,7 +201,7 @@ JAZZMIN_SETTINGS = {
     "navigation_expanded": False,
 
     # --- custom group title --- 
-    "side_menu": [
+    "menus": [
         {
             "app": "api",
             "label": "User Accounts",
@@ -218,6 +218,8 @@ JAZZMIN_SETTINGS = {
                 "api.MangaTitle",
                 "api.Author",
                 "api.Genre",
+                "api.Chapter",
+                "api.Comment",
             ],
         },
     ],
@@ -230,6 +232,9 @@ JAZZMIN_SETTINGS = {
         "api.MangaTitle": "fas fa-book",
         "api.Author": "fas fa-user-tie",
         "api.Genre": "fas fa-list",
+        "api.Chapter": "fas fa-scroll",
+        "api.Page": "fas fa-image",
+        "api.Comment": "fas fa-comments",
     },
 }
 

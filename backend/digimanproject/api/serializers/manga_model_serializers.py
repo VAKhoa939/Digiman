@@ -3,6 +3,9 @@ from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
 
 
 class MangaTitleSerializer(serializers.ModelSerializer):
+    """Fields for manga title: id, title, alternative_title, author_name, 
+    description, cover_image, preview_chapter_id, publication_status, 
+    publication_date, chapter_count, comment_count"""
     author_name = serializers.SerializerMethodField()
     chapter_count = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
@@ -10,12 +13,17 @@ class MangaTitleSerializer(serializers.ModelSerializer):
     class Meta:
         model = MangaTitle
         fields = [
-            "id", "title", "author_name", "description", "cover_image", 
-            "preview_chapter_id", "publication_status", "publication_date", 
-            "is_visible", "chapter_count", "comment_count"
-        ]
-        read_only_fields = [
-            "id", "publication_date", "chapter_count", "comment_count"
+            "id", 
+            "title", 
+            "alternative_title",
+            "author_name", 
+            "description", 
+            "cover_image", 
+            "preview_chapter_id", 
+            "publication_status", 
+            "publication_date", 
+            "chapter_count", 
+            "comment_count",
         ]
 
     def get_author_name(self, obj: MangaTitle) -> str:
@@ -29,6 +37,8 @@ class MangaTitleSerializer(serializers.ModelSerializer):
 
 
 class ChapterSerializer(serializers.ModelSerializer):
+    """Fields for chapter: id, manga_title_id, title, chapter_number, 
+    upload_date, page_count"""
     page_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -37,22 +47,22 @@ class ChapterSerializer(serializers.ModelSerializer):
             "id", "manga_title_id", "title", "chapter_number", "upload_date",
             "page_count"
         ]
-        read_only_fields = ["id", "manga_title_id", "upload_date", "page_count"]
 
     def get_page_count(self, obj: Chapter) -> int:
         return obj.get_page_count()
 
 
 class PageSerializer(serializers.ModelSerializer):
+    """Fields for page: id, chapter_id, page_number, image_url"""
     class Meta:
         model = Page
         fields = [
             "id", "chapter_id", "page_number", "image_url",
         ]
-        read_only_fields = [field for field in fields if field != "image_url"]
 
 
 class GenreSerializer(serializers.ModelSerializer):
+    """Fields for genre: id, name"""
     class Meta:
         model = Genre
         fields = ["id", "name"]
@@ -60,6 +70,7 @@ class GenreSerializer(serializers.ModelSerializer):
 
 
 class AuthorSerializer(serializers.ModelSerializer):
+    """Fields for author: id, name"""
     class Meta:
         model = Author
         fields = ["id", "name"]
