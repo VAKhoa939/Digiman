@@ -3,7 +3,6 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.http import HttpRequest
 from django.utils.safestring import mark_safe
 from django import forms
-from .base_permission_admin import BasePermissionAdmin
 from ..models.user_models import User, Reader, Administrator
 from ..services.user_service import UserService, UserType
 
@@ -49,7 +48,7 @@ class ReaderAdminForm(forms.ModelForm):
 
 # --- Base User Admin class ---
 
-class BaseUserAdmin(BasePermissionAdmin):
+class BaseUserAdmin(admin.ModelAdmin):
     list_display: tuple[str, ...] = ("username", "email", "role", "status", "created_at")
     list_filter: tuple[str, ...] = ("role", "status", "created_at")
     search_fields: tuple[str, ...] = ("username", "email")
@@ -115,7 +114,7 @@ class ReaderAdmin(BaseUserAdmin):
         Override save_model to handle avatar image upload.
         """
         # Get the uploaded avatar file
-        avatar_file: InMemoryUploadedFile = form.cleaned_data.get("avatar_upload")
+        avatar_file: InMemoryUploadedFile = form.cleaned_data.pop("avatar_upload")
 
         if not change:
             # If this is a create form, create a new user

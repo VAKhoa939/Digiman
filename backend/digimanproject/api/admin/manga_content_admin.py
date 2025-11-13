@@ -3,7 +3,7 @@ from django import forms
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.utils.html import format_html
 from django.urls import reverse
-from .base_permission_admin import BasePermissionAdmin
+from django.http import HttpRequest
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
 from ..models.community_models import Comment
 from ..services.manga_service import MangaService
@@ -76,7 +76,7 @@ class ChapterInline(admin.TabularInline):
 # --- Admin class ---
 
 @admin.register(MangaTitle)
-class MangaTitleAdmin(BasePermissionAdmin):
+class MangaTitleAdmin(admin.ModelAdmin):
     form = MangaTitleForm
     list_display = (
         "title", "get_author_name", "publication_status", "is_visible", 
@@ -90,17 +90,30 @@ class MangaTitleAdmin(BasePermissionAdmin):
 
     fieldsets = (
         ("Manga Details", {"fields": (
-            "title", "author", "description", "cover_image", "cover_image_upload",
-            "publication_date", "publication_status", "is_visible", "genres"
+            "title", 
+            "alternative_title",
+            "author", 
+            "description", 
+            "cover_image", 
+            "cover_image_upload",
+            "publication_date", 
+            "publication_status", 
+            "is_visible", 
+            "genres",
+            "preview_chapter",
         )}),
     )
     
-    def save_model(self, request, obj, form, change):
+    def save_model(
+        self, request: HttpRequest, obj: MangaTitle, form: forms.ModelForm, change: bool
+    ):
         # Get the uploaded cover image file
-        cover_image_file: InMemoryUploadedFile = form.cleaned_data.get("cover_image_upload")
+        cover_image_file: InMemoryUploadedFile = form.cleaned_data.pop("cover_image_upload")
+
         if not change:
             # create form
-            MangaService.create_manga_title(form.cleaned_data, cover_image_file)
+            manga = MangaService.create_manga_title(form.cleaned_data, cover_image_file)
+            obj.pk = manga.pk
         else:
             # update form
             MangaService.update_manga_title(obj, form.cleaned_data, cover_image_file)
@@ -117,22 +130,56 @@ class GenreAdmin(admin.ModelAdmin):
 @admin.register(Chapter)
 class ChapterAdmin(admin.ModelAdmin):
     list_display = (
-        "title", "chapter_number", "upload_date", "get_page_count", "get_comment_count",
+        "chapter_number", "get_title", "get_manga_title_title", "upload_date", 
+        "get_page_count", "get_comment_count",
     )
+    list_filter = ("manga_title",)
     readonly_fields = ("upload_date",)
     ordering = ("chapter_number",)
-    inlines = [PageInline]
+    inlines = [PageInline, CommentInline]
 
-    def save_formset(self, request, form, formset, change):
+    def save_formset(
+        self, request: HttpRequest, form: forms.ModelForm, 
+        formset: forms.BaseInlineFormSet, change: bool
+    ):
+        # Save with commit=False to populate .deleted_objects
         instances = formset.save(commit=False)
-        for obj in instances:
-            if isinstance(obj, Page):
-                image_file = formset.forms[0].cleaned_data.get("image_upload")
-                if obj.pk:
-                    MangaService.update_page(obj, formset.forms[0].cleaned_data, image_file)
-                else:
-                    MangaService.create_page(formset.forms[0].cleaned_data, image_file)
-            obj.save()
+
+        # Delete any marked-for-deletion Page objects
+        if hasattr(formset, "deleted_objects"):
+            for obj in formset.deleted_objects:
+                if isinstance(obj, Page):
+                    MangaService.delete_page(obj)
+        else:
+            # Fallback for Django versions where deleted_objects isn't populated yet
+            for form_instance in formset.forms:
+                if form_instance.cleaned_data.get("DELETE", False):
+                    obj = form_instance.instance
+                    if obj.pk and isinstance(obj, Page):
+                        MangaService.delete_page(obj)
+
+        # Filter out deleted forms
+        active_forms = [
+            f for f in formset.forms
+            if not f.cleaned_data.get("DELETE", False)
+        ]
+
+        # Handle new or updated pages
+        for form_instance in active_forms:
+            obj = form_instance.instance
+            if not isinstance(obj, Page):
+                continue
+            if not form_instance.has_changed():
+                continue  # skip unchanged forms
+
+            image_file = form_instance.cleaned_data.pop("image_upload")
+
+            if obj.pk:
+                MangaService.update_page(obj, form_instance.cleaned_data, image_file)
+            else:
+                page = MangaService.create_page(form_instance.cleaned_data, image_file)
+                obj.pk = page.pk
+
         formset.save_m2m()
 
 admin.site.register(Page)

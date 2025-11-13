@@ -51,7 +51,14 @@ class User(AbstractUser):
 
     def update_password(self, password: str) -> None:
         self.set_password(password)
-        self.save(update_fields=["password"])
+        self.save()
+
+    def update_metadata(self, **metadata: Any) -> None:
+        """Allowed fields: """
+        allowed_fields = {
+            "username", "email", "password", "status"
+        }
+        update_instance(self, allowed_fields, **metadata)
 
 
 class Reader(User):
@@ -65,6 +72,14 @@ class Reader(User):
 
     def __str__(self):
         return self.get_display_name()
+
+    def update_metadata(self, **metadata: Any) -> None:
+        """Allowed fields: """
+        allowed_fields = {
+            "username", "email", "password", "status", "display_name", 
+            "avatar", "age"
+        }
+        update_instance(self, allowed_fields, **metadata)
     
     def get_display_name(self):
         return self.display_name if self.display_name != "" else self.username
