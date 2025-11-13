@@ -1,7 +1,6 @@
-from django.db import transaction, models
+from django.db import transaction
 from ..models.manga_models import MangaTitle, Page, Chapter
 from ..services.image_service import ImageService, BucketNames
-import uuid
 
 
 class MangaService:

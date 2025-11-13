@@ -64,6 +64,8 @@ class MangaTitle(models.Model):
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     title: str = models.CharField(max_length=200, unique=True)
+    alternative_title: str = models.CharField(
+        max_length=200, blank=True, null=True, default="")
     author: Optional["Author"] = models.ForeignKey(
         "Author", on_delete=models.SET_NULL, null=True, 
         related_name="manga_titles")
@@ -123,12 +125,18 @@ class MangaTitle(models.Model):
         return comments.all()
 
     def update_metadata(self, **metadata: Any) -> None:
-        """allowed_fields: title, author, description, cover_image,
-        publication_status, is_visible, preview_chapter"""
+        """allowed_fields: title, alternative_title, author, description, 
+        cover_image, publication_status, is_visible, preview_chapter"""
 
         allowed_fields = {
-            "title", "author", "description", "cover_image", 
-            "publication_status", "is_visible", "preview_chapter",
+            "title",
+            "alternative_title",
+            "author",
+            "description",
+            "cover_image",
+            "publication_status",
+            "is_visible",
+            "preview_chapter",
         }
         update_instance(self, allowed_fields, **metadata)
 

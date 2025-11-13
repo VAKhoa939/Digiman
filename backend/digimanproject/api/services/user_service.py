@@ -1,4 +1,3 @@
-import uuid
 from django.db import transaction
 from ..models.user_models import User, Reader, Administrator
 from ..services.image_service import ImageService, BucketNames
@@ -32,17 +31,19 @@ class UserService:
         if avatar_url:
             data["avatar"] = avatar_url
 
-        # Handle id generation
-        if not data.get("id"):
-            data["id"] = uuid.uuid4()
-
         # Role-based user creation
         if role == User.RoleChoices.READER:
             user = Reader.objects.create(**data)
         elif role == User.RoleChoices.ADMIN:
+            # Set admin-specific fields, allowing full access
+            data["is_superuser"] = True
+            data["is_staff"] = True
             user = Administrator.objects.create(**data)
         else:
             raise ValueError(f"Invalid role: {role}")
+
+        # Encrypt password
+        user.update_password(data["password"])
 
         return user
 
@@ -66,10 +67,13 @@ class UserService:
 
             data["avatar"] = new_avatar_url
 
-        for field, value in data.items():
-            setattr(user, field, value)
+        # Encrypt password
+        new_password = data.pop("password", None)
+        if new_password:    
+            user.update_password(new_password)
 
-        user.save()
+        # Update other fields
+        user.update_metadata(**data)
         return user
 
     @staticmethod

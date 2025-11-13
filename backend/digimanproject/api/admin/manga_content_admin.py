@@ -4,8 +4,6 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.utils.html import format_html
 from django.urls import reverse
 from django.http import HttpRequest
-from django.db import models
-from .base_permission_admin import BasePermissionAdmin
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
 from ..models.community_models import Comment
 from ..services.manga_service import MangaService
@@ -78,7 +76,7 @@ class ChapterInline(admin.TabularInline):
 # --- Admin class ---
 
 @admin.register(MangaTitle)
-class MangaTitleAdmin(BasePermissionAdmin):
+class MangaTitleAdmin(admin.ModelAdmin):
     form = MangaTitleForm
     list_display = (
         "title", "get_author_name", "publication_status", "is_visible", 
@@ -92,8 +90,16 @@ class MangaTitleAdmin(BasePermissionAdmin):
 
     fieldsets = (
         ("Manga Details", {"fields": (
-            "title", "author", "description", "cover_image", "cover_image_upload",
-            "publication_date", "publication_status", "is_visible", "genres",
+            "title", 
+            "alternative_title",
+            "author", 
+            "description", 
+            "cover_image", 
+            "cover_image_upload",
+            "publication_date", 
+            "publication_status", 
+            "is_visible", 
+            "genres",
             "preview_chapter",
         )}),
     )
@@ -130,7 +136,7 @@ class ChapterAdmin(admin.ModelAdmin):
     list_filter = ("manga_title",)
     readonly_fields = ("upload_date",)
     ordering = ("chapter_number",)
-    inlines = [PageInline]
+    inlines = [PageInline, CommentInline]
 
     def save_formset(
         self, request: HttpRequest, form: forms.ModelForm, 
