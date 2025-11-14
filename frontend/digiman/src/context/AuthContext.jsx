@@ -1,25 +1,64 @@
-import React, { createContext, useContext, useState } from "react";
-import { login as apiLogin, logout as apiLogout } from "../services/auth";
-import { setAccessToken } from "../services/api";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { 
+  login as apiLogin, logout as apiLogout, fetchUser as apiFetchUser,
+  register as apiRegister
+} from "../services/auth";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null); 
+  const [fetchUserLoading, setfetchUserLoading] = useState(true);
 
-  async function login(username, password, rememberMe) {
-    const data = await apiLogin(username, password, rememberMe);
-    setAccessToken(data.access);
-    setIsAuthenticated(true);
+  async function fetchUser() {
+    try {
+      const data = await apiFetchUser();
+      setUser(data);
+      setIsAuthenticated(true);
+    } catch (err) {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   }
 
-  function logout() {
-    apiLogout();
+  async function login(identifier, password, rememberMe) {
+    const data = await apiLogin(identifier, password, rememberMe);
+    await fetchUser();
+    return data;
+  }
+
+  async function register(username, email, password, rememberMe) {
+    const data = await apiRegister(username, email, password, rememberMe);
+    await fetchUser();
+    return data;
+  }
+
+  async function logout() {
+    await apiLogout();
     setIsAuthenticated(false);
   }
+  
+  // Auto-login on page refresh (using refresh cookie)
+  useEffect(() => {
+    async function tryAutoLogin() {
+      try {
+        // Attempt to refresh token by calling any protected endpoint
+        await fetchUser();
+        console.log("Auto-login successful");
+      } catch (err) {
+        console.log("Auto-login unsuccessful\nMessage: " + err.message);
+      } finally {
+        setfetchUserLoading(false);
+      }
+    }
+    tryAutoLogin();
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ 
+      user, isAuthenticated, fetchUserLoading, login, logout, register
+    }}>
       {children}
     </AuthContext.Provider>
   );
