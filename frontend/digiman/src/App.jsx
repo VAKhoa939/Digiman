@@ -1,75 +1,97 @@
 import React, { useState } from 'react'
+import { BrowserRouter, Routes, Route, useParams, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { Container } from 'react-bootstrap'
 import NavBar from './components/smallComponents/NavBar'
 import MangaPage from './components/pages/MangaPage'
+import Catalog from './components/pages/Catalog'
+import LoginModal from './components/smallComponents/LoginForm'
+import RegisterModal from './components/smallComponents/RegisterForm'
+import mangaData from './data/mangaData'
+import { AuthProvider, useAuth } from './context/AuthContext';
 
-// Import a local image from src/assets/images — place your file at: src/assets/images/shangri-la.webp
-// NOTE: the file must exist at this exact path. Add the file and restart the dev server if you see an import error.
-// You placed the file at `frontend/digiman/assets/shangri-la.webp`.
-// Import it via a relative path from `src/`.
-// Alternatively move the file to `public/images` and use an absolute `/images/...` path.
-import cover from '../assets/shangri-la.webp';
-
-function App() {
-  const [showLogin, setShowLogin] = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
+function AppContent() {
+  const { login, isAuthenticated } = useAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const switchToRegister = () => {
-    setShowLogin(false);
-    setTimeout(() => setShowRegister(true), 200);
-  };
+  // If this location has a background state, keep it here so we can render
+  // the background UI while showing the modal on top.
+  const background = location.state && location.state.background;
 
-  const switchToLogin = () => {
-    setShowRegister(false);
-    setTimeout(() => setShowLogin(true), 200);
-  };
-
-  const handleLogin = (data) => {
-    console.log('Login submitted:', data);
-    // TODO: replace with real authentication flow. On success:
+  const handleLogin = async (data) => {
+    try {
+      await login(data.identifier, data.password, data.rememberMe);
+      // close modal and return to background
+      alert("Login successful");
+      if (background) navigate(background);
+      else navigate('/');
+    } catch {
+      alert("Login failed");
+    }
     setIsLoggedIn(true);
-    setShowLogin(false);
   };
 
   const handleRegister = (data) => {
     console.log('Register submitted:', data);
-    setShowRegister(false);
+    if (background) navigate(background);
+    else navigate('/');
   };
-  const sampleChapters = [
-    { id: 1, number: 1, title: 'Prologue', date: '2025-11-01', link: '#' },
-    { id: 2, number: 2, title: 'First Hunt', date: '2025-11-05', link: '#' },
-  ];
+  // Small wrapper used by the Route to pass the :id param and load data from local fixture.
+  const MangaRoute = () => {
+    const { id } = useParams();
+    // Try to find the manga in the local data store by id; fall back to the first entry.
+    const manga = (id && mangaData[id]) || Object.values(mangaData)[0];
 
+    if (!manga) return <div>No manga found.</div>;
+
+    return (
+      <MangaPage
+        {...manga}
+        isLoggedIn={isLoggedIn}
+        onRequireLogin={() => navigate('/login', { state: { background: location } })}
+      />
+    );
+  };
   return (
     <>
-      <NavBar
-        showLogin={showLogin}
-        setShowLogin={setShowLogin}
-        showRegister={showRegister}
-        setShowRegister={setShowRegister}
-        switchToRegister={switchToRegister}
-        switchToLogin={switchToLogin}
-        onLogin={handleLogin}
-        onRegister={handleRegister}
-      />
-      <Container style={{ paddingTop: '80px' }}>
-        <MangaPage
-          title="Shangri-La Frontier: Kusoge Hunter"
-          altTitle="Kusoge Hunter Kamige ni Idoman to Su"
-          author="Hiroshi Yagi"
-          artist="Boichi"
-          genres={["Action", "Comedy", "Game"]}
-          status="Ongoing"
-          coverUrl={cover}
-          synopsis="A high-quality action-comedy about a skilled gamer who specializes in kusoge (trash games) and becomes a top player in a brutal VR world."
-          chapters={sampleChapters}
-          isLoggedIn={isLoggedIn}
-          onRequireLogin={() => setShowLogin(true)}
-        />
+      <NavBar onLogin={handleLogin} onRegister={handleRegister} />
+
+  <Container fluid style={{ paddingTop: '80px' }}>
+        {/* Render the background routes. When a modal route is opened with
+            state.background, `background` will be set and we render the
+            background UI using that location. */}
+        <Routes location={background || location}>
+          <Route path="/" element={<Catalog />} />
+          <Route path="/manga/:id" element={<MangaRoute />} />
+          {/* Also allow the modal routes to render as full pages when visited directly */}
+          <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onLogin={handleLogin} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
+          <Route path="/register" element={<RegisterModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onRegister={handleRegister} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
+        </Routes>
+
+        {/* If we have a background location, also render the modal routes on top */}
+        {background && (
+          <Routes>
+            <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onLogin={handleLogin} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
+            <Route path="/register" element={<RegisterModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onRegister={handleRegister} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
+          </Routes>
+        )}
       </Container>
     </>
-  )
+  );
 }
 
-export default App
+function PrivateRoute({ children }) {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}

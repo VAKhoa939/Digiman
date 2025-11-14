@@ -13,8 +13,17 @@ const LoginModal = ({ show, onClose, onLogin, onSwitchToRegister }) => {
     setBsModal(instance);
 
     const onHidden = () => {
-      // notify parent to update its show state when modal hides (e.g., backdrop click)
-      onClose && onClose();
+      // Only notify parent to navigate back when the URL still points to this modal's route.
+      // This avoids navigating back when we intentionally switch to another modal route
+      // (for example: /login -> /register).
+      try {
+        if (window && window.location && window.location.pathname === '/login') {
+          onClose && onClose();
+        }
+      } catch (e) {
+        // fallback: if window isn't available for some reason, call onClose
+        onClose && onClose();
+      }
     };
     el.addEventListener('hidden.bs.modal', onHidden);
 
@@ -33,9 +42,10 @@ const LoginModal = ({ show, onClose, onLogin, onSwitchToRegister }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const email = e.target.email.value;
+    const identifier = e.target.identifier.value.trim();
     const password = e.target.password.value;
-    onLogin({ email, password });
+    const rememberMe = e.target.rememberMe.checked;
+    onLogin({ identifier, password, rememberMe });
     onClose();
   };
 
@@ -56,8 +66,9 @@ const LoginModal = ({ show, onClose, onLogin, onSwitchToRegister }) => {
           <div className="modal-body">
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
-                <label htmlFor="email" className="form-label">Email address</label>
-                <input type="email" className="form-control" id="email" aria-describedby="emailHelp" name="email" required />
+                <label htmlFor="identifier" className="form-label">Email or username</label>
+                <input type="text" className="form-control" id="identifier" aria-describedby="emailHelp" name="identifier" placeholder="Email or username"
+  autoComplete="username" required />
                 <small id="emailHelp" className="form-text text-secondary">We'll never share your email with anyone else.</small>
               </div>
               <div className="mb-3">
@@ -66,8 +77,8 @@ const LoginModal = ({ show, onClose, onLogin, onSwitchToRegister }) => {
               </div>
     <fieldset>
       <div className="form-check">
-        <input className="form-check-input" type="checkbox" value="" id="flexCheckDefault"/>
-        <label className="form-check-label" for="flexCheckDefault">
+        <input className="form-check-input" type="checkbox" value="" id="rememberMe"/>
+        <label className="form-check-label" htmlFor="rememberMe">
           Remember me
         </label>
       </div>
@@ -83,8 +94,8 @@ const LoginModal = ({ show, onClose, onLogin, onSwitchToRegister }) => {
                   className="text-decoration-none text-primary ms-3"
                   onClick={(e) => {
                     e.preventDefault();
-                    // close this modal then ask parent to open register modal
-                    onClose && onClose();
+                    // When using modal-as-route, just navigate to the register route.
+                    // App will render the register modal and preserve the background location.
                     onSwitchToRegister && onSwitchToRegister();
                   }}
                 >
