@@ -4,8 +4,9 @@ from ..utils.supabase_client import supabase
 
 class ImageService:
     """Handles image uploads to Supabase Storage."""
-
-    def upload_image(self, file: BinaryIO, bucket: str) -> str:
+    
+    @staticmethod
+    def upload_image(file: BinaryIO, bucket: str) -> str:
         """
         Upload an image to a given Supabase bucket and return the public URL.
         """
@@ -34,8 +35,8 @@ class ImageService:
                 print(f"Rollback failed: {rollback_error}")
             raise RuntimeError(f"Failed to upload image to bucket '{bucket}': {str(e)}")
 
-
-    def delete_image(self, bucket: str, file_path: str) -> None:
+    @staticmethod
+    def delete_image(bucket: str, file_path: str) -> None:
         """
         Delete an image from a given Supabase bucket.
         Returns True if deletion succeeded.
