@@ -112,6 +112,17 @@ class MangaTitle(models.Model):
     def get_preview_chapter_number(self) -> int:
         return self.preview_chapter.get_chapter_number()
     
+    def get_latest_chapter(self) -> "Chapter":
+        chapters: models.Manager["Chapter"] = self.chapters
+        return chapters.order_by("upload_date").first()
+    
+    @admin.display(
+        description="Latest Chapter Date"
+    )
+    def get_latest_chapter_upload_date(self) -> Optional[datetime]:
+        latest = self.get_latest_chapter()
+        return latest.upload_date if latest else None
+    
     def get_genres(self) -> models.QuerySet["Genre"]:
         genres: models.Manager["Genre"] = self.genres
         return genres.all()

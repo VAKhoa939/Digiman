@@ -80,7 +80,8 @@ class MangaTitleAdmin(admin.ModelAdmin):
     form = MangaTitleForm
     list_display = (
         "title", "get_author_name", "publication_status", "is_visible", 
-        "get_chapter_count", "get_comment_count"
+        "get_chapter_count", "get_comment_count", 
+        "get_latest_chapter_upload_date",
     )
     list_filter = ("publication_status", "is_visible")
     search_fields = ("title", "author_name")
