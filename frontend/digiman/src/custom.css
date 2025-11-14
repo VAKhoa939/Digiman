@@ -41,9 +41,9 @@ button.btn-primary {
   color: rgb(255, 255, 255); /* White text for navbar links */
 }
 
-/* Style the Digi part as white and man part as yellow in the navbar brand */
-.brand-white { color: white; }
-.brand-yellow { color: yellow; }
+/* Style the Digi part as white and man part as accent in the navbar brand */
+.brand-white { color: var(--app-fg); }
+.brand-yellow { color: var(--accent, #FFD400); }
 
 /* App-wide dark theme ------------------------------------------------------ */
 :root {
@@ -51,6 +51,34 @@ button.btn-primary {
   --app-fg: #E8EDF3; /* light text */
   --app-muted: #9AA3B2;
   --card-bg: rgba(255,255,255,0.02);
+}
+
+/* Theme variants: applied by setting `data-theme` on <html> or documentElement */
+:root[data-theme="dark"] {
+  --app-bg: #070708;
+  --app-fg: #E8EDF3;
+  --app-muted: #9AA3B2;
+  --card-bg: rgba(255,255,255,0.02);
+  --accent: #FFCB3D;
+  --dropdown-bg: rgba(15,15,15,0.96);
+}
+
+:root[data-theme="light"] {
+  --app-bg: #FAFBFD;
+  --app-fg: #0B1220;
+  --app-muted: #6B7280;
+  --card-bg: #FFFFFF;
+  --accent: #FFD400;
+  --dropdown-bg: rgba(255,255,255,0.98);
+}
+
+:root[data-theme="slate"] {
+  --app-bg: #0f1724;
+  --app-fg: #E6EEF8;
+  --app-muted: #9FB0C8;
+  --card-bg: rgba(255,255,255,0.02);
+  --accent: #FFCB3D;
+  --dropdown-bg: rgba(12,20,30,0.92);
 }
 
 html, body, #root {
@@ -72,9 +100,50 @@ body {
 a { color: #FFCB3D; }
 
 /* Slightly darken panels/list items while keeping borders subtle */
-.card, .card-body, .list-group-item, .dropdown-menu {
+.card, .card-body, .list-group-item {
   background-color: transparent; /* let modal/card components control their own bg */
   border-color: rgba(255,255,255,0.04);
+}
+
+/* Make dropdown menus solid/dark instead of transparent so items are readable */
+.dropdown-menu {
+  /* Use a stronger, theme-aware dropdown background for legibility */
+  background-color: var(--dropdown-bg, var(--card-bg));
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  min-width: 180px;
+}
+.dropdown-menu .dropdown-item {
+  color: var(--app-fg) !important;
+}
+.dropdown-menu .dropdown-divider {
+  border-color: var(--app-muted);
+}
+
+/* Hover/active state: yellow background and dark text to match theme */
+.dropdown-menu .dropdown-item:hover,
+.dropdown-menu .dropdown-item:focus,
+.dropdown-item.active,
+.dropdown-item:active {
+  background-color: var(--accent);
+  color: #000 !important;
+}
+
+/* Make all buttons fill yellow on hover/focus except the Follow button which keeps its own styles */
+.btn:not(.btn-follow):hover,
+.btn:not(.btn-follow):focus,
+.btn:not(.btn-follow):active {
+  background-color: var(--accent) !important;
+  color: #111 !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+}
+
+/* Ensure outline buttons transition smoothly to filled state */
+.btn:not(.btn-follow).btn-outline-light:hover,
+.btn:not(.btn-follow).btn-outline-secondary:hover,
+.btn:not(.btn-follow).btn-outline-primary:hover {
+  color: #111 !important;
 }
 
 /* Muted text color utility */
@@ -196,6 +265,17 @@ a { color: #FFCB3D; }
 .dm-banner-next { right: 8px; }
 .dm-banner-prev:hover, .dm-banner-next:hover { background: rgba(0,0,0,0.65); }
 
+/* Hide native scrollbars on horizontal banner/tracks while preserving scroll behavior */
+.dm-hot-track, .dm-banner-track, .popular-track {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.dm-hot-track::-webkit-scrollbar, .dm-banner-track::-webkit-scrollbar, .popular-track::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+  width: 0;
+  height: 0;
+}
+
 /* Make sure banner items are visually larger on wide screens */
 @media (min-width: 992px) {
   .dm-banner-item .card { width: 360px !important; }
@@ -308,6 +388,98 @@ a { color: #FFCB3D; }
 .manga-page .chapter-list .chapter-title {
   color: var(--app-fg);
   font-size: 1rem;
+}
+
+/* Chapter reader styles -------------------------------------------------- */
+.chapter-reader-paged { padding: 0 0.25rem; }
+.chapter-reader-horizontal { overflow: hidden; position: relative; }
+.chapter-reader-track { display: flex; transition: transform 320ms ease; will-change: transform; }
+.chapter-reader-page { min-width: 100vw; padding: 1rem 0; box-sizing: border-box; }
+.chapter-reader-page img { max-height: calc(100vh - 160px); object-fit: contain; }
+.reader-progress { height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+.reader-progress-bar { height: 100%; background: #FFCB3D; transition: width 220ms linear; }
+
+.chapter-reader-vertical img { max-width: 100%; }
+
+/* Profile / User settings ------------------------------------------------- */
+.profile-container {
+  background: #000;
+  color: #fff;
+  padding: 28px;
+  border-radius: 6px;
+}
+.profile-container {
+  position: relative;
+  transition: box-shadow 180ms ease, transform 120ms ease;
+}
+
+/* Visible yellow outline when the settings area is focused or explicitly
+   marked with .outline. Uses theme accent with a sensible fallback. */
+.profile-container:focus-within,
+.profile-container.outline {
+  box-shadow: 0 0 0 4px var(--accent, #FFD400), 0 6px 18px rgba(0,0,0,0.45);
+  transform: translateY(-2px);
+}
+.profile-left-nav { min-width: 160px; border-right: 1px solid rgba(255,255,255,0.06); padding-right: 18px; }
+.profile-tab { display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:8px; cursor:pointer; margin-bottom:12px; }
+.profile-tab .icon { width:36px; height:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; }
+.profile-tab.active { background: #FFD400; color: #111; }
+.profile-tab.active .icon { background: #fff; }
+.profile-right { flex:1; padding-left:20px; }
+.profile-section h4 { margin-bottom:12px; }
+.profile-content-filter label { display:flex; gap:8px; align-items:center; margin-right:12px; }
+
+/* Catalog: visible action button that highlights with theme accent on hover */
+.catalog-btn {
+  background: transparent;
+  color: var(--app-fg);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: background-color 160ms ease, color 160ms ease, transform 120ms ease;
+}
+.catalog-btn:hover,
+.catalog-btn:focus {
+  background-color: var(--accent);
+  color: #111;
+  transform: translateY(-1px);
+}
+
+/* Always-visible yellow outline variant for prominent CTAs */
+.catalog-btn.outline {
+  box-shadow: 0 0 0 4px var(--accent, #FFD400), 0 6px 18px rgba(0,0,0,0.12);
+}
+.catalog-btn.outline:focus {
+  outline: none;
+}
+
+/* Reader Prev/Next navigation buttons: ensure they're visible in all themes
+   and provide the same yellow outline affordance used for prominent CTAs. */
+.reader-nav-btn {
+  background: transparent !important;
+  color: var(--app-fg) !important;
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 4px 10px;
+  min-width: 66px;
+  height: 34px;
+  display: inline-grid; place-items: center;
+}
+.reader-nav-btn:hover, .reader-nav-btn:focus {
+  /* Hovering will still use the app-wide yellow fill via the general button hover rule */
+  cursor: pointer;
+}
+.reader-nav-btn.outline {
+  /* Strong, high-contrast ring that should be visible in all themes.
+     Use !important to beat competing rules when necessary. */
+  box-shadow: 0 0 0 4px var(--accent, #FFD400) !important, 0 8px 28px rgba(0,0,0,0.18) !important;
+  border-color: var(--accent, #FFD400) !important;
+  outline: none !important;
+  z-index: 12; /* ensure ring renders above nearby elements */
+  background-clip: padding-box; /* keep the ring outside the button's background */
+}
+.reader-nav-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* Responsive tweaks */
