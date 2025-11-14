@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'api',
     'rest_framework_simplejwt',
     'dj_database_url',
+    "django_filters",
 ]
 
 MIDDLEWARE = [
@@ -130,6 +131,13 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
 }
 
 
@@ -201,7 +209,7 @@ JAZZMIN_SETTINGS = {
     "navigation_expanded": False,
 
     # --- custom group title --- 
-    "side_menu": [
+    "menus": [
         {
             "app": "api",
             "label": "User Accounts",
@@ -218,6 +226,8 @@ JAZZMIN_SETTINGS = {
                 "api.MangaTitle",
                 "api.Author",
                 "api.Genre",
+                "api.Chapter",
+                "api.Comment",
             ],
         },
     ],
@@ -230,6 +240,9 @@ JAZZMIN_SETTINGS = {
         "api.MangaTitle": "fas fa-book",
         "api.Author": "fas fa-user-tie",
         "api.Genre": "fas fa-list",
+        "api.Chapter": "fas fa-scroll",
+        "api.Page": "fas fa-image",
+        "api.Comment": "fas fa-comments",
     },
 }
 
