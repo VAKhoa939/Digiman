@@ -7,14 +7,14 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  async function login(username, password, rememberMe) {
-    const data = await apiLogin(username, password, rememberMe);
-    setAccessToken(data.access);
+  async function login(identifier, password, rememberMe) {
+    const data = await apiLogin(identifier, password, rememberMe);
     setIsAuthenticated(true);
+    return data;
   }
 
-  function logout() {
-    apiLogout();
+  async function logout() {
+    await apiLogout();
     setIsAuthenticated(false);
   }
 
