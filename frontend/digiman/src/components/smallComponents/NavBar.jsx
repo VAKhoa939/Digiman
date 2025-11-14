@@ -1,10 +1,9 @@
 // src/components/NavBar.js
 import React from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
-import LoginModal from './LoginForm'; // import your modal component
-import RegisterModal from './RegisterForm'; // import your modal component  
-function NavBar({ showLogin, setShowLogin, showRegister, setShowRegister, switchToRegister, switchToLogin, onLogin, onRegister }) {
 
+function NavBar({ onLogin, onRegister }) {
   const handleLogin = onLogin || ((data) => { console.log('Login submitted:', data); });
   const handleRegister = onRegister || ((data) => { console.log('Register submitted:', data); });
 
@@ -12,10 +11,10 @@ function NavBar({ showLogin, setShowLogin, showRegister, setShowRegister, switch
     <>
       <nav className="navbar fixed-top navbar-expand-lg bg-dark" data-bs-theme="dark">
         <div className="container-fluid">
-          <a className="navbar-brand" href="#">
+          <Link className="navbar-brand" to="/">
             <span style={{ color: "white" }}>Digi</span>
             <span style={{ color: "yellow" }}>man</span>
-          </a>
+          </Link>
 
           <button
             className="navbar-toggler"
@@ -47,46 +46,45 @@ function NavBar({ showLogin, setShowLogin, showRegister, setShowRegister, switch
                   <FormatListBulletedIcon />
                 </a>
                 <ul className="dropdown-menu dropdown-menu-end">
-                  {/* Instead of data-bs-toggle, trigger state change */}
                   <li>
-                    <button
-                      className="dropdown-item"
-                      onClick={() => setShowLogin && setShowLogin(true)}
-                    >
-                      Login
-                    </button>
+                    <NavLoginButton />
                   </li>
-                  <li><button
-                      className="dropdown-item"
-                      onClick={() => setShowRegister && setShowRegister(true)}
-                    >
-                      Register
-                    </button></li>
+                  <li>
+                    <NavRegisterButton />
+                  </li>
                 </ul>
               </li>
             </ul>
           </div>
         </div>
       </nav>
-
-      {/* 🪄 React-controlled Bootstrap modal */}
-      <LoginModal
-        show={showLogin}
-        onClose={() => setShowLogin && setShowLogin(false)}
-        onLogin={handleLogin}
-        onSwitchToRegister={() => {
-          if (switchToRegister) switchToRegister();
-        }}
-      />
-      <RegisterModal
-        show={showRegister}
-        onClose={() => setShowRegister && setShowRegister(false)}
-        onRegister={handleRegister}
-        onSwitchToLogin={() => {
-          if (switchToLogin) switchToLogin();
-        }}
-      />
     </>
+  );
+}
+
+function NavLoginButton() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  return (
+    <button
+      className="dropdown-item"
+      onClick={() => navigate('/login', { state: { background: location } })}
+    >
+      Login
+    </button>
+  );
+}
+
+function NavRegisterButton() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  return (
+    <button
+      className="dropdown-item"
+      onClick={() => navigate('/register', { state: { background: location } })}
+    >
+      Register
+    </button>
   );
 }
 

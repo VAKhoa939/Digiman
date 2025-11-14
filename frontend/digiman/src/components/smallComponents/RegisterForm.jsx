@@ -16,7 +16,15 @@ const RegisterModal = ({ show, onClose, onRegister, onSwitchToLogin }) => {
     setBsModal(instance);
 
     const onHidden = () => {
-      onClose && onClose();
+      // Only notify parent to navigate back when the URL still points to this modal's route.
+      // This prevents navigating back when we intentionally route to /login while hiding this modal.
+      try {
+        if (window && window.location && window.location.pathname === '/register') {
+          onClose && onClose();
+        }
+      } catch (e) {
+        onClose && onClose();
+      }
     };
     el.addEventListener('hidden.bs.modal', onHidden);
 
@@ -133,7 +141,7 @@ const RegisterModal = ({ show, onClose, onRegister, onSwitchToLogin }) => {
                   className="text-decoration-none text-primary ms-3"
                   onClick={(e) => {
                     e.preventDefault();
-                    onClose && onClose();
+                    // Navigate to the login route; App will render it as a modal and preserve background
                     onSwitchToLogin && onSwitchToLogin();
                   }}
                 >
