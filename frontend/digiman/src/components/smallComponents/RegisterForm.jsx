@@ -63,13 +63,14 @@ const RegisterModal = ({ show, onClose, onRegister, onSwitchToLogin }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const email = e.target.email.value;
+    const username = e.target.username.value;
     
     // Validate passwords match before submitting
     if (!validatePasswords(password, confirmPassword)) {
       return; // Don't submit if passwords don't match
     }
     
-    onRegister({ email, password, confirmPassword });
+    onRegister({ username, email, password, confirmPassword });
     onClose();
   };
 
@@ -93,6 +94,10 @@ const RegisterModal = ({ show, onClose, onRegister, onSwitchToLogin }) => {
                 <label htmlFor="email" className="form-label">Email address</label>
                 <input type="email" className="form-control" id="email" aria-describedby="emailHelp" name="email" required />
                 <small id="emailHelp" className="form-text text-secondary">We'll never share your email with anyone else.</small>
+              </div>
+              <div className="mb-3">
+                <label htmlFor="username" className="form-label">Username</label>
+                <input type="text" className="form-control" id="username" name="username" required />
               </div>
               <div className="mb-3">
                 <label htmlFor="password" className="form-label">Password</label>

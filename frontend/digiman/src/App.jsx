@@ -10,8 +10,7 @@ import mangaData from './data/mangaData'
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function AppContent() {
-  const { login, isAuthenticated } = useAuth();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { login, register, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -29,14 +28,20 @@ function AppContent() {
     } catch (err) {
       alert("Login failed\nMessage: " + err.message);
     }
-    setIsLoggedIn(true);
   };
 
-  const handleRegister = (data) => {
-    console.log('Register submitted:', data);
-    if (background) navigate(background);
-    else navigate('/');
+  const handleRegister = async (data) => {
+    try {
+      await register(data.username, data.email, data.password, data.rememberMe);
+      // close modal and return to background
+      alert("Registration successful");
+      if (background) navigate(background);
+      else navigate('/');
+    } catch (err) {
+      alert("Registration failed\nMessage: " + err.message);
+    }
   };
+
   // Small wrapper used by the Route to pass the :id param and load data from local fixture.
   const MangaRoute = () => {
     const { id } = useParams();
@@ -48,7 +53,7 @@ function AppContent() {
     return (
       <MangaPage
         {...manga}
-        isLoggedIn={isLoggedIn}
+        isLoggedIn={isAuthenticated}
         onRequireLogin={() => navigate('/login', { state: { background: location } })}
       />
     );
@@ -57,7 +62,7 @@ function AppContent() {
     <>
       <NavBar onLogin={handleLogin} onRegister={handleRegister} />
 
-  <Container fluid style={{ paddingTop: '80px' }}>
+      <Container fluid style={{ paddingTop: '80px' }}>
         {/* Render the background routes. When a modal route is opened with
             state.background, `background` will be set and we render the
             background UI using that location. */}
