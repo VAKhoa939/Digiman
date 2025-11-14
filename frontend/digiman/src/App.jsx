@@ -26,8 +26,8 @@ function AppContent() {
       alert("Login successful");
       if (background) navigate(background);
       else navigate('/');
-    } catch {
-      alert("Login failed");
+    } catch (err) {
+      alert("Login failed\nMessage: " + err.message);
     }
     setIsLoggedIn(true);
   };
