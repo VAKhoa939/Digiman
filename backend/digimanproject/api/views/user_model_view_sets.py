@@ -1,5 +1,5 @@
 from rest_framework import viewsets
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from ..models.user_models import User, Reader, Administrator
@@ -20,12 +20,12 @@ class BaseUserViewSet(viewsets.ModelViewSet):
     Subclasses define their queryset and serializer_class.
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer: UserSerializerType):
         # Get uploaded avatar file (if provided)
         request = self.request
-        avatar_file = request.FILES.get("avatar") or request.FILES.get("avatar_upload")
+        avatar_file = request.FILES.get("avatar_upload")
 
         # Call service to handle creation logic
         user = UserService.create_user(serializer.validated_data, avatar_file)
