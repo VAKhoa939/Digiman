@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Comment from '../smallComponents/Comment';
 import { loadComments } from '../../utils/comments';
 import DownloadIcon from '@mui/icons-material/Download';
-import { addDownload } from '../../utils/downloads';
+import { addDownload, startDownload, listDownloadedChapters } from '../../utils/downloads';
 
 const MangaPage = ({
   id,
@@ -27,10 +27,28 @@ const MangaPage = ({
   const navigate = useNavigate();
   const [imgSrc, setImgSrc] = useState(coverUrl);
   const [followed, setFollowed] = useState(false);
+  const [downloadedSet, setDownloadedSet] = useState(new Set())
 
   useEffect(() => {
     setImgSrc(coverUrl);
   }, [coverUrl]);
+
+  useEffect(()=>{
+    let mounted = true
+    function onDownloadsChanged(){
+      (async ()=>{
+        try{
+          const list = await listDownloadedChapters()
+          if(!mounted) return
+          const s = new Set(list.map(x=>`${x.mangaId}_${x.chapterId}`))
+          setDownloadedSet(s)
+        }catch(e){ /* ignore */ }
+      })()
+    }
+    onDownloadsChanged()
+    window.addEventListener('digiman:downloadsChanged', onDownloadsChanged)
+    return ()=>{ mounted=false; window.removeEventListener('digiman:downloadsChanged', onDownloadsChanged) }
+  }, [id])
 
   const handleImageError = () => {
     // fallback to a safe remote placeholder if the provided URL fails to load
@@ -108,30 +126,31 @@ const MangaPage = ({
               chapters.map((c) => (
                 <li key={c.id || c.number} className="list-group-item d-flex justify-content-between align-items-center">
                   <div>
-                    <div className="fw-bold chapter-title"><Link to={`/manga/${id}/chapter/${c.id || c.number}`} className="text-decoration-none text-white">{c.number}. {c.title}</Link></div>
+                        <div className="fw-bold chapter-title">
+                          <Link to={`/manga/${id}/chapter/${c.id || c.number}`} className="text-decoration-none text-white">{c.number}. {c.title}</Link>
+                          {downloadedSet.has(`${id}_${c.id || c.number}`) && <span className="badge bg-warning text-dark ms-2">Offline</span>}
+                        </div>
                     <div className="small text-muted">{c.date}</div>
                   </div>
                   <div>
-                    <button
-                      className="btn btn-sm btn-outline-light d-flex align-items-center"
-                      onClick={() => {
-                        const entry = {
-                          id: `d_${Date.now()}`,
-                          mangaId: id || null,
-                          chapterId: c.id || c.number,
-                          chapterTitle: c.title || `Chapter ${c.number}`,
-                          mangaTitle: title || null,
-                          status: 'downloading',
-                          progress: 0,
-                          created_at: new Date().toISOString()
-                        }
-                        addDownload(entry)
-                        navigate('/downloads')
-                      }}
-                    >
-                      <DownloadIcon style={{ fontSize: 16, marginRight: 6 }} />
-                      Download
-                    </button>
+                            <button
+                              className="btn btn-sm btn-outline-light d-flex align-items-center"
+                              onClick={async () => {
+                                // Use backend download helper which enqueues and fetches the
+                                // chapter, then marks it as downloaded when complete.
+                                try{
+                                  await startDownload(id, c.id || c.number, { mangaTitle: title, chapterTitle: c.title || `Chapter ${c.number}` })
+                                  navigate('/downloads')
+                                }catch(err){
+                                  console.error('Download failed', err)
+                                  // still navigate to downloads so user can see status
+                                  navigate('/downloads')
+                                }
+                              }}
+                            >
+                              <DownloadIcon style={{ fontSize: 16, marginRight: 6 }} />
+                              Download
+                            </button>
                   </div>
                 </li>
               ))

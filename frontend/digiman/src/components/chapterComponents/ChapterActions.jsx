@@ -2,26 +2,17 @@ import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useNavigate } from 'react-router-dom';
-import { addDownload } from '../../utils/downloads';
+import { startDownload } from '../../utils/downloads';
 
 export default function ChapterActions({ chapter, mangaId }) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   function handleDownload() {
-    // enqueue the chapter into local downloads queue and navigate to downloads page
-    const entry = {
-      id: `d_${Date.now()}`,
-      mangaId: mangaId || null,
-      chapterId: chapter?.id || null,
-      chapterTitle: chapter?.title || `Chapter ${chapter?.number || '?'}`,
-      mangaTitle: null,
-      status: 'downloading', // downloading | downloaded | failed
-      progress: 0,
-      created_at: new Date().toISOString()
-    }
-    addDownload(entry)
-    navigate('/downloads')
+    // Start backend download which will enqueue and fetch the chapter.
+    startDownload(mangaId, chapter?.id || null, { chapterTitle: chapter?.title, mangaTitle: null })
+      .then(()=> navigate('/downloads'))
+      .catch(()=> navigate('/downloads'))
   }
 
   return (

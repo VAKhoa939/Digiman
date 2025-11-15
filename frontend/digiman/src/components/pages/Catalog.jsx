@@ -1,37 +1,57 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Container } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import mangaData from '../../data/mangaData';
 import MangaCard from '../../components/smallComponents/MangaCard';
 import Banner from '../../components/smallComponents/Banner';
+import api from '../../services/api';
 
 function Catalog() {
-  const items = Object.values(mangaData);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await api.get('manga/');
+        if (!mounted) return;
+        // assume API returns array of manga
+        setItems(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.warn('Catalog: failed to fetch from API.', err);
+        if (mounted) setItems([]);
+        setError(err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => { mounted = false };
+  }, []);
+
   // Latest updated (sort by dateUpdated desc)
   const latest = [...items].sort((a, b) => {
     const da = a.dateUpdated ? new Date(a.dateUpdated).getTime() : 0;
     const db = b.dateUpdated ? new Date(b.dateUpdated).getTime() : 0;
     return db - da;
   });
-  // Popular placeholder: sort by dateUpdated desc as a proxy for popularity for now.
-  // Replace with a real `views`/`score` metric when available from the API.
   const popular = [...items].sort((a, b) => {
     const da = a.dateUpdated ? new Date(a.dateUpdated).getTime() : 0;
     const db = b.dateUpdated ? new Date(b.dateUpdated).getTime() : 0;
     return db - da;
   }).slice(0, Math.min(items.length, 12));
-  const navigate = useNavigate();
 
   return (
     <>
       <div style={{ backgroundColor: 'var(--app-bg)', color: 'var(--app-fg)' }}>
         <Container fluid className="py-5">
 
-          {/* Hot updates banner (multi-card scroller) */}
           <Banner slides={popular} visible={6} title="Popular" />
 
-
-          {/* Latest Updated section */}
           <div className="latest-updated my-4">
             <div className="d-flex align-items-center mb-2">
               <h5 className="mb-0">Latest Updated</h5>

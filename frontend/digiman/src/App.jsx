@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useParams, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { Container } from 'react-bootstrap'
 import NavBar from './components/smallComponents/NavBar'
+import Toaster from './components/smallComponents/Toaster'
 import MangaPage from './components/pages/MangaPage'
 import Catalog from './components/pages/Catalog'
 import ChapterPage from './components/pages/ChapterPage'
@@ -12,7 +13,7 @@ import AdvancedSearchPage from './components/pages/AdvancedSearchPage'
 import DownloadsPage from './components/pages/DownloadsPage'
 import PrivateRoute from './components/smallComponents/PrivateRoute'
 import Settings from './components/pages/Settings'
-import mangaData from './data/mangaData'
+import api from './services/api'
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function AppContent() {
@@ -92,9 +93,29 @@ function AppContent() {
   // Small wrapper used by the Route to pass the :id param and load data from local fixture.
   const MangaRoute = () => {
     const { id } = useParams();
-    // Try to find the manga in the local data store by id; fall back to the first entry.
-    const manga = (id && mangaData[id]) || Object.values(mangaData)[0];
+    const [manga, setManga] = useState(null);
+    const [loading, setLoading] = useState(true);
 
+    useEffect(() => {
+      let mounted = true;
+      async function load() {
+        setLoading(true);
+        try {
+          const res = await api.get(`manga/${id}`);
+          if (!mounted) return;
+          setManga(res.data);
+        } catch (err) {
+          console.warn('MangaRoute: failed to fetch manga from API.', err);
+          if (mounted) setManga(null);
+        } finally {
+          if (mounted) setLoading(false);
+        }
+      }
+      load();
+      return () => { mounted = false };
+    }, [id]);
+
+    if (loading) return <div className="container py-5">Loading...</div>;
     if (!manga) return <div>No manga found.</div>;
 
     return (
@@ -108,6 +129,7 @@ function AppContent() {
   return (
     <>
       <NavBar onLogin={handleLogin} onRegister={handleRegister} />
+      <Toaster />
 
       <Container fluid style={{ paddingTop: '80px' }}>
         {/* Render the background routes. When a modal route is opened with
