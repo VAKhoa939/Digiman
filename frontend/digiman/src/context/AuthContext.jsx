@@ -35,8 +35,14 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
-    await apiLogout();
-    setIsAuthenticated(false);
+    try {
+      await apiLogout();
+    } catch (err) {
+      console.warn('Logout API call failed, clearing local auth state', err);
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   }
   
   // Auto-login on page refresh (using refresh cookie)

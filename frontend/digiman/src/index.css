@@ -24,10 +24,11 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  /* Use normal document flow so pages can scroll. Avoid making the body a centered flex container which
+     can prevent natural vertical scrolling when app content grows taller than the viewport. */
+  display: block;
 }
 
 h1 {
