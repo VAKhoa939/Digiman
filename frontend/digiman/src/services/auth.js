@@ -26,7 +26,10 @@ export async function logout() {
 
 export async function fetchUser() {
   const res = await api.get("auth/me/");
-  if (res.data?.detail) throw new Error(res.data.detail);
+  if (res.data?.detail) {
+    setAccessToken(null);
+    throw new Error(res.data.detail);
+  }
   return res.data;
 }
 

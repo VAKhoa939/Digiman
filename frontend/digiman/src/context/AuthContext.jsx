@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { 
   login as apiLogin, logout as apiLogout, fetchUser as apiFetchUser,
   register as apiRegister
@@ -11,30 +11,32 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); 
   const [fetchUserLoading, setfetchUserLoading] = useState(true);
 
-  async function fetchUser() {
+  const fetchUser = useCallback(async () => {
     try {
       const data = await apiFetchUser();
       setUser(data);
       setIsAuthenticated(true);
+      console.log("fetchUser successful");
+      return true;
     } catch (err) {
       setUser(null);
       setIsAuthenticated(false);
+      console.log("fetchUser failed\nMessage: " + err.message);
+      return false;
     }
-  }
+  }, []);
 
-  async function login(identifier, password, rememberMe) {
-    const data = await apiLogin(identifier, password, rememberMe);
-    await fetchUser();
-    return data;
-  }
+  const login = useCallback(async (username, password) => {
+    try {
+      const data = await apiLogin(username, password);
+      await fetchUser();
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }, [fetchUser]);
 
-  async function register(username, email, password, rememberMe) {
-    const data = await apiRegister(username, email, password, rememberMe);
-    await fetchUser();
-    return data;
-  }
-
-  async function logout() {
+  const logout = useCallback(async () => {
     try {
       await apiLogout();
     } catch (err) {
@@ -43,20 +45,26 @@ export function AuthProvider({ children }) {
       setUser(null);
       setIsAuthenticated(false);
     }
-  }
+  }, [fetchUser]);
+
+  const register = useCallback(async (username, email, password) => {
+    try {
+      const data = await apiRegister(username, email, password);
+      await fetchUser();
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }, [fetchUser]);
   
   // Auto-login on page refresh (using refresh cookie)
   useEffect(() => {
     async function tryAutoLogin() {
-      try {
-        // Attempt to refresh token by calling any protected endpoint
-        await fetchUser();
-        console.log("Auto-login successful");
-      } catch (err) {
-        console.log("Auto-login unsuccessful\nMessage: " + err.message);
-      } finally {
-        setfetchUserLoading(false);
-      }
+      // Attempt to refresh token by calling any protected endpoint
+      const result = await fetchUser();
+      if (result) console.log("Auto-login successful");
+      else console.log("Auto-login failed");
+      setfetchUserLoading(false);
     }
     tryAutoLogin();
   }, []);

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
 
+from datetime import datetime
 
 class MangaTitleSerializer(serializers.ModelSerializer):
     """Fields for manga title: id, title, alternative_title, author_name, 
@@ -9,6 +10,7 @@ class MangaTitleSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     chapter_count = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
+    latest_chapter_date = serializers.SerializerMethodField()
 
     class Meta:
         model = MangaTitle
@@ -24,6 +26,7 @@ class MangaTitleSerializer(serializers.ModelSerializer):
             "publication_date", 
             "chapter_count", 
             "comment_count",
+            "latest_chapter_date",
         ]
 
     def get_author_name(self, obj: MangaTitle) -> str:
@@ -34,6 +37,9 @@ class MangaTitleSerializer(serializers.ModelSerializer):
 
     def get_comment_count(self, obj: MangaTitle) -> int:
         return obj.get_comment_count()
+    
+    def get_latest_chapter_date(self, obj: MangaTitle) -> datetime:
+        return obj.get_latest_chapter_upload_date()
 
 
 class ChapterSerializer(serializers.ModelSerializer):
