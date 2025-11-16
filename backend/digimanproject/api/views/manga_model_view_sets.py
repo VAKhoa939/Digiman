@@ -37,7 +37,7 @@ class MangaTitleViewSet(viewsets.ModelViewSet):
         "created_at",
         "latest_chapter_date",
     ]
-    ordering = ["-latest_chapter_date"]  # default
+    ordering = ["-publication_date"]  # default
 
     def get_queryset(self):
         """Add prefetch/select related for performance"""

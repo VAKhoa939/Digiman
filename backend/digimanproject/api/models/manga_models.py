@@ -80,7 +80,7 @@ class MangaTitle(models.Model):
     genres: models.ManyToManyField = models.ManyToManyField(
         "Genre", related_name="manga_titles")
     preview_chapter: Optional["Chapter"] = models.ForeignKey(
-        "Chapter", on_delete=models.SET_NULL, null=True)
+        "Chapter", on_delete=models.SET_NULL, blank=True, null=True)
 
     def __str__(self) -> str:
         return self.title
@@ -114,14 +114,14 @@ class MangaTitle(models.Model):
     
     def get_latest_chapter(self) -> "Chapter":
         chapters: models.Manager["Chapter"] = self.chapters
-        return chapters.order_by("upload_date").first()
+        return chapters.order_by("-upload_date").first()
     
     @admin.display(
         description="Latest Chapter Date"
     )
-    def get_latest_chapter_upload_date(self) -> Optional[datetime]:
+    def get_latest_chapter_upload_date(self) -> datetime:
         latest = self.get_latest_chapter()
-        return latest.upload_date if latest else None
+        return latest.upload_date if latest else self.publication_date
     
     def get_genres(self) -> models.QuerySet["Genre"]:
         genres: models.Manager["Genre"] = self.genres
