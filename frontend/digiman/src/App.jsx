@@ -14,6 +14,7 @@ import PrivateRoute from './components/smallComponents/PrivateRoute'
 import Settings from './components/pages/Settings'
 import mangaData from './data/mangaData'
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 function AppContent() {
   const { login, register, isAuthenticated } = useAuth();
@@ -67,25 +68,29 @@ function AppContent() {
 
   const handleLogin = async (data) => {
     try {
-      await login(data.identifier, data.password, data.rememberMe);
-      // close modal and return to background
-      alert("Login successful");
-      if (background) navigate(background);
-      else navigate('/');
+      const result = await login(data.identifier, data.password, data.rememberMe);
+      if (result) {
+        alert("Login successful");
+        return true;
+      }
+      return false;
     } catch (err) {
       alert("Login failed\nMessage: " + err.message);
+      return false;
     }
   };
 
   const handleRegister = async (data) => {
     try {
-      await register(data.username, data.email, data.password, data.rememberMe);
-      // close modal and return to background
-      alert("Registration successful");
-      if (background) navigate(background);
-      else navigate('/');
+      const result = await register(data.username, data.email, data.password, data.rememberMe);
+      if (result) {
+        alert("Registration successful");
+        return true;
+      }
+      return false;
     } catch (err) {
       alert("Registration failed\nMessage: " + err.message);
+      return false;
     }
   };
 
@@ -139,13 +144,16 @@ function AppContent() {
 }
 
 
+const queryClient = new QueryClient();
 
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </QueryClientProvider>
     </AuthProvider>
   );
 }
