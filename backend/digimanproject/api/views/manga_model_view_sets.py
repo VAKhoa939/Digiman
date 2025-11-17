@@ -78,6 +78,13 @@ class GenreViewSet(viewsets.ModelViewSet):
     serializer_class = GenreSerializer
     permission_classes = [AdminWriteOnly]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        manga_title_id = self.request.query_params.get("manga_title_id")
+        if manga_title_id is not None:
+            queryset = queryset.filter(manga_titles__id=manga_title_id)
+        return queryset
+
 
 class AuthorViewSet(viewsets.ModelViewSet):
     queryset = Author.objects.all()
