@@ -19,8 +19,6 @@ const MangaPage = ({
   synopsis = 'A high-quality action-comedy about a skilled gamer who specializes in "kusoge" (trash games) and becomes a top player in a brutal VR world.',
   chapters = [],
   onFollowClick,
-  // Optional prop: parent can tell whether user is logged in
-  isLoggedIn = false,
   // If not logged in parent can provide this to open the login modal
   onRequireLogin,
 }) => {

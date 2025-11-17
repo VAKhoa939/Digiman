@@ -1,11 +1,10 @@
 import React from 'react';
 import { Container } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import mangaData from '../../data/mangaData';
 import MangaCard from '../../components/smallComponents/MangaCard';
 import Banner from '../../components/smallComponents/Banner';
 import { useCatalog } from '../../customHooks/useCatalog';
-import Spinner from '../chapterComponents/Spinner';
+import Spinner from '../smallComponents/Spinner';
 
 function Catalog() {
   // const items = Object.values(mangaData);
