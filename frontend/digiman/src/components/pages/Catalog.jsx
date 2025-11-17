@@ -3,24 +3,10 @@ import { Container } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import MangaCard from '../../components/smallComponents/MangaCard';
 import Banner from '../../components/smallComponents/Banner';
-import { useCatalog } from '../../customHooks/useCatalog';
+import useCatalog from '../../customHooks/useCatalog';
 import Spinner from '../smallComponents/Spinner';
 
 function Catalog() {
-  // const items = Object.values(mangaData);
-  // // Latest updated (sort by dateUpdated desc)
-  // const latest = [...items].sort((a, b) => {
-  //   const da = a.dateUpdated ? new Date(a.dateUpdated).getTime() : 0;
-  //   const db = b.dateUpdated ? new Date(b.dateUpdated).getTime() : 0;
-  //   return db - da;
-  // });
-  // // Popular placeholder: sort by dateUpdated desc as a proxy for popularity for now.
-  // // Replace with a real `views`/`score` metric when available from the API.
-  // const popular = [...items].sort((a, b) => {
-  //   const da = a.dateUpdated ? new Date(a.dateUpdated).getTime() : 0;
-  //   const db = b.dateUpdated ? new Date(b.dateUpdated).getTime() : 0;
-  //   return db - da;
-  // }).slice(0, Math.min(items.length, 12));
   const navigate = useNavigate();
   const {
     latest, latestIsLoading, latestError,

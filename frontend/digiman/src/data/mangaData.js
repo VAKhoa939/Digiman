@@ -10,13 +10,20 @@ const mangaData = {
     id: '25146',
     title: 'Shangri-La Frontier: Kusoge Hunter',
     altTitle: 'Kusoge Hunter Kamige ni Idoman to Su',
+    coverUrl: '/assets/shangri-la.webp', // prefer public/ images; fallback handled by component
     author: 'Hiroshi Yagi',
     artist: 'Boichi',
-    genres: ['Action', 'Comedy', 'Game'],
-    status: 'Ongoing',
-    coverUrl: '/assets/shangri-la.webp', // prefer public/ images; fallback handled by component
-    dateUpdated: '2025-11-05T00:00:00Z',
     synopsis: 'A high-quality action-comedy about a skilled gamer who specializes in kusoge (trash games) and becomes a top player in a brutal VR world.',
+    status: 'Ongoing',
+    chapterCount: 2,
+    dateUpdated: '2025-11-05T00:00:00Z',
+    publicationDate: '2025-11-01T00:00:00Z',
+    previewChapterId: 1,
+    genres: [
+      {id: 0, name: 'Action'}, 
+      {id: 1, name: 'Adventure'}, 
+      {id: 2, name: 'Comedy'}
+    ],
     chapters: [
       { id: 1, number: 1, title: 'Prologue', date: '2025-11-01', link: '#' },
       { id: 2, number: 2, title: 'First Hunt', date: '2025-11-05', link: '#' },

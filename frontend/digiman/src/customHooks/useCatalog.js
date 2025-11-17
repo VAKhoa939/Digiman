@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchLatestUpdatedMangaTitle } from "../services/mangaService";
 import { mapMangaTitle } from "../utils/transform";
 
-export function useCatalog() {
+export default function useCatalog() {
   const use_mock_data = import.meta.env.VITE_USE_MOCK_DATA || 'true';
   if (use_mock_data === 'true') {
     // --- Mock data version ---
