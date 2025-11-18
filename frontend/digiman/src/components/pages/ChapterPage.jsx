@@ -43,30 +43,40 @@ export default function ChapterPage() {
 
   useEffect(() => {
     let mounted = true;
+    // track object URLs created from downloaded blobs, so we can revoke them
+    const createdUrls = []
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        // If in dev, use local mock data for faster iteration
-        if (import.meta.env && import.meta.env.DEV) {
-          // Use dev fixtures for quick local iteration. Make sure to clear
-          // the loading state here (the original code returned early and
-          // never setLoading(false), leaving the Spinner shown).
-          if (!mounted) return;
-          setChapter(mockChapter);
-          setChaptersList(mockList);
-          setLoading(false);
-          return;
-        }
+          // If a downloaded copy exists locally (from Downloads), prefer that
+          // so users can read offline copies they've downloaded.
+          try{
+            const saved = await loadDownloadedChapter(mangaId, chapterId)
+            if (saved){
+              if (mounted){
+                // saved is { chapter, blobUrls }
+                const pages = saved.blobUrls || saved.chapter.pages || []
+                // remember urls so we can revoke them on cleanup
+                if (Array.isArray(saved.blobUrls)) createdUrls.push(...saved.blobUrls)
+                setChapter({...saved.chapter, pages})
+                setChaptersList([]);
+                setLoading(false);
+                return
+              }
+            }
+          }catch(e){ /* ignore and fall back to backend */ }
 
-        // Example endpoints - adapt to your backend routes
-        const [{ data: chap }, { data: list }] = await Promise.all([
-          api.get(`manga/${mangaId}/chapters/${chapterId}`),
-          api.get(`manga/${mangaId}/chapters/`),
-        ]);
-        if (!mounted) return;
-        setChapter(chap);
-        setChaptersList(list || []);
+          // no local mock fallback here; rely on backend
+
+          // Example endpoints - adapt to your backend routes
+          const [{ data: chap }, { data: list }] = await Promise.all([
+            api.get(`manga/${mangaId}/chapters/${chapterId}`),
+            api.get(`manga/${mangaId}/chapters/`),
+          ]);
+          if (!mounted) return;
+          setChapter(chap);
+          setChaptersList(list || []);
       } catch (err) {
         console.error('Failed to load chapter', err);
         setError(err);
@@ -75,7 +85,7 @@ export default function ChapterPage() {
       }
     }
     load();
-    return () => { mounted = false; };
+    return () => { mounted = false; createdUrls.forEach(u=>{ try{ URL.revokeObjectURL(u) }catch(_){}}) };
   }, [mangaId, chapterId]);
 
   if (loading) return <Spinner />;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Container } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import MangaCard from '../../components/smallComponents/MangaCard';
@@ -26,8 +26,6 @@ function Catalog() {
           {popularError ? <p className="text-danger">Failed to load popular banner.</p>
           : <Banner slides={popular} visible={6} title="Popular" />}
 
-
-          {/* Latest Updated section */}
           <div className="latest-updated my-4">
             <div className="d-flex align-items-center mb-2">
               <h5 className="mb-0">Latest Updated</h5>
