@@ -20,10 +20,28 @@ const MangaPage = ({
   const {isAuthenticated} = useAuth();
   const [imgSrc, setImgSrc] = useState(coverUrl);
   const [followed, setFollowed] = useState(false);
+  const [downloadedSet, setDownloadedSet] = useState(new Set())
 
   useEffect(() => {
     setImgSrc(coverUrl);
   }, [coverUrl]);
+
+  useEffect(()=>{
+    let mounted = true
+    function onDownloadsChanged(){
+      (async ()=>{
+        try{
+          const list = await listDownloadedChapters()
+          if(!mounted) return
+          const s = new Set(list.map(x=>`${x.mangaId}_${x.chapterId}`))
+          setDownloadedSet(s)
+        }catch(e){ /* ignore */ }
+      })()
+    }
+    onDownloadsChanged()
+    window.addEventListener('digiman:downloadsChanged', onDownloadsChanged)
+    return ()=>{ mounted=false; window.removeEventListener('digiman:downloadsChanged', onDownloadsChanged) }
+  }, [id])
 
   const handleImageError = () => {
     // fallback to a safe remote placeholder if the provided URL fails to load

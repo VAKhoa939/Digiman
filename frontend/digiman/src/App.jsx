@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useParams, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { Container } from 'react-bootstrap'
 import NavBar from './components/smallComponents/NavBar'
+import Toaster from './components/smallComponents/Toaster'
 import MangaPage from './components/pages/MangaPage'
 import Catalog from './components/pages/Catalog'
 import ChapterPage from './components/pages/ChapterPage'

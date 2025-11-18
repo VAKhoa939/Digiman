@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { loadDownloads, updateDownload, removeDownload } from '../../utils/downloads'
+import { loadDownloads, updateDownload, removeDownload, startDownload } from '../../utils/downloads'
 import { Link } from 'react-router-dom'
 import CloseIcon from '@mui/icons-material/Close'
 
@@ -50,6 +50,19 @@ export default function DownloadsPage(){
     setDownloads(loadDownloads())
   }
 
+  async function handleRetry(item){
+    // start a fresh download for the same chapter then remove the old failed entry
+    try{
+      await startDownload(item.mangaId, item.chapterId, { chapterTitle: item.chapterTitle, mangaTitle: item.mangaTitle })
+      removeDownload(item.id)
+      setDownloads(loadDownloads())
+    }catch(err){
+      console.error('retry failed', err)
+      // ensure UI updates
+      setDownloads(loadDownloads())
+    }
+  }
+
   const downloading = downloads.filter(d=>d.status==='downloading')
   const downloaded = downloads.filter(d=>d.status==='downloaded')
   const failed = downloads.filter(d=>d.status==='failed')
@@ -83,7 +96,7 @@ export default function DownloadsPage(){
           downloaded.map(d => (
             <div key={d.id} className="d-flex align-items-center bg-light p-2 rounded mb-2">
               <div className="flex-grow-1">
-                <div className="fw-bold">{d.chapterTitle} {d.mangaTitle ? `– ${d.mangaTitle}` : ''}</div>
+                <div className="fw-bold">{d.chapterTitle} {d.mangaTitle ? `– ${d.mangaTitle}` : ''} <span className="badge bg-success ms-2">Downloaded</span></div>
                 <div className="text-success small">Successfully downloaded</div>
               </div>
               <div className="ms-3">
@@ -102,10 +115,11 @@ export default function DownloadsPage(){
             <div key={d.id} className="d-flex align-items-center bg-light p-2 rounded mb-2">
               <div className="flex-grow-1">
                 <div className="fw-bold">{d.chapterTitle} {d.mangaTitle ? `– ${d.mangaTitle}` : ''}</div>
-                <div className="text-danger small">Failed to download</div>
+                <div className="text-danger small">Failed to download{d.error ? ` — ${d.error}` : ''}</div>
               </div>
               <div className="ms-3">
                 <Link to={`/manga/${d.mangaId}/chapter/${d.chapterId}`} className="btn btn-sm btn-warning me-2">Read</Link>
+                <button className="btn btn-sm btn-outline-secondary me-2" onClick={()=>handleRetry(d)}>Retry</button>
                 <button className="btn btn-sm btn-outline-danger" onClick={()=>handleRemove(d.id)}><CloseIcon /></button>
               </div>
             </div>

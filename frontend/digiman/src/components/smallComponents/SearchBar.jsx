@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { mangaMock } from '../../data/mangaMock';
 import { useLocation } from 'react-router-dom';
 
 export default function SearchBar() {
@@ -33,33 +32,8 @@ export default function SearchBar() {
       if (res.data && Array.isArray(res.data.results)) return res.data.results;
       return [];
     } catch (err) {
-      // fallback to mock
-      // apply filter logic for mock data based on params
-      const termLower = (term || '').toLowerCase();
-      return mangaMock.filter(m => {
-        if (termLower && !m.title.toLowerCase().includes(termLower)) return false;
-        if (params.status && params.status !== 'any' && m.status !== params.status) return false;
-        if (params.contentRating && params.contentRating !== 'any' && m.content_rating !== params.contentRating) return false;
-        if (params.genre && Array.isArray(params.genre) && params.genre.length > 0) {
-          // require that manga has at least one of requested genres
-          const has = params.genre.some(g => (m.genres || []).includes(g));
-          if (!has) return false;
-        }
-        if (params.minChapter) {
-          const num = parseInt((m.latest_chapter || '').replace(/[^0-9]/g, ''), 10) || 0;
-          const min = parseInt(params.minChapter, 10) || 0;
-          if (num < min) return false;
-        }
-        return true;
-      }).sort((a,b) => {
-        if (params.ordering === 'title') return a.title.localeCompare(b.title);
-        if (params.ordering === 'latest_chapter') {
-          const na = parseInt((a.latest_chapter||'').replace(/[^0-9]/g,''),10)||0;
-          const nb = parseInt((b.latest_chapter||'').replace(/[^0-9]/g,''),10)||0;
-          return nb - na;
-        }
-        return 0;
-      });
+      // fallback: return empty results when backend is unavailable
+      return [];
     }
   };
 
