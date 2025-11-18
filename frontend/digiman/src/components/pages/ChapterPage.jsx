@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../../services/api';
-import { loadDownloadedChapter } from '../../utils/downloads';
-import Spinner from '../chapterComponents/Spinner';
+import Spinner from '../smallComponents/Spinner';
+import { mockChapter, mockList } from '../../data/chapterMock';
 import ChapterMeta from '../chapterComponents/ChapterMeta';
 import ChapterControls from '../chapterComponents/ChapterControls';
 import ChapterReader from '../chapterComponents/ChapterReader';

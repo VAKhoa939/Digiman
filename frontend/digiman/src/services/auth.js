@@ -17,16 +17,25 @@ export async function login(identifier, password, remember) {
 export async function logout() {
   try {
     const res = await api.post("auth/logout/");
-    if (res.data?.detail) throw new Error(res.data.detail);
-  } finally {
-    // Always clear client-side token state even if server call fails
-    setAccessToken(null);
+    if (res.status === 200) setAccessToken(null);
+  } catch (err) {
+    if (err.response?.status === 401) {
+      setAccessToken(null);
+      if (err.response?.data?.detail) throw new Error(res.data.detail);
+    }
+    throw err;
   }
 }
 
 export async function fetchUser() {
   const res = await api.get("auth/me/");
-  if (res.data?.detail) throw new Error(res.data.detail);
+  if (res.status === 401) {
+    setAccessToken(null);
+    throw new Error("Not Authorized");
+  }
+  if (res.data?.detail) {
+    throw new Error(res.data.detail);
+  }
   return res.data;
 }
 
@@ -35,11 +44,18 @@ export async function fetchUser() {
 export async function updateProfile(payload) {
   // Try a PATCH first, then fall back to PUT
   try {
-    const res = await api.patch('auth/me/', payload);
-    return res.data;
+    const resPatch = await api.patch('auth/me/', payload);
+    if (resPatch.data?.detail) throw new Error(resPatch.data.detail);
+    return resPatch.data;
   } catch (err) {
     // If PATCH not supported, try PUT
-    const res = await api.put('auth/me/', payload);
-    return res.data;
+    try {
+      const resPut = await api.put('auth/me/', payload);
+      if (resPut.data?.detail) throw new Error(resPut.data.detail);
+      return resPut.data;
+    } catch (newErr) {
+      throw new Error("Both PATCH and PUT profile update failed" + 
+        '\n' + err.message + '\n' + newErr.message);
+    }
   }
 }

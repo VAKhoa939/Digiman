@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { getTimeAgo } from '../../utils/formatTime';
 
 // Small presentational card used in lists/catalogs. Clicking the card navigates to /manga/:id
 const MangaCard = ({ id, title, status, coverUrl, author, chapter_count, genres = [], dateUpdated, cardWidth = '210px', imgHeight = '300px' }) => {
@@ -7,29 +8,7 @@ const MangaCard = ({ id, title, status, coverUrl, author, chapter_count, genres 
 
   const onError = () => setImgSrc('https://via.placeholder.com/210x300?text=No+Cover');
 
-  // Compute latest update date from chapters if not provided explicitly
-  let latestDate = new Date(dateUpdated);
-
-  // Produce a human-friendly relative time like "3 days ago".
-  const timeAgo = (d) => {
-    if (!d) return null;
-    const seconds = Math.floor((Date.now() - d.getTime()) / 1000);
-    if (seconds < 60) return 'just now';
-    const intervals = [
-      { unit: 'year', secs: 31536000 },
-      { unit: 'month', secs: 2592000 },
-      { unit: 'day', secs: 86400 },
-      { unit: 'hour', secs: 3600 },
-      { unit: 'minute', secs: 60 },
-    ];
-    for (const { unit, secs } of intervals) {
-      const value = Math.floor(seconds / secs);
-      if (value >= 1) return `${value} ${unit}${value > 1 ? 's' : ''} ago`;
-    }
-    return 'just now';
-  };
-
-  const relativeTime = latestDate ? timeAgo(latestDate) : null;
+  const relativeTime = getTimeAgo(dateUpdated);
 
   return (
     <Link to={`/manga/${id}`} className="manga-card text-decoration-none">

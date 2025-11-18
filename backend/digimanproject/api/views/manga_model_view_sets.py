@@ -37,7 +37,7 @@ class MangaTitleViewSet(viewsets.ModelViewSet):
         "created_at",
         "latest_chapter_date",
     ]
-    ordering = ["-latest_chapter_date"]  # default
+    ordering = ["-publication_date"]  # default
 
     def get_queryset(self):
         """Add prefetch/select related for performance"""
@@ -77,6 +77,13 @@ class GenreViewSet(viewsets.ModelViewSet):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
     permission_classes = [AdminWriteOnly]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        manga_title_id = self.request.query_params.get("manga_title_id")
+        if manga_title_id is not None:
+            queryset = queryset.filter(manga_titles__id=manga_title_id)
+        return queryset
 
 
 class AuthorViewSet(viewsets.ModelViewSet):

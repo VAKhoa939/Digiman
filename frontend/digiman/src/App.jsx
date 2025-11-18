@@ -13,11 +13,13 @@ import AdvancedSearchPage from './components/pages/AdvancedSearchPage'
 import DownloadsPage from './components/pages/DownloadsPage'
 import PrivateRoute from './components/smallComponents/PrivateRoute'
 import Settings from './components/pages/Settings'
-import api from './services/api'
-import { AuthProvider, useAuth } from './context/AuthContext';
+import mangaData from './data/mangaData'
+import { AuthProvider } from './context/AuthContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import useMangaPage from './customHooks/useMangaPage';
+import Spinner from './components/smallComponents/Spinner';
 
 function AppContent() {
-  const { login, register, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -66,70 +68,37 @@ function AppContent() {
     return () => { window.removeEventListener('storage', onStorage); window.removeEventListener('digiman:themeChanged', onThemeChange); };
   }, []);
 
-  const handleLogin = async (data) => {
-    try {
-      await login(data.identifier, data.password, data.rememberMe);
-      // close modal and return to background
-      alert("Login successful");
-      if (background) navigate(background);
-      else navigate('/');
-    } catch (err) {
-      alert("Login failed\nMessage: " + err.message);
-    }
-  };
-
-  const handleRegister = async (data) => {
-    try {
-      await register(data.username, data.email, data.password, data.rememberMe);
-      // close modal and return to background
-      alert("Registration successful");
-      if (background) navigate(background);
-      else navigate('/');
-    } catch (err) {
-      alert("Registration failed\nMessage: " + err.message);
-    }
-  };
-
   // Small wrapper used by the Route to pass the :id param and load data from local fixture.
   const MangaRoute = () => {
     const { id } = useParams();
-    const [manga, setManga] = useState(null);
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-      let mounted = true;
-      async function load() {
-        setLoading(true);
-        try {
-          const res = await api.get(`manga/${id}`);
-          if (!mounted) return;
-          setManga(res.data);
-        } catch (err) {
-          console.warn('MangaRoute: failed to fetch manga from API.', err);
-          if (mounted) setManga(null);
-        } finally {
-          if (mounted) setLoading(false);
-        }
-      }
-      load();
-      return () => { mounted = false };
-    }, [id]);
+    const { 
+      mangaData, mangaIsLoading, mangaError,
+      genresData, genresIsLoading, genresError,
+      chaptersData, chaptersIsLoading, chaptersError
+    } = useMangaPage(id);
 
-    if (loading) return <div className="container py-5">Loading...</div>;
-    if (!manga) return <div>No manga found.</div>;
+    if (mangaError) return <div className="text-danger">No manga found.</div>;
 
     return (
-      <MangaPage
-        {...manga}
-        isLoggedIn={isAuthenticated}
-        onRequireLogin={() => navigate('/login', { state: { background: location } })}
-      />
+      <>
+        {mangaIsLoading ? <Spinner /> 
+        : <MangaPage
+          {...mangaData}
+          genres={genresData}
+          genresIsLoading={genresIsLoading}
+          genresError={genresError}
+          chapters={chaptersData}
+          chaptersIsLoading={chaptersIsLoading}
+          chaptersError={chaptersError}
+          onRequireLogin={() => navigate('/login', { state: { background: location } })}
+        />}
+      </>
     );
   };
   return (
     <>
-      <NavBar onLogin={handleLogin} onRegister={handleRegister} />
-      <Toaster />
+      <NavBar />
 
       <Container fluid style={{ paddingTop: '80px' }}>
         {/* Render the background routes. When a modal route is opened with
@@ -144,15 +113,15 @@ function AppContent() {
           <Route path="/downloads" element={<DownloadsPage />} />
           <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
           {/* Also allow the modal routes to render as full pages when visited directly */}
-          <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onLogin={handleLogin} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
-          <Route path="/register" element={<RegisterModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onRegister={handleRegister} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
+          <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
+          <Route path="/register" element={<RegisterModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
         </Routes>
 
         {/* If we have a background location, also render the modal routes on top */}
         {background && (
           <Routes>
-            <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onLogin={handleLogin} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
-            <Route path="/register" element={<RegisterModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onRegister={handleRegister} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
+            <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
+            <Route path="/register" element={<RegisterModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
           </Routes>
         )}
       </Container>
@@ -161,13 +130,16 @@ function AppContent() {
 }
 
 
+const queryClient = new QueryClient();
 
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </QueryClientProvider>
     </AuthProvider>
   );
 }
