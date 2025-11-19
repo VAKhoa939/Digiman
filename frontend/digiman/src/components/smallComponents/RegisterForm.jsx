@@ -1,12 +1,14 @@
 import React, { useRef, useEffect, useState } from 'react';
 import Modal from 'bootstrap/js/dist/modal';
+import { useAuth } from '../../context/AuthContext';
 
-const RegisterModal = ({ show, onClose, onRegister, onSwitchToLogin }) => {
+const RegisterModal = ({ show, onClose, onSwitchToLogin }) => {
   const modalRef = useRef(null);
   const [bsModal, setBsModal] = useState(null);
   const [passwordMatch, setPasswordMatch] = useState(true);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const { register } = useAuth();
 
   useEffect(() => {
     if (!modalRef.current) return;
@@ -64,14 +66,15 @@ const RegisterModal = ({ show, onClose, onRegister, onSwitchToLogin }) => {
     e.preventDefault();
     const email = e.target.email.value;
     const username = e.target.username.value;
+    const rememberMe = e.target.rememberMe.checked;
     
     // Validate passwords match before submitting
     if (!validatePasswords(password, confirmPassword)) {
       return; // Don't submit if passwords don't match
     }
     
-    onRegister({ username, email, password, confirmPassword });
-    onClose();
+    const result = register(username, email, password, rememberMe);
+    if (result) onClose();
   };
 
   return (
@@ -128,16 +131,16 @@ const RegisterModal = ({ show, onClose, onRegister, onSwitchToLogin }) => {
                   </div>
                 )}
               </div>
-    <fieldset>
-      <div className="form-check">
-        <input className="form-check-input" type="checkbox" value="" id="flexCheckDefault"/>
-        <label className="form-check-label" for="flexCheckDefault">
-          Remember me
-        </label>
-      </div>
-    </fieldset>
-    <div>
-        <button type="submit" className="btn btn-primary w-100">Register</button>
+              <fieldset>
+                <div className="form-check">
+                  <input className="form-check-input" type="checkbox" value="" id="rememberMe"/>
+                  <label className="form-check-label" htmlFor="rememberMe">
+                    Remember me
+                  </label>
+                </div>
+              </fieldset>
+              <div>
+                <button type="submit" className="btn btn-primary w-100">Register</button>
               </div>
               
               <div className="text-center mt-3">

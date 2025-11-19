@@ -21,18 +21,56 @@ export function AuthProvider({ children }) {
     } catch (err) {
       setUser(null);
       setIsAuthenticated(false);
-      console.log("fetchUser failed\nMessage: " + err.message);
+      console.error("fetchUser failed\nMessage: " + err.message);
       return false;
     }
   }, []);
 
-  const login = useCallback(async (username, password) => {
+  const login = useCallback(async (identifier, password, remember) => {
     try {
-      const data = await apiLogin(username, password);
-      await fetchUser();
-      return data;
+      const data = await apiLogin(identifier, password, remember);
+      if (data) {
+        const result = await fetchUser();
+        if (result) {
+          console.log("Login successful");
+          alert("Login successful");
+          return true;
+        }
+        else {
+          console.log("Login failed");
+          alert("Login failed. Please try again.");
+          return false;
+        }
+      }
+      return false;
     } catch (err) {
-      throw err;
+      console.error("Login failed\nMessage: " + err.message);
+      alert("Login failed. Message: " + err.message);
+      return false;
+    }
+  }, [fetchUser]);
+
+  const register = useCallback(async (username, email, password, remember) => {
+    try {
+      const data = await apiRegister(username, email, password, remember);
+      if (data) {
+        const result = await fetchUser();
+        if (result) {
+          console.log("Registration successful");
+          alert("Registration successful");
+          return true;
+        }
+        else {
+          console.log("Registration failed");
+          alert("Registration failed. Please try again.");
+          return false;
+        }
+      }
+      return false;
+    } catch (err) {
+      console.error("Registration failed\nMessage: " + err.message);
+      alert("Registration failed. Message: " + err.message);
+      return false;
     }
   }, [fetchUser]);
 
@@ -44,16 +82,8 @@ export function AuthProvider({ children }) {
     } finally {
       setUser(null);
       setIsAuthenticated(false);
-    }
-  }, [fetchUser]);
-
-  const register = useCallback(async (username, email, password) => {
-    try {
-      const data = await apiRegister(username, email, password);
-      await fetchUser();
-      return data;
-    } catch (err) {
-      throw err;
+      console.log("Logout successful");
+      alert("You have been logged out.");
     }
   }, [fetchUser]);
   

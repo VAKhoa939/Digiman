@@ -4,10 +4,11 @@ from datetime import datetime
 from django.db import models
 from django.utils import timezone
 import uuid
+from ..utils.helper_functions import get_target_object, update_instance
+from django.contrib import admin
 
 from typing import TYPE_CHECKING
 
-from ..utils.helper_functions import get_target_object, update_instance
 
 if TYPE_CHECKING:
     from .manga_models import MangaTitle, Chapter, Genre, Author, Page
@@ -153,10 +154,13 @@ class LogEntry(models.Model):
     details: dict[str, Any] = models.JSONField(null=False, default=dict)
 
     def __str__(self) -> str:
-        return f"Log Entry {self.id} - {self.action_type}\
-            - on {self.target_object_type}\
-            - by {self.user.get_display_name() if self.user is not None else 'N/A'}\
-            - at {self.timestamp}"
+        if self.action_type in {self.ActionTypeChoices.LOGIN, self.ActionTypeChoices.LOGOUT}:
+            return f"{self.user.get_display_name()} {self.action_type}"
+        return f"{self.action_type} {self.target_object_type} by {self.get_user_display_name()}"
+    
+    @admin.display(description="User")
+    def get_user_display_name(self) -> str:
+        return self.user.get_display_name() if self.user else "N/A"
     
     def get_target_object(self) -> Optional[LogEntryTargetObjectType]:
         from .manga_models import MangaTitle, Chapter, Genre, Author, Page

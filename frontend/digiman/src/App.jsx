@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useParams, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { Container } from 'react-bootstrap'
 import NavBar from './components/smallComponents/NavBar'
+import Toaster from './components/smallComponents/Toaster'
 import MangaPage from './components/pages/MangaPage'
 import Catalog from './components/pages/Catalog'
 import ChapterPage from './components/pages/ChapterPage'
@@ -13,11 +14,12 @@ import DownloadsPage from './components/pages/DownloadsPage'
 import PrivateRoute from './components/smallComponents/PrivateRoute'
 import Settings from './components/pages/Settings'
 import mangaData from './data/mangaData'
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import useMangaPage from './customHooks/useMangaPage';
+import Spinner from './components/smallComponents/Spinner';
 
 function AppContent() {
-  const { login, register, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -66,53 +68,37 @@ function AppContent() {
     return () => { window.removeEventListener('storage', onStorage); window.removeEventListener('digiman:themeChanged', onThemeChange); };
   }, []);
 
-  const handleLogin = async (data) => {
-    try {
-      const result = await login(data.identifier, data.password, data.rememberMe);
-      if (result) {
-        alert("Login successful");
-        return true;
-      }
-      return false;
-    } catch (err) {
-      alert("Login failed\nMessage: " + err.message);
-      return false;
-    }
-  };
-
-  const handleRegister = async (data) => {
-    try {
-      const result = await register(data.username, data.email, data.password, data.rememberMe);
-      if (result) {
-        alert("Registration successful");
-        return true;
-      }
-      return false;
-    } catch (err) {
-      alert("Registration failed\nMessage: " + err.message);
-      return false;
-    }
-  };
-
   // Small wrapper used by the Route to pass the :id param and load data from local fixture.
   const MangaRoute = () => {
     const { id } = useParams();
-    // Try to find the manga in the local data store by id; fall back to the first entry.
-    const manga = (id && mangaData[id]) || Object.values(mangaData)[0];
 
-    if (!manga) return <div>No manga found.</div>;
+    const { 
+      mangaData, mangaIsLoading, mangaError,
+      genresData, genresIsLoading, genresError,
+      chaptersData, chaptersIsLoading, chaptersError
+    } = useMangaPage(id);
+
+    if (mangaError) return <div className="text-danger">No manga found.</div>;
 
     return (
-      <MangaPage
-        {...manga}
-        isLoggedIn={isAuthenticated}
-        onRequireLogin={() => navigate('/login', { state: { background: location } })}
-      />
+      <>
+        {mangaIsLoading ? <Spinner /> 
+        : <MangaPage
+          {...mangaData}
+          genres={genresData}
+          genresIsLoading={genresIsLoading}
+          genresError={genresError}
+          chapters={chaptersData}
+          chaptersIsLoading={chaptersIsLoading}
+          chaptersError={chaptersError}
+          onRequireLogin={() => navigate('/login', { state: { background: location } })}
+        />}
+      </>
     );
   };
   return (
     <>
-      <NavBar onLogin={handleLogin} onRegister={handleRegister} />
+      <NavBar />
 
       <Container fluid style={{ paddingTop: '80px' }}>
         {/* Render the background routes. When a modal route is opened with
@@ -127,15 +113,15 @@ function AppContent() {
           <Route path="/downloads" element={<DownloadsPage />} />
           <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
           {/* Also allow the modal routes to render as full pages when visited directly */}
-          <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onLogin={handleLogin} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
-          <Route path="/register" element={<RegisterModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onRegister={handleRegister} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
+          <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
+          <Route path="/register" element={<RegisterModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
         </Routes>
 
         {/* If we have a background location, also render the modal routes on top */}
         {background && (
           <Routes>
-            <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onLogin={handleLogin} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
-            <Route path="/register" element={<RegisterModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onRegister={handleRegister} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
+            <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
+            <Route path="/register" element={<RegisterModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
           </Routes>
         )}
       </Container>

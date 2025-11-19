@@ -4,37 +4,58 @@ import Comment from '../smallComponents/Comment';
 import { loadComments } from '../../utils/comments';
 import DownloadIcon from '@mui/icons-material/Download';
 import { addDownload } from '../../utils/downloads';
+import { useAuth } from '../../context/AuthContext';
+import Spinner from '../smallComponents/Spinner';
+import { getTimeAgo } from '../../utils/formatTime';
 
 const MangaPage = ({
-  id,
-  title = 'Shangri-La Frontier',
-  altTitle = 'Kusoge Hunter Kamige ni Idoman to Su',
-  author = 'Hiroshi Yagi',
-  artist = 'Boichi',
-  genres = ['Action', 'Adventure', 'Comedy'],
-  status = 'Ongoing',
-  // Default to a remote placeholder so the component always displays an image
-  // Replace with a local import or a public/ URL in your app as described in the docs below
-  coverUrl = 'https://via.placeholder.com/300x450?text=Cover',
-  synopsis = 'A high-quality action-comedy about a skilled gamer who specializes in "kusoge" (trash games) and becomes a top player in a brutal VR world.',
-  chapters = [],
-  onFollowClick,
-  // Optional prop: parent can tell whether user is logged in
-  isLoggedIn = false,
+  id, title, altTitle, coverUrl, author, artist, synopsis, status, 
+  chapterCount, dateUpdated, publicationDate, previewChapterId,
+  genres, genresIsLoading, genresError,
+  chapters, chaptersIsLoading, chaptersError,
   // If not logged in parent can provide this to open the login modal
   onRequireLogin,
 }) => {
   const navigate = useNavigate();
+  const {isAuthenticated} = useAuth();
   const [imgSrc, setImgSrc] = useState(coverUrl);
   const [followed, setFollowed] = useState(false);
+  const [downloadedSet, setDownloadedSet] = useState(new Set())
 
   useEffect(() => {
     setImgSrc(coverUrl);
   }, [coverUrl]);
 
+  useEffect(()=>{
+    let mounted = true
+    function onDownloadsChanged(){
+      (async ()=>{
+        try{
+          const list = await listDownloadedChapters()
+          if(!mounted) return
+          const s = new Set(list.map(x=>`${x.mangaId}_${x.chapterId}`))
+          setDownloadedSet(s)
+        }catch(e){ /* ignore */ }
+      })()
+    }
+    onDownloadsChanged()
+    window.addEventListener('digiman:downloadsChanged', onDownloadsChanged)
+    return ()=>{ mounted=false; window.removeEventListener('digiman:downloadsChanged', onDownloadsChanged) }
+  }, [id])
+
   const handleImageError = () => {
     // fallback to a safe remote placeholder if the provided URL fails to load
     setImgSrc('https://via.placeholder.com/300x450?text=No+Cover');
+  };
+
+  const onFollowClick = (e) => {
+    e.preventDefault();
+    if (isAuthenticated) {
+      // toggle follow state locally (could call API)
+      setFollowed(!followed);
+    } else {
+      onRequireLogin();
+    }
   };
 
   return (
@@ -58,36 +79,27 @@ const MangaPage = ({
             <div className="me-3">Author: <strong>{author}</strong></div>
             <div className="me-3">Artist: <strong>{artist}</strong></div>
             <div className="genres">
-              {genres.map((g) => (
-                <Link key={g} to={`/search/advanced?genre=${encodeURIComponent(g)}`} className="text-decoration-none">
-                  <span className="badge bg-light text-dark me-1">{g}</span>
+              {genresIsLoading && <Spinner />}
+              {genresError && <div className="text-danger">Error loading genres.</div>}
+              {genres && genres.length > 0 ? genres.map((g) => (
+                <Link key={g.id} to={'#'/*`/search/advanced?genre=${encodeURIComponent(g)}`*/} 
+                  className="text-decoration-none"
+                >
+                  <span className="badge bg-light text-dark me-1">{g.name}</span>
                 </Link>
-              ))}
+              )) : <span className="text-muted">No genres added.</span>}
             </div>
           </div>
 
           <div className="mb-3">
             <button className="btn btn-primary me-2" onClick={() => {
               // Navigate to first chapter if available
-              if (chapters && chapters.length > 0) {
-                const first = chapters[0];
-                const cid = first.id || first.number;
-                if (id && cid) navigate(`/manga/${id}/chapter/${cid}`);
-              }
+              if (chapterCount > 0) navigate(`/manga/${id}/chapter/${chapters[0].id}`);
+              else alert('No chapters available');
             }}>Read</button>
             <button
               className={followed ? 'btn btn-success btn-follow' : 'btn btn-outline-light btn-follow'}
-              onClick={(e) => {
-                e.preventDefault();
-                if (isLoggedIn) {
-                  // toggle follow state locally (could call API)
-                  setFollowed((f) => !f);
-                } else {
-                  // if parent provided onRequireLogin use it, otherwise fall back to onFollowClick
-                  if (onRequireLogin) onRequireLogin();
-                  else if (onFollowClick) onFollowClick();
-                }
-              }}
+              onClick={onFollowClick}
             >
               {followed ? 'Following' : 'Follow'}
             </button>
@@ -103,13 +115,22 @@ const MangaPage = ({
       <div className="row mt-4">
         <div className="col-12">
           <h4 className="mb-3">Chapters</h4>
+          {chaptersIsLoading && <Spinner />}
+          {chaptersError && <div className="text-danger">Error loading chapters.</div>}
           <ul className="list-group chapter-list">
             {chapters && chapters.length > 0 ? (
               chapters.map((c) => (
-                <li key={c.id || c.number} className="list-group-item d-flex justify-content-between align-items-center">
+                <li key={c.id} 
+                  className="list-group-item d-flex justify-content-between align-items-center"
+                >
                   <div>
-                    <div className="fw-bold chapter-title"><Link to={`/manga/${id}/chapter/${c.id || c.number}`} className="text-decoration-none text-white">{c.number}. {c.title}</Link></div>
-                    <div className="small text-muted">{c.date}</div>
+                    <div className="fw-bold chapter-title">
+                      <Link to={`/manga/${id}/chapter/${c.id}`} 
+                        className="text-decoration-none text-white"
+                      >{c.title ? `${c.number}. ${c.title}` : `${c.number}. Chapter ${c.number}`}
+                      </Link>
+                    </div>
+                    <div className="small text-muted">{getTimeAgo(c.date)}</div>
                   </div>
                   <div>
                     <button
@@ -117,10 +138,10 @@ const MangaPage = ({
                       onClick={() => {
                         const entry = {
                           id: `d_${Date.now()}`,
-                          mangaId: id || null,
-                          chapterId: c.id || c.number,
+                          mangaId: id,
+                          chapterId: c.id,
                           chapterTitle: c.title || `Chapter ${c.number}`,
-                          mangaTitle: title || null,
+                          mangaTitle: title,
                           status: 'downloading',
                           progress: 0,
                           created_at: new Date().toISOString()
@@ -135,9 +156,7 @@ const MangaPage = ({
                   </div>
                 </li>
               ))
-            ) : (
-              <li className="list-group-item">No chapters found.</li>
-            )}
+            ) : <li className="list-group-item text-muted">No chapters found.</li>}
           </ul>
         </div>
       </div>

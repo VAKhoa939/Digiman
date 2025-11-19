@@ -1,9 +1,11 @@
 import React, { useRef, useEffect, useState } from 'react';
 import Modal from 'bootstrap/js/dist/modal';
+import { useAuth } from '../../context/AuthContext';
 
-const LoginModal = ({ show, onClose, onLogin, onSwitchToRegister }) => {
+const LoginModal = ({ show, onClose, onSwitchToRegister }) => {
   const modalRef = useRef(null);
   const [bsModal, setBsModal] = useState(null);
+  const { login } = useAuth();
 
   useEffect(() => {
     if (!modalRef.current) return;
@@ -45,8 +47,8 @@ const LoginModal = ({ show, onClose, onLogin, onSwitchToRegister }) => {
     const identifier = e.target.identifier.value.trim();
     const password = e.target.password.value;
     const rememberMe = e.target.rememberMe.checked;
-    onLogin({ identifier, password, rememberMe });
-    onClose();
+    const result = login(identifier, password, rememberMe);
+    if (result) onClose();
   };
 
   return (
@@ -75,17 +77,17 @@ const LoginModal = ({ show, onClose, onLogin, onSwitchToRegister }) => {
                 <label htmlFor="password" className="form-label">Password</label>
                 <input type="password" className="form-control" id="password" name="password" required />
               </div>
-    <fieldset>
-      <div className="form-check">
-        <input className="form-check-input" type="checkbox" value="" id="rememberMe"/>
-        <label className="form-check-label" htmlFor="rememberMe">
-          Remember me
-        </label>
-      </div>
-    </fieldset>
-    <div>
-        <button type="submit" className="btn btn-primary w-100">Login</button>
-              <a href="#" className="text-decoration-none text-secondary">Forgot password?</a>
+              <fieldset>
+                <div className="form-check">
+                  <input className="form-check-input" type="checkbox" value="" id="rememberMe"/>
+                  <label className="form-check-label" htmlFor="rememberMe">
+                    Remember me
+                  </label>
+                </div>
+              </fieldset>
+              <div>
+                <button type="submit" className="btn btn-primary w-100">Login</button>
+                <a href="#" className="text-decoration-none text-secondary">Forgot password?</a>
               </div>
               
               <div className="text-center mt-3">

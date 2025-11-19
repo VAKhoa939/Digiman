@@ -7,6 +7,8 @@ from django.http import HttpRequest
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
 from ..models.community_models import Comment
 from ..services.manga_service import MangaService
+from ..services.system_service import SystemService
+from .mixins import LogUserMixin
 
 
 # --- Form classes ---
@@ -32,6 +34,17 @@ class PageForm(forms.ModelForm):
 
     class Meta:
         model = Page
+        fields = "__all__"
+
+class CommentForm(forms.ModelForm):
+    image_upload = forms.ImageField(
+        required=False,
+        label="Upload Image",
+        widget=forms.ClearableFileInput(attrs={"enctype": "multipart/form-data"})
+    )
+
+    class Meta:
+        model = Comment
         fields = "__all__"
 
 
@@ -76,7 +89,7 @@ class ChapterInline(admin.TabularInline):
 # --- Admin class ---
 
 @admin.register(MangaTitle)
-class MangaTitleAdmin(admin.ModelAdmin):
+class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
     form = MangaTitleForm
     list_display = (
         "title", "get_author_name", "publication_status", "is_visible", 
@@ -108,6 +121,9 @@ class MangaTitleAdmin(admin.ModelAdmin):
     def save_model(
         self, request: HttpRequest, obj: MangaTitle, form: forms.ModelForm, change: bool
     ):
+        # Attach the current user to the object for logging
+        obj._action_user = request.user
+
         # Get the uploaded cover image file
         cover_image_file: InMemoryUploadedFile = form.cleaned_data.pop("cover_image_upload")
 
@@ -118,70 +134,63 @@ class MangaTitleAdmin(admin.ModelAdmin):
         else:
             # update form
             MangaService.update_manga_title(obj, form.cleaned_data, cover_image_file)
+        # Call the parent save_model for triggering the signals
+        super().save_model(request, obj, form, change)
     
     
 @admin.register(Author)
-class AuthorAdmin(admin.ModelAdmin):
+class AuthorAdmin(LogUserMixin, admin.ModelAdmin):
     list_display = ("name", "get_manga_title_count",)
+
 
 @admin.register(Genre)
-class GenreAdmin(admin.ModelAdmin):
+class GenreAdmin(LogUserMixin, admin.ModelAdmin):
     list_display = ("name", "get_manga_title_count",)
+    
 
 @admin.register(Chapter)
-class ChapterAdmin(admin.ModelAdmin):
+class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
     list_display = (
-        "chapter_number", "get_title", "get_manga_title_title", "upload_date", 
+        "get_display_name", "chapter_number", "get_title", "upload_date", 
         "get_page_count", "get_comment_count",
     )
     list_filter = ("manga_title",)
     readonly_fields = ("upload_date",)
-    ordering = ("chapter_number",)
+    search_fields = ("title", "manga_title__title")
+    ordering = ("manga_title__title", "chapter_number")
     inlines = [PageInline, CommentInline]
 
-    def save_formset(
-        self, request: HttpRequest, form: forms.ModelForm, 
-        formset: forms.BaseInlineFormSet, change: bool
-    ):
-        # Save with commit=False to populate .deleted_objects
-        instances = formset.save(commit=False)
+    def get_display_name(self, obj: Page) -> str:
+        return str(obj)
+    get_display_name.short_description = "Display name"
 
-        # Delete any marked-for-deletion Page objects
-        if hasattr(formset, "deleted_objects"):
-            for obj in formset.deleted_objects:
-                if isinstance(obj, Page):
-                    MangaService.delete_page(obj)
+
+@admin.register(Page)
+class PageAdmin(LogUserMixin, admin.ModelAdmin):
+    form = PageForm
+    list_display = ("get_display_name", "page_number", "image_url", )
+
+    def get_display_name(self, obj: Page) -> str:
+        return str(obj)
+    get_display_name.short_description = "Display name"
+
+    def save_model(
+        self, request: HttpRequest, obj: Page, 
+        form: forms.ModelForm, change: bool
+    ) :
+        # Attach the current user to the object for logging
+        obj._action_user = request.user
+
+        # Get the uploaded image file
+        image_file: InMemoryUploadedFile = form.cleaned_data.pop("image_upload")
+
+        if not change:
+            page = MangaService.create_page(form.cleaned_data, image_file)
+            obj.pk = page.pk # Make sure the obj is attached
         else:
-            # Fallback for Django versions where deleted_objects isn't populated yet
-            for form_instance in formset.forms:
-                if form_instance.cleaned_data.get("DELETE", False):
-                    obj = form_instance.instance
-                    if obj.pk and isinstance(obj, Page):
-                        MangaService.delete_page(obj)
+            MangaService.update_page(obj, form.cleaned_data, image_file)
+        # Call the parent save_model for triggering the signals
+        super().save_model(request, obj, form, change)
+        
 
-        # Filter out deleted forms
-        active_forms = [
-            f for f in formset.forms
-            if not f.cleaned_data.get("DELETE", False)
-        ]
-
-        # Handle new or updated pages
-        for form_instance in active_forms:
-            obj = form_instance.instance
-            if not isinstance(obj, Page):
-                continue
-            if not form_instance.has_changed():
-                continue  # skip unchanged forms
-
-            image_file = form_instance.cleaned_data.pop("image_upload")
-
-            if obj.pk:
-                MangaService.update_page(obj, form_instance.cleaned_data, image_file)
-            else:
-                page = MangaService.create_page(form_instance.cleaned_data, image_file)
-                obj.pk = page.pk
-
-        formset.save_m2m()
-
-admin.site.register(Page)
 admin.site.register(Comment)

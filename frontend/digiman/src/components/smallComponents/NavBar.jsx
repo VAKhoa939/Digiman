@@ -7,9 +7,7 @@ import SearchBar from './SearchBar';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 
-function NavBar({ onLogin, onRegister }) {
-  const handleLogin = onLogin || ((data) => { console.log('Login submitted:', data); });
-  const handleRegister = onRegister || ((data) => { console.log('Register submitted:', data); });
+function NavBar() {
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
 
