@@ -233,6 +233,13 @@ JAZZMIN_SETTINGS = {
                 "api.Comment",
             ],
         },
+        {
+            "app": "api",
+            "label": "System Management",
+            "models": [
+                "api.LogEntry",
+            ],
+        },
     ],
 
     # --- Optional visuals ---
@@ -246,6 +253,7 @@ JAZZMIN_SETTINGS = {
         "api.Chapter": "fas fa-scroll",
         "api.Page": "fas fa-image",
         "api.Comment": "fas fa-comments",
+        "api.LogEntry": "fas fa-history",
     },
 }
 

@@ -90,3 +90,7 @@ class AuthorViewSet(viewsets.ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorSerializer
     permission_classes = [AdminWriteOnly]
+    search_fields = ["name"]
+    filter_backends = [SearchFilter, OrderingFilter]
+    ordering_fields = ["name"]
+    ordering = ["name"]
