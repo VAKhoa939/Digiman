@@ -25,7 +25,7 @@ LogEntryTargetObjectType = Union["MangaTitle", "Chapter", "Page", "Genre",
 
 class FlaggedContent(models.Model):
     class TargetContentTypeChoices(models.TextChoices):
-        MANGA_TITLE = "manga_title", "MangaTitle"
+        MANGA_TITLE = "mangatitle", "MangaTitle"
         CHAPTER = "chapter", "Chapter"
         PAGE = "page", "Page"
         COMMENT = "comment", "Comment"

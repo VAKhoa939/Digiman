@@ -2,20 +2,20 @@ from django.db import transaction
 from ..models.user_models import User, Reader
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
 from ..models.community_models import Comment
-from ..models.system_models import Announcement, LogEntry, FlaggedContent, LogEntryTargetObjectType
+from ..models.system_models import Announcement, LogEntry, FlaggedContent, FlaggedContentTargetContentType, LogEntryTargetObjectType
 
 from typing import Union, Any
-
-TypesInModeration = Union[User, MangaTitle, Chapter, Page, Genre, Author, Comment]
 
 ActionTypeChoices = LogEntry.ActionTypeChoices
 
 class LogEntryDetailFactory:
     @staticmethod
-    def get_moderation_detail(target_object: TypesInModeration) -> dict[str, Any]:
+    def get_moderation_detail(
+        target_object: FlaggedContentTargetContentType
+    ) -> dict[str, Any]:
         if isinstance(target_object, Reader):
             return {
-                'targetType': 'user', 
+                'targetType': FlaggedContent.TargetContentTypeChoices.USER.value, 
                 'attributes' : [
                     {"attributeName": "username",
                         "isImage": "False",
@@ -30,7 +30,7 @@ class LogEntryDetailFactory:
             }
         elif isinstance(target_object, User):
             return {
-                'targetType': 'user', 
+                'targetType': FlaggedContent.TargetContentTypeChoices.USER.value, 
                 'attributes' : [
                     {"attributeName": "username",
                         "isImage": "False",
@@ -39,7 +39,7 @@ class LogEntryDetailFactory:
             }
         elif isinstance(target_object, MangaTitle):
             return {
-                'targetType': 'manga', 
+                'targetType': FlaggedContent.TargetContentTypeChoices.MANGA_TITLE.value, 
                 'attributes' : [
                     {"attributeName": "title",
                         "isImage": "False",
@@ -57,7 +57,7 @@ class LogEntryDetailFactory:
             }
         elif isinstance(target_object, Chapter):
             return {
-                'targetType': 'chapter', 
+                'targetType': FlaggedContent.TargetContentTypeChoices.CHAPTER.value, 
                 'attributes' : [
                     {"attributeName": "title",
                         "isImage": "False",
@@ -66,34 +66,16 @@ class LogEntryDetailFactory:
             }
         elif isinstance(target_object, Page):
             return {
-                'targetType': 'page', 
+                'targetType': FlaggedContent.TargetContentTypeChoices.PAGE.value, 
                 'attributes' : [
                     {"attributeName": "imageUrl",
                         "isImage": "True",
                         "content": target_object.image_url},
                 ],
             }
-        elif isinstance(target_object, Genre):
-            return {
-                'targetType': 'genre', 
-                'attributes' : [
-                    {"attributeName": "name",
-                        "isImage": "False",
-                        "content": target_object.name},
-                ],
-            }
-        elif isinstance(target_object, Author):
-            return {
-                'targetType': 'author', 
-                'attributes' : [
-                    {"attributeName": "name",
-                        "isImage": "False",
-                        "content": target_object.name},
-                ],
-            }
         elif isinstance(target_object, Comment):
             return {
-                'targetType': 'comment', 
+                'targetType': FlaggedContent.TargetContentTypeChoices.COMMENT.value, 
                 'attributes' : [
                     {"attributeName": "content",
                         "isImage": str(target_object.is_image),
@@ -118,7 +100,7 @@ class SystemService:
         details: dict[str, Any] = {}
         if (
             action_type in {ActionTypeChoices.CREATE, ActionTypeChoices.UPDATE}
-            and isinstance(target_object, TypesInModeration)
+            and isinstance(target_object, FlaggedContentTargetContentType)
         ):
             details = LogEntryDetailFactory.get_moderation_detail(target_object)
             

@@ -56,6 +56,7 @@ class PageInline(admin.StackedInline):
     extra = 1
     fields = ("page_number", "image_url", "image_upload",)
     ordering = ("page_number",)
+    per_page = 20
 
 
 class GenreInline(admin.TabularInline):
@@ -69,6 +70,7 @@ class CommentInline(admin.TabularInline):
     fields = ("owner", "content", "status", "created_at")
     readonly_fields = ("created_at",)
     ordering = ("-created_at",)
+    per_page = 20
 
 
 class ChapterInline(admin.TabularInline):
@@ -77,6 +79,7 @@ class ChapterInline(admin.TabularInline):
     fields = ("title", "chapter_number", "upload_date", "edit_link",)
     readonly_fields = ("upload_date", "edit_link",)
     ordering = ("chapter_number",)
+    per_page = 20
     
     def edit_link(self, obj: Chapter):
         if obj.pk:
@@ -100,6 +103,7 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
     search_fields = ("title", "author_name")
     ordering = ("-publication_date",)
     readonly_fields = ("publication_date",)
+    list_per_page = 20
     inlines = [ChapterInline, CommentInline]
 
     fieldsets = (
@@ -141,34 +145,59 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
 @admin.register(Author)
 class AuthorAdmin(LogUserMixin, admin.ModelAdmin):
     list_display = ("name", "get_manga_title_count",)
+    list_per_page = 20
 
 
 @admin.register(Genre)
 class GenreAdmin(LogUserMixin, admin.ModelAdmin):
     list_display = ("name", "get_manga_title_count",)
+    list_per_page = 20
     
 
 @admin.register(Chapter)
 class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
     list_display = (
         "get_display_name", "chapter_number", "get_title", "upload_date", 
-        "get_page_count", "get_comment_count",
+        "get_page_count", "get_comment_count", 
+        "get_previous_chapter", "get_next_chapter",
     )
     list_filter = ("manga_title",)
     readonly_fields = ("upload_date",)
     search_fields = ("title", "manga_title__title")
-    ordering = ("manga_title__title", "chapter_number")
+    ordering = ("manga_title__title", "-upload_date")
+    list_per_page = 20
     inlines = [PageInline, CommentInline]
+
+    fieldset = (
+        ("Chapter Details", {"fields": (
+            "manga_title", 
+            "title", 
+            "chapter_number", 
+            "upload_date", 
+        )}),
+    )
 
     def get_display_name(self, obj: Page) -> str:
         return str(obj)
     get_display_name.short_description = "Display name"
 
+    def get_previous_chapter(self, obj: Chapter) -> str:
+        id = MangaService.get_previous_chapter_id(obj)
+        return MangaService.get_chapter_display_name(id)
+    get_previous_chapter.short_description = "Previous chapter"
+
+    def get_next_chapter(self, obj: Chapter) -> str:
+        id = MangaService.get_next_chapter_id(obj)
+        return MangaService.get_chapter_display_name(id)
+    get_next_chapter.short_description = "Next chapter"
+
 
 @admin.register(Page)
 class PageAdmin(LogUserMixin, admin.ModelAdmin):
     form = PageForm
-    list_display = ("get_display_name", "page_number", "image_url", )
+    list_display = ("get_display_name", "chapter", "page_number", "image_url", )
+    ordering = ("chapter", "page_number")
+    list_per_page = 20
 
     def get_display_name(self, obj: Page) -> str:
         return str(obj)

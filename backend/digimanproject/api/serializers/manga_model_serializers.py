@@ -1,6 +1,7 @@
+from typing import Optional
 from rest_framework import serializers
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
-
+from ..services.manga_service import MangaService
 from datetime import datetime
 
 class MangaTitleSerializer(serializers.ModelSerializer):
@@ -46,16 +47,24 @@ class ChapterSerializer(serializers.ModelSerializer):
     """Fields for chapter: id, manga_title_id, title, chapter_number, 
     upload_date, page_count"""
     page_count = serializers.SerializerMethodField()
+    previous_chapter_id = serializers.SerializerMethodField()
+    next_chapter_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Chapter
         fields = [
             "id", "manga_title_id", "title", "chapter_number", "upload_date",
-            "page_count"
+            "page_count", "previous_chapter_id", "next_chapter_id",
         ]
 
     def get_page_count(self, obj: Chapter) -> int:
         return obj.get_page_count()
+    
+    def get_previous_chapter_id(self, obj: Chapter) -> Optional[str]:
+        return MangaService.get_previous_chapter_id(obj)
+    
+    def get_next_chapter_id(self, obj: Chapter) -> Optional[str]:
+        return MangaService.get_next_chapter_id(obj)
 
 
 class PageSerializer(serializers.ModelSerializer):
