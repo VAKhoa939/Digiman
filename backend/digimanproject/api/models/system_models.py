@@ -35,12 +35,13 @@ class FlaggedContent(models.Model):
         primary_key=True, default=uuid.uuid4, editable=False)
     severity_score: float = models.FloatField(default=0.0)
     reason: str = models.TextField()
+    details: dict[str, Any] = models.JSONField(null=False, default=dict)
     flagged_at: datetime = models.DateTimeField(default=timezone.now)
     is_resolved: bool = models.BooleanField(default=False)
     is_content_image: bool = models.BooleanField(default=False)
     content: str = models.TextField()
     target_content_type: str = models.CharField(
-        max_length=20, choices=TargetContentTypeChoices.choices)
+        choices=TargetContentTypeChoices.choices)
     target_content_id: uuid.UUID = models.UUIDField()
 
     def __str__(self) -> str:
@@ -81,7 +82,6 @@ class Announcement(models.Model):
     scheduled_at: Optional[datetime] = models.DateTimeField(null=True, blank=True)
     expired_at: Optional[datetime] = models.DateTimeField(null=True, blank=True)
     status: str = models.CharField(
-        max_length=20, 
         choices=StatusChoices.choices,
         default=StatusChoices.ACTIVE,
     )
@@ -145,10 +145,10 @@ class LogEntry(models.Model):
         related_name="log_entries"
     )
     action_type: str = models.CharField(
-        max_length=50, choices=ActionTypeChoices.choices)
+        choices=ActionTypeChoices.choices)
     timestamp: datetime = models.DateTimeField(default=timezone.now)
     target_object_type: str = models.CharField(
-        max_length=20, choices=TargetObjectTypeChoices.choices)
+        choices=TargetObjectTypeChoices.choices)
     target_object_id: uuid.UUID = models.UUIDField()
     is_moderated: bool = models.BooleanField(default=False)
     details: dict[str, Any] = models.JSONField(null=False, default=dict)

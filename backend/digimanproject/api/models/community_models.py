@@ -36,11 +36,10 @@ class Comment(models.Model):
         "Chapter", on_delete=models.CASCADE, null=True, blank=True, related_name="comments")
     parent_comment: Optional["Comment"] = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.CASCADE)
-    is_image: bool = models.BooleanField(default=False)
-    content: str = models.TextField()
+    text: str = models.TextField(max_length=2000, blank=True, null=True)
+    attached_image: str = models.URLField(blank=True, null=True)
     created_at: datetime = models.DateTimeField(default=timezone.now)
     status: str = models.CharField(
-        max_length=20, 
         choices=StatusChoices.choices, 
         default=StatusChoices.ACTIVE
     )
@@ -96,7 +95,6 @@ class Report(models.Model):
     category: str = models.CharField(max_length=100)
     description: str = models.TextField(blank=True)
     status: str = models.CharField(
-        max_length=20, 
         choices=StatusChoices.choices,
         default=StatusChoices.PENDING
     )
@@ -160,7 +158,7 @@ class Notification(models.Model):
     is_read: bool = models.BooleanField(default=False)
     timestamp: datetime = models.DateTimeField(default=timezone.now)
     related_object_type: str = models.CharField(
-        max_length=20, choices=RelatedObjectTypeChoices.choices)
+        choices=RelatedObjectTypeChoices.choices)
     related_object_id: uuid.UUID = models.UUIDField()
 
     def __str__(self) -> str:
