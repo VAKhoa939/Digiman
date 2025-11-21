@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 export default function ImageWithFallback({ src, alt, className, fit = 'both', style = {} }) {
   const [errored, setErrored] = useState(false);
-  const fallback = '/assets/placeholder-image.png';
+  const fallback = 'https://placehold.co/720';
 
   // map fit to inline styles (kept simple and override-able)
   const fitStyles = (() => {

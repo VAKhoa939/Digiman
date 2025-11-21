@@ -24,22 +24,17 @@ export default function AdvancedSearch({ show = false, options = {}, onClose = (
           <select className="form-select form-select-sm" value={local.status} onChange={(e) => setLocal({...local, status: e.target.value })}>
             <option value="any">Any</option>
             <option value="Ongoing">Ongoing</option>
-            <option value="Completed">Completed</option>
-            <option value="Hiatus">Hiatus</option>
+            <option value="Finished">Finished</option>s
+            <option value="Dropped">Dropped</option>
           </select>
-        </div>
-
-        <div className="mb-2">
-          <label className="small text-muted">Minimum chapter</label>
-          <input className="form-control form-control-sm" value={local.minChapter} onChange={(e) => setLocal({...local, minChapter: e.target.value })} placeholder="e.g. 10" />
         </div>
 
         <div className="mb-3">
           <label className="small text-muted">Sort by</label>
           <select className="form-select form-select-sm" value={local.ordering} onChange={(e) => setLocal({...local, ordering: e.target.value })}>
-            <option value="relevance">Relevance</option>
+            <option value="publication_date">Publication Date</option>
             <option value="title">Title</option>
-            <option value="latest_chapter">Latest chapter</option>
+            <option value="latest_chapter_date">Latest chapter</option>
           </select>
         </div>
 
