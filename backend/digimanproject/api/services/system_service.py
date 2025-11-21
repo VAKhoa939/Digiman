@@ -1,18 +1,16 @@
 from django.db import transaction
 from ..models.user_models import User, Reader
-from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
+from ..models.manga_models import MangaTitle, Chapter, Page
 from ..models.community_models import Comment
-from ..models.system_models import Announcement, LogEntry, FlaggedContent, FlaggedContentTargetContentType, LogEntryTargetObjectType
+from ..models.system_models import Announcement, LogEntry, FlaggedContent, LogEntryTargetObjectType
 
-from typing import Union, Any
+from typing import Any
 
-ActionTypeChoices = LogEntry.ActionTypeChoices
+TypesInModeration = (User, Reader, MangaTitle, Chapter, Page, Comment)
 
 class LogEntryDetailFactory:
     @staticmethod
-    def get_moderation_detail(
-        target_object: FlaggedContentTargetContentType
-    ) -> dict[str, Any]:
+    def get_moderation_detail(target_object) -> dict[str, Any]:
         if isinstance(target_object, Reader):
             return {
                 'targetType': FlaggedContent.TargetContentTypeChoices.USER.value, 
@@ -74,14 +72,23 @@ class LogEntryDetailFactory:
                 ],
             }
         elif isinstance(target_object, Comment):
-            return {
+            details = {
                 'targetType': FlaggedContent.TargetContentTypeChoices.COMMENT.value, 
-                'attributes' : [
-                    {"attributeName": "content",
-                        "isImage": str(target_object.is_image),
-                        "content": target_object.content},
-                ],
+                'attributes': [],
             }
+            if target_object.text:
+                details['attributes'].append({
+                    "attributeName": "text",
+                    "isImage": "False",
+                    "content": target_object.text,
+                })
+            if target_object.attached_image_url:
+                details['attributes'].append({
+                    "attributeName": "attachedImageUrl",
+                    "isImage": "True",
+                    "content": target_object.attached_image_url,
+                })
+            return details
         else:
             return {}
         
@@ -99,8 +106,8 @@ class SystemService:
         """
         details: dict[str, Any] = {}
         if (
-            action_type in {ActionTypeChoices.CREATE, ActionTypeChoices.UPDATE}
-            and isinstance(target_object, FlaggedContentTargetContentType)
+            action_type in {LogEntry.ActionTypeChoices.CREATE, LogEntry.ActionTypeChoices.UPDATE}
+            and isinstance(target_object, TypesInModeration)
         ):
             details = LogEntryDetailFactory.get_moderation_detail(target_object)
             
@@ -117,19 +124,19 @@ class SystemService:
     def log_object_save(instance: LogEntryTargetObjectType, created: bool):
         user = getattr(instance, "_action_user", None)
         if created:
-            SystemService.create_log_entry(user, ActionTypeChoices.CREATE, instance)
+            SystemService.create_log_entry(user, LogEntry.ActionTypeChoices.CREATE, instance)
         else:
-            SystemService.create_log_entry(user, ActionTypeChoices.UPDATE, instance)
+            SystemService.create_log_entry(user, LogEntry.ActionTypeChoices.UPDATE, instance)
     
     @staticmethod
     def log_object_delete(instance: LogEntryTargetObjectType):
         user = getattr(instance, "_action_user", None)
-        SystemService.create_log_entry(user, ActionTypeChoices.DELETE, instance)
+        SystemService.create_log_entry(user, LogEntry.ActionTypeChoices.DELETE, instance)
 
     @staticmethod
     def log_login(user: User):
-        SystemService.create_log_entry(user, ActionTypeChoices.LOGIN, user)
+        SystemService.create_log_entry(user, LogEntry.ActionTypeChoices.LOGIN, user)
     
     @staticmethod
     def log_logout(user: User):
-        SystemService.create_log_entry(user, ActionTypeChoices.LOGOUT, user)
+        SystemService.create_log_entry(user, LogEntry.ActionTypeChoices.LOGOUT, user)

@@ -46,6 +46,7 @@ class MangaTitleSerializer(serializers.ModelSerializer):
 class ChapterSerializer(serializers.ModelSerializer):
     """Fields for chapter: id, manga_title_id, title, chapter_number, 
     upload_date, page_count"""
+    manga_title = serializers.SerializerMethodField()
     page_count = serializers.SerializerMethodField()
     previous_chapter_id = serializers.SerializerMethodField()
     next_chapter_id = serializers.SerializerMethodField()
@@ -53,9 +54,17 @@ class ChapterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chapter
         fields = [
-            "id", "manga_title_id", "title", "chapter_number", "upload_date",
-            "page_count", "previous_chapter_id", "next_chapter_id",
+            "id", "manga_title", "manga_title_id", "title", "chapter_number", 
+            "upload_date", "page_count", "previous_chapter_id", "next_chapter_id",
         ]
+        read_only_fields = [
+            field for field in fields if field not in {
+                "title", "chapter_number", "manga_title_id",
+            }
+        ]
+
+    def get_manga_title(self, obj: Chapter) -> str:
+        return obj.get_manga_title_title()
 
     def get_page_count(self, obj: Chapter) -> int:
         return obj.get_page_count()
@@ -74,6 +83,7 @@ class PageSerializer(serializers.ModelSerializer):
         fields = [
             "id", "chapter_id", "page_number", "image_url",
         ]
+        read_only_fields = ["id"]
 
 
 class GenreSerializer(serializers.ModelSerializer):

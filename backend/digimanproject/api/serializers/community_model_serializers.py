@@ -3,15 +3,24 @@ from ..models.community_models import Comment, Report, Notification, Penalty
 
 
 class CommentSerializer(serializers.ModelSerializer):
+    """
+    Fields for comment: id, owner_id, manga_title_id, chapter_id,
+    parent_comment_id, text, attached_image, attached_image_upload,
+    created_at, status, hidden_reasons
+    """
+    attached_image_upload = serializers.ImageField(required=False, write_only=True)
+
     class Meta:
         model = Comment
         fields = [
-            "id", "owner_id", "manga_title_id", "chapter_id", "parent_comment_id",
-            "is_image", "content", "created_at", "status", "hidden_reasons"
+            "id", "owner_id", "manga_title_id", "chapter_id", 
+            "parent_comment_id", "text", "attached_image", "attached_image_upload",
+            "created_at", "status", "hidden_reasons"
         ]
         read_only_fields = [
-            "id", "owner_id", "manga_title_id", "chapter_id", "parent_comment_id", 
-            "created_at"
+            field for field in fields if field not in {
+                "text", "attached_image", "attached_image_upload"
+            }
         ]
 
 
@@ -24,7 +33,9 @@ class ReportSerializer(serializers.ModelSerializer):
             "target_content_id"
         ]
         read_only_fields = [
-            field for field in fields if field not in {"status", "admin_message"}
+            field for field in fields if field not in {
+                "status", "admin_message"
+            }
         ]
     
 

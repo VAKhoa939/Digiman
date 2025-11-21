@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 from datetime import datetime
 from django.db import models
 from django.utils import timezone
@@ -7,7 +7,7 @@ from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 
 import uuid
-from ..utils.helper_functions import get_target_object
+from ..utils.helper_functions import get_target_object, update_instance
 
 from typing import TYPE_CHECKING
 
@@ -37,7 +37,7 @@ class Comment(models.Model):
     parent_comment: Optional["Comment"] = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.CASCADE)
     text: str = models.TextField(max_length=2000, blank=True, null=True)
-    attached_image: str = models.URLField(blank=True, null=True)
+    attached_image_url: str = models.URLField(blank=True, null=True)
     created_at: datetime = models.DateTimeField(default=timezone.now)
     status: str = models.CharField(
         choices=StatusChoices.choices, 
@@ -45,35 +45,33 @@ class Comment(models.Model):
     )
     hidden_reasons: str = models.TextField(blank=True)
 
-    def clean(self):
-        super().clean()
-        if self.is_image:
-            # must be a valid URL
-            validator = URLValidator()
-            try:
-                validator(self.content)
-            except ValidationError:
-                raise ValidationError({"content": "Invalid image URL."})
-        else:
-            # must not be empty and should not look like a URL
-            if not self.content.strip():
-                raise ValidationError({"content": "Text comment cannot be empty."})
-
     def __str__(self) -> str:
-        return f"Comment by {self.owner.get_display_name()} on {self.created_at}"
-    
-    def update_content(self, content: str) -> None:
-        self.content = content
-        self.save(update_fields=["content"])
+        from ..services.community_service import CommunityService
+        index = CommunityService.get_comment_index(self)
+        where = self.manga_title if self.manga_title else self.chapter
+        if index is not None:
+            return f"Comment #{index} in {where}"
+        else:
+            return f"Comment by {self.owner.get_display_name()} at {self.created_at}"
 
     def toggle_hidden(self, hidden_reasons: str = "") -> None:
-        self.status = "hidden" if self.status == "active" else "active"
+        self.status = (
+            Comment.StatusChoices.HIDDEN 
+            if self.status == Comment.StatusChoices.ACTIVE else 
+            Comment.StatusChoices.ACTIVE
+        )
         self.hidden_reasons = hidden_reasons
         self.save(update_fields=["status", "hidden_reasons"])
     
     def set_deleted(self) -> None:
         self.status = "deleted"
         self.save(update_fields=["status"])
+
+    def update_metadata(self, **metadata: Any) -> None:
+        """Allowed fields: text, attached_image_url, status, hidden_reasons"""
+        allowed_fields = {"text", "attached_image_url", "status", "hidden_reasons"}
+        update_instance(self, allowed_fields, **metadata)
+        
 
 
 class Report(models.Model):

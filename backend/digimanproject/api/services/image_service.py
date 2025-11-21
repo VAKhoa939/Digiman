@@ -36,7 +36,7 @@ class ImageService:
             raise RuntimeError(f"Failed to upload image to bucket '{bucket}': {str(e)}")
 
     @staticmethod
-    def delete_image(bucket: str, file_path: str) -> None:
+    def delete_image(file_path: str, bucket: str) -> None:
         """
         Delete an image from a given Supabase bucket.
         Returns True if deletion succeeded.

@@ -125,7 +125,7 @@ class LogEntry(models.Model):
         DELETE = "delete", "Delete"
     
     class TargetObjectTypeChoices(models.TextChoices):
-        MANGA_TITLE = "manga_title", "MangaTitle"
+        MANGA_TITLE = "mangatitle", "MangaTitle"
         CHAPTER = "chapter", "Chapter"
         PAGE = "page", "Page"
         GENRE = "genre", "Genre"
@@ -133,7 +133,7 @@ class LogEntry(models.Model):
         COMMENT = "comment", "Comment"
         USER = "user", "User"
         REPORT = "report", "Report"
-        FLAGGED_CONTENT = "flagged_content", "FlaggedContent"
+        FLAGGED_CONTENT = "flaggedcontent", "FlaggedContent"
         ANNOUNCEMENT = "announcement", "Announcement"
         PENALTY = "penalty", "Penalty"
 

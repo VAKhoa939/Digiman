@@ -138,6 +138,14 @@ class ReaderAdmin(BaseUserAdmin):
         # Call the parent save_model for triggering the signals
         super().save_model(request, obj, form, change)
 
+    def delete_model(self, request, obj):
+        # Attach the current user to the object for logging
+        user = request.user
+        obj._action_user = user
+        
+        UserService.delete_user(obj)
+        return super().delete_model(request, obj)
+
 
 @admin.register(Administrator)
 class AdministratorAdmin(BaseUserAdmin):

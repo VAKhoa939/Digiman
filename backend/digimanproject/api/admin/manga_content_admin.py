@@ -7,7 +7,7 @@ from django.http import HttpRequest
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
 from ..models.community_models import Comment
 from ..services.manga_service import MangaService
-from ..services.system_service import SystemService
+from ..services.community_service import CommunityService
 from .mixins import LogUserMixin
 
 
@@ -37,7 +37,7 @@ class PageForm(forms.ModelForm):
         fields = "__all__"
 
 class CommentForm(forms.ModelForm):
-    image_upload = forms.ImageField(
+    attached_image_upload = forms.ImageField(
         required=False,
         label="Upload Image",
         widget=forms.ClearableFileInput(attrs={"enctype": "multipart/form-data"})
@@ -59,18 +59,21 @@ class PageInline(admin.StackedInline):
     per_page = 20
 
 
+class CommentInline(admin.StackedInline):
+    model = Comment
+    form = CommentForm
+    extra = 1
+    fields = (
+        "parent_comment", "owner",
+        "text", "attached_image_url", "attached_image_upload",)
+    readonly_fields = ("created_at",)
+    ordering = ("created_at",)
+    per_page = 20
+
+
 class GenreInline(admin.TabularInline):
     model = MangaTitle.genres.through
     extra = 1
-
-
-class CommentInline(admin.TabularInline):
-    model = Comment
-    extra = 1
-    fields = ("owner", "content", "status", "created_at")
-    readonly_fields = ("created_at",)
-    ordering = ("-created_at",)
-    per_page = 20
 
 
 class ChapterInline(admin.TabularInline):
@@ -140,18 +143,14 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
             MangaService.update_manga_title(obj, form.cleaned_data, cover_image_file)
         # Call the parent save_model for triggering the signals
         super().save_model(request, obj, form, change)
-    
-    
-@admin.register(Author)
-class AuthorAdmin(LogUserMixin, admin.ModelAdmin):
-    list_display = ("name", "get_manga_title_count",)
-    list_per_page = 20
 
+    def delete_model(self, request, obj):
+        # Attach the current user to the object for logging
+        user = request.user
+        obj._action_user = user
 
-@admin.register(Genre)
-class GenreAdmin(LogUserMixin, admin.ModelAdmin):
-    list_display = ("name", "get_manga_title_count",)
-    list_per_page = 20
+        MangaService.delete_manga_title(obj)
+        return super().delete_model(request, obj)
     
 
 @admin.register(Chapter)
@@ -220,6 +219,77 @@ class PageAdmin(LogUserMixin, admin.ModelAdmin):
             MangaService.update_page(obj, form.cleaned_data, image_file)
         # Call the parent save_model for triggering the signals
         super().save_model(request, obj, form, change)
+
+    def delete_model(self, request, obj):
+        # Attach the current user to the object for logging
+        user = request.user
+        obj._action_user = user
+
+        MangaService.delete_page(obj)
+        return super().delete_model(request, obj)
+    
+    
+@admin.register(Author)
+class AuthorAdmin(LogUserMixin, admin.ModelAdmin):
+    list_display = ("name", "get_manga_title_count",)
+    list_per_page = 20
+
+
+@admin.register(Genre)
+class GenreAdmin(LogUserMixin, admin.ModelAdmin):
+    list_display = ("name", "get_manga_title_count",)
+    list_per_page = 20
         
 
-admin.site.register(Comment)
+@admin.register(Comment)
+class CommentAdmin(LogUserMixin, admin.ModelAdmin):
+    form = CommentForm
+    list_display = (
+        "get_display_name", "owner", "manga_title", "chapter", "created_at", 
+        "get_parent_comment", "status",)
+    list_per_page = 20
+    list_filter = ("status", "created_at", "owner", "manga_title", "chapter",)
+    ordering = ("created_at", "manga_title", "chapter",)
+    readonly_fields = ("created_at",)
+
+    fields = (
+        "parent_comment", "owner", "manga_title", "chapter",
+        "text", "attached_image_url", "attached_image_upload",
+        "created_at", "status", "hidden_reasons",
+    )
+
+    def get_display_name(self, obj: Comment) -> str:
+        return str(obj)
+    
+    def get_parent_comment(self, obj: Comment) -> str:
+        return str(obj.parent_comment)
+    
+    def save_model(
+        self, request: HttpRequest, obj: Comment, 
+        form: forms.ModelForm, change: bool
+    ) :
+        # Attach the current user to the object for logging
+        obj._action_user = request.user
+
+        # Get the owner
+        owner = form.cleaned_data.pop("owner")
+
+        # Get the uploaded image file
+        image_file: InMemoryUploadedFile = form.cleaned_data.pop("attached_image_upload")
+
+        if not change:
+            comment = CommunityService.create_comment(form.cleaned_data, owner, image_file)
+            obj.pk = comment.pk # Make sure the obj is attached
+        else:
+            CommunityService.update_comment(obj, form.cleaned_data, image_file)
+
+        # Call the parent save_model for triggering the signals
+        super().save_model(request, obj, form, change)
+
+    def delete_model(self, request, obj):
+        # Attach the current user to the object for logging
+        user = request.user
+        obj._action_user = user
+
+        CommunityService.delete_comment(obj)
+        return super().delete_model(request, obj)
