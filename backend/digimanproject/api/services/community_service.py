@@ -38,6 +38,14 @@ class CommunityService:
     @staticmethod
     @transaction.atomic
     def update_comment(comment: Comment, data: dict, image_file=None) -> Comment:
+        if (not data.get("text")
+            and not data.get("attached_image_url") 
+            and not data.get("attached_image_upload")
+        ):
+            raise ValueError("Either 'text' or 'attached_image' must be provided.")
+        if not data.get("manga_title") and not data.get("chapter"):
+            raise ValueError("Either 'manga_title' or 'chapter' must be provided.")
+        
         bucket = BucketNames.COMMENT_IMAGES
 
         # Replace image if a new one is provided

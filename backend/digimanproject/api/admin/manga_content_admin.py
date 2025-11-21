@@ -56,7 +56,6 @@ class PageInline(admin.StackedInline):
     extra = 1
     fields = ("page_number", "image_url", "image_upload",)
     ordering = ("page_number",)
-    per_page = 20
 
 
 class CommentInline(admin.StackedInline):
@@ -66,9 +65,8 @@ class CommentInline(admin.StackedInline):
     fields = (
         "parent_comment", "owner",
         "text", "attached_image_url", "attached_image_upload",)
-    readonly_fields = ("created_at",)
+    readonly_fields = ("created_at", "owner",)
     ordering = ("created_at",)
-    per_page = 20
 
 
 class GenreInline(admin.TabularInline):
@@ -82,7 +80,6 @@ class ChapterInline(admin.TabularInline):
     fields = ("title", "chapter_number", "upload_date", "edit_link",)
     readonly_fields = ("upload_date", "edit_link",)
     ordering = ("chapter_number",)
-    per_page = 20
     
     def edit_link(self, obj: Chapter):
         if obj.pk:
@@ -152,6 +149,55 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
         MangaService.delete_manga_title(obj)
         return super().delete_model(request, obj)
     
+    def save_formset(
+        self, request: HttpRequest, form: forms.ModelForm, 
+        formset: forms.BaseInlineFormSet, change: bool
+    ):
+        # Save with commit=False to populate .deleted_objects
+        formset.save(commit=False)
+
+        # Delete any marked-for-deletion Page\Comment objects
+        if hasattr(formset, "deleted_objects"):
+            for obj in formset.deleted_objects:
+                if isinstance(obj, Comment):
+                    obj._action_user = request.user
+                    CommunityService.delete_comment(obj)
+        else:
+            # Fallback for Django versions where deleted_objects isn't populated yet
+            for form_instance in formset.forms:
+                if form_instance.cleaned_data.get("DELETE", False):
+                    obj = form_instance.instance
+                    if obj.pk and isinstance(obj, Comment):
+                        obj._action_user = request.user
+                        CommunityService.delete_comment(obj)
+
+        # Filter out deleted forms
+        active_forms = [
+            f for f in formset.forms
+            if not f.cleaned_data.get("DELETE", False)
+        ]
+
+        # Handle new or updated comments
+        for form_instance in active_forms:
+            obj = form_instance.instance
+            if not isinstance(obj, Comment):
+                continue
+            if not form_instance.has_changed():
+                continue  # skip unchanged forms
+            
+            # Attach the current user to the object for logging
+            obj._action_user = request.user
+
+            image_file = form_instance.cleaned_data.pop("attached_image_upload")
+            if obj.pk:
+                CommunityService.update_comment(obj, form_instance.cleaned_data, image_file)
+            else:
+                comment = CommunityService.create_comment(form_instance.cleaned_data, request.user, image_file)
+                obj.pk = comment.pk # Make sure the obj is attached
+            obj.save()
+
+        formset.save_m2m()
+    
 
 @admin.register(Chapter)
 class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
@@ -189,6 +235,72 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
         id = MangaService.get_next_chapter_id(obj)
         return MangaService.get_chapter_display_name(id)
     get_next_chapter.short_description = "Next chapter"
+    
+    def save_formset(
+        self, request: HttpRequest, form: forms.ModelForm, 
+        formset: forms.BaseInlineFormSet, change: bool
+    ):
+        # Save with commit=False to populate .deleted_objects
+        formset.save(commit=False)
+
+        # Delete any marked-for-deletion Page\Comment objects
+        if hasattr(formset, "deleted_objects"):
+            for obj in formset.deleted_objects:
+                if isinstance(obj, Page):
+                    obj._action_user = request.user
+                    MangaService.delete_page(obj)
+                if isinstance(obj, Comment):
+                    obj._action_user = request.user
+                    CommunityService.delete_comment(obj)
+        else:
+            # Fallback for Django versions where deleted_objects isn't populated yet
+            for form_instance in formset.forms:
+                if form_instance.cleaned_data.get("DELETE", False):
+                    obj = form_instance.instance
+                    if obj.pk and isinstance(obj, Page):
+                        obj._action_user = request.user
+                        MangaService.delete_page(obj)
+                    if obj.pk and isinstance(obj, Comment):
+                        obj._action_user = request.user
+                        CommunityService.delete_comment(obj)
+
+        # Filter out deleted forms
+        active_forms = [
+            f for f in formset.forms
+            if not f.cleaned_data.get("DELETE", False)
+        ]
+
+        # Handle new or updated pages/comments
+        for form_instance in active_forms:
+            obj = form_instance.instance
+            if not isinstance(obj, Page) and not isinstance(obj, Comment):
+                continue
+            if not form_instance.has_changed():
+                continue  # skip unchanged forms
+            
+            # Attach the current user to the object for logging
+            obj._action_user = request.user
+
+            if isinstance(obj, Page):
+                print("saving page", str(obj))
+                image_file = form_instance.cleaned_data.pop("image_upload")
+                if obj.pk:
+                    MangaService.update_page(obj, form_instance.cleaned_data, image_file)
+                else:
+                    page = MangaService.create_page(form_instance.cleaned_data, image_file)
+                    obj.pk = page.pk # Make sure the obj is attached
+                obj.save()
+            if isinstance(obj, Comment):
+                print("saving comment", str(obj))
+                image_file = form_instance.cleaned_data.pop("attached_image_upload")
+                if obj.pk:
+                    CommunityService.update_comment(obj, form_instance.cleaned_data, image_file)
+                else:
+                    comment = CommunityService.create_comment(form_instance.cleaned_data, request.user, image_file)
+                    obj.pk = comment.pk # Make sure the obj is attached
+                obj.save()
+
+        formset.save_m2m()
 
 
 @admin.register(Page)
@@ -250,7 +362,7 @@ class CommentAdmin(LogUserMixin, admin.ModelAdmin):
     list_per_page = 20
     list_filter = ("status", "created_at", "owner", "manga_title", "chapter",)
     ordering = ("created_at", "manga_title", "chapter",)
-    readonly_fields = ("created_at",)
+    readonly_fields = ("created_at", "owner",)
 
     fields = (
         "parent_comment", "owner", "manga_title", "chapter",
@@ -271,14 +383,11 @@ class CommentAdmin(LogUserMixin, admin.ModelAdmin):
         # Attach the current user to the object for logging
         obj._action_user = request.user
 
-        # Get the owner
-        owner = form.cleaned_data.pop("owner")
-
         # Get the uploaded image file
         image_file: InMemoryUploadedFile = form.cleaned_data.pop("attached_image_upload")
 
         if not change:
-            comment = CommunityService.create_comment(form.cleaned_data, owner, image_file)
+            comment = CommunityService.create_comment(form.cleaned_data, request.user, image_file)
             obj.pk = comment.pk # Make sure the obj is attached
         else:
             CommunityService.update_comment(obj, form.cleaned_data, image_file)
