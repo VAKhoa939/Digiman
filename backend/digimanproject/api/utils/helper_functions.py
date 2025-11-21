@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Set, TypeVar
+from typing import Any, Dict, Optional, Set, Tuple, TypeVar
 import uuid
 from django.db.models import Model
 from rest_framework.serializers import Serializer
@@ -34,3 +34,13 @@ def serialize_object(obj: M, mapping: Dict[str, type[S]]) -> Dict[str, Any]:
     serializer_class = mapping[type(obj).__name__]
     serializer = serializer_class(obj)
     return serializer.data
+
+def get_dominant_attribute_and_score(scores: Dict[str, float]) -> Tuple[str, float]:
+    """
+    Returns the attribute with the highest score.
+    """
+    if not scores:
+        return "unknown", 0.0
+    dominant_key = max(scores, key=scores.get)
+    dominant_score = scores[dominant_key]
+    return dominant_key, dominant_score

@@ -34,11 +34,13 @@ class FlaggedContent(models.Model):
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     severity_score: float = models.FloatField(default=0.0)
+    dominant_attribute: str = models.CharField(max_length=100, default="")
     reason: str = models.TextField()
     details: dict[str, Any] = models.JSONField(null=False, default=dict)
     flagged_at: datetime = models.DateTimeField(default=timezone.now)
     is_resolved: bool = models.BooleanField(default=False)
     is_content_image: bool = models.BooleanField(default=False)
+    content_name: str = models.CharField(max_length=100, default="")
     content: str = models.TextField()
     target_content_type: str = models.CharField(
         choices=TargetContentTypeChoices.choices)
@@ -123,7 +125,9 @@ class LogEntry(models.Model):
         CREATE = "create", "Create"
         UPDATE = "update", "Update"
         DELETE = "delete", "Delete"
-    
+        AUTO_RESOLVE_FLAG = "autoresolveflag", "AutoResolveFlag"
+        RESOLVE_FLAG = "resolveflag", "ResolveFlag"
+
     class TargetObjectTypeChoices(models.TextChoices):
         MANGA_TITLE = "mangatitle", "MangaTitle"
         CHAPTER = "chapter", "Chapter"

@@ -1,10 +1,12 @@
 from django.db import transaction
+
+from api.utils.helper_functions import get_dominant_attribute_and_score
 from ..models.user_models import User, Reader
 from ..models.manga_models import MangaTitle, Chapter, Page
 from ..models.community_models import Comment
 from ..models.system_models import Announcement, LogEntry, FlaggedContent, LogEntryTargetObjectType
 
-from typing import Any
+from typing import Any, Dict
 
 TypesInModeration = (User, Reader, MangaTitle, Chapter, Page, Comment)
 
@@ -140,3 +142,55 @@ class SystemService:
     @staticmethod
     def log_logout(user: User):
         SystemService.create_log_entry(user, LogEntry.ActionTypeChoices.LOGOUT, user)
+
+    @staticmethod
+    @transaction.atomic
+    def create_flag(
+        log_entry: LogEntry, content_name: str, content: str, 
+        is_image: bool, result: dict[str, float], reason: str
+    ):
+        """
+        Creates a new flagged content.
+        Including: marks older flags as resolved, computes severity, 
+        creates a new one, and logs the event.
+        """
+        # 1. Mark older flags as resolved
+        old_flags = FlaggedContent.objects.filter(
+            target_content_type=log_entry.target_object_type,
+            target_content_id=log_entry.target_object_id,
+            content_name=content_name,
+            is_resolved=False
+        )
+        if old_flags.exists():
+            for flag in old_flags:
+                flag.resolve()
+                SystemService.create_log_entry(
+                    None,
+                    LogEntry.ActionTypeChoices.AUTO_RESOLVE_FLAG,
+                    flag
+                )
+
+        # 2. Compute severity
+        dominant_attribute, severity_score = get_dominant_attribute_and_score(result)
+
+        # 3. Create new flagged content
+        obj = FlaggedContent.objects.create(
+            target_content_type=log_entry.target_object_type,
+            target_content_id=log_entry.target_object_id,
+            content_name=content_name,
+            content=content,
+            severity_score=severity_score,
+            dominant_attribute=dominant_attribute,
+            reason=reason,
+            details=result,
+            is_content_image=is_image,
+        )
+
+        SystemService.create_log_entry(
+            None,
+            LogEntry.ActionTypeChoices.CREATE,
+            obj
+        )
+
+        return obj
+    
