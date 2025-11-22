@@ -138,8 +138,6 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
         else:
             # update form
             MangaService.update_manga_title(obj, form.cleaned_data, cover_image_file)
-        # Call the parent save_model for triggering the signals
-        super().save_model(request, obj, form, change)
 
     def delete_model(self, request, obj):
         # Attach the current user to the object for logging
@@ -147,7 +145,6 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
         obj._action_user = user
 
         MangaService.delete_manga_title(obj)
-        return super().delete_model(request, obj)
     
     def save_formset(
         self, request: HttpRequest, form: forms.ModelForm, 
@@ -289,7 +286,7 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
                 else:
                     page = MangaService.create_page(form_instance.cleaned_data, image_file)
                     obj.pk = page.pk # Make sure the obj is attached
-                obj.save()
+                #obj.save()
             if isinstance(obj, Comment):
                 print("saving comment", str(obj))
                 image_file = form_instance.cleaned_data.pop("attached_image_upload")
@@ -298,7 +295,7 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
                 else:
                     comment = CommunityService.create_comment(form_instance.cleaned_data, request.user, image_file)
                     obj.pk = comment.pk # Make sure the obj is attached
-                obj.save()
+                #obj.save()
 
         formset.save_m2m()
 
@@ -329,8 +326,6 @@ class PageAdmin(LogUserMixin, admin.ModelAdmin):
             obj.pk = page.pk # Make sure the obj is attached
         else:
             MangaService.update_page(obj, form.cleaned_data, image_file)
-        # Call the parent save_model for triggering the signals
-        super().save_model(request, obj, form, change)
 
     def delete_model(self, request, obj):
         # Attach the current user to the object for logging
@@ -338,7 +333,6 @@ class PageAdmin(LogUserMixin, admin.ModelAdmin):
         obj._action_user = user
 
         MangaService.delete_page(obj)
-        return super().delete_model(request, obj)
     
     
 @admin.register(Author)
@@ -361,7 +355,7 @@ class CommentAdmin(LogUserMixin, admin.ModelAdmin):
         "get_parent_comment", "status",)
     list_per_page = 20
     list_filter = ("status", "created_at", "owner", "manga_title", "chapter",)
-    ordering = ("created_at", "manga_title", "chapter",)
+    ordering = ("-created_at", "manga_title", "chapter",)
     readonly_fields = ("created_at", "owner",)
 
     fields = (
@@ -392,13 +386,9 @@ class CommentAdmin(LogUserMixin, admin.ModelAdmin):
         else:
             CommunityService.update_comment(obj, form.cleaned_data, image_file)
 
-        # Call the parent save_model for triggering the signals
-        super().save_model(request, obj, form, change)
-
     def delete_model(self, request, obj):
         # Attach the current user to the object for logging
         user = request.user
         obj._action_user = user
 
         CommunityService.delete_comment(obj)
-        return super().delete_model(request, obj)

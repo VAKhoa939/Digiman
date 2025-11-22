@@ -1,6 +1,5 @@
 from django.db import transaction
 
-from api.utils.helper_functions import get_dominant_attribute_and_score
 from ..models.user_models import User, Reader
 from ..models.manga_models import MangaTitle, Chapter, Page
 from ..models.community_models import Comment
@@ -147,12 +146,12 @@ class SystemService:
     @transaction.atomic
     def create_flag(
         log_entry: LogEntry, content_name: str, content: str, 
-        is_image: bool, result: dict[str, float], reason: str
+        is_image: bool, result: dict[str, float], reason: str,
+        dominant_attribute: str, severity_score: float
     ):
         """
         Creates a new flagged content.
-        Including: marks older flags as resolved, computes severity, 
-        creates a new one, and logs the event.
+        Including: marks older flags as resolved, creates a new one, and logs the event.
         """
         # 1. Mark older flags as resolved
         old_flags = FlaggedContent.objects.filter(
@@ -170,10 +169,7 @@ class SystemService:
                     flag
                 )
 
-        # 2. Compute severity
-        dominant_attribute, severity_score = get_dominant_attribute_and_score(result)
-
-        # 3. Create new flagged content
+        # 2. Create new flagged content
         obj = FlaggedContent.objects.create(
             target_content_type=log_entry.target_object_type,
             target_content_id=log_entry.target_object_id,

@@ -30,7 +30,7 @@ class PerspectiveAPIService:
         "toxicity": 0.65,
         "severe_toxicity": 0.55,
         "sexually_explicit": 0.6,
-        "profanity": 0.4,
+        "profanity": 0.7,
     }
 
     # Lazily initialized API client
@@ -148,12 +148,10 @@ class PerspectiveAPIService:
         Convert Perspective API attribute scores into a clean, human-readable summary.
         Identifies the dominant (highest) attribute.
         """
-
-        if not scores:
-            return "Text flagged for review by automated moderation."
-
         # Pick attribute with the highest score
-        dominant_attr, dominant_score = get_dominant_attribute_and_score(scores)
+        dominant_attr, dominant_score = get_dominant_attribute_and_score(
+            scores, PerspectiveAPIService.ATTRIBUTE_THRESHOLDS
+        )
 
         # Normalize display label
         label = dominant_attr.replace("_", " ").title()
@@ -175,10 +173,13 @@ class PerspectiveAPIService:
         return f"Text flagged due to {label} (score {dominant_score:.2f})."
     
     @staticmethod
-    def call_service(text: str) -> Tuple[Dict[str, float], bool, str]:
+    def call_service(text: str) -> Tuple[Dict[str, float], bool, str, str, float]:
         scores = PerspectiveAPIService.moderate(text)
         if not scores:
-            return {}, False, "Text flagged for review by automated moderation."
+            return {}, False, "Text flagged for review by automated moderation.", "", 0.0
         is_unsafe = PerspectiveAPIService.is_unsafe(scores)
         summary = PerspectiveAPIService.summarize_result(scores)
-        return scores, is_unsafe, summary
+        dominant_attribute, severity_score = get_dominant_attribute_and_score(
+            scores, PerspectiveAPIService.ATTRIBUTE_THRESHOLDS
+        )
+        return scores, is_unsafe, summary, dominant_attribute, severity_score

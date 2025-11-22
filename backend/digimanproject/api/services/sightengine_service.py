@@ -17,9 +17,9 @@ class SightengineService:
     """
 
     MODEL_THRESHOLDS = {
-        "sexual_activity": 0.15,
-        "sexual_display": 0.15,
-        "erotica": 0.15,
+        "sexual_activity": 0.3,
+        "sexual_display": 0.3,
+        "erotica": 0.4,
 
         # Suggestive classes
         "suggestive_lingerie": 0.35,
@@ -28,8 +28,8 @@ class SightengineService:
         "suggestive_other": 0.35,
 
         # Gore & Offensive
-        "gore": 0.25,
-        "offensive": 0.30,
+        "gore": 0.4,
+        "offensive": 0.4,
     }
 
     _client: SightengineClient | None = None
@@ -96,8 +96,20 @@ class SightengineService:
 
         # Suggestive classes (dynamic flattening)
         suggestive = nudity.get("suggestive_classes", {})
-        for name, value in suggestive.items():
-            scores[f"suggestive_{name}"] = float(value)
+        
+        MAPPING = {
+            "lingerie": "suggestive_lingerie",
+            "bikini": "suggestive_bikini",
+            "cleavage": "suggestive_cleavage",
+            "other": "suggestive_other",
+        }
+
+        for raw_key, mapped_key in MAPPING.items():
+            value = suggestive.get(raw_key)
+            if value is not None:
+                scores[mapped_key] = float(value)
+            else:
+                scores[mapped_key] = 0.0  # ensure key always exists
 
         # Context classes (optional: not thresholded, admins interpret)
         context = nudity.get("context", {})
@@ -120,7 +132,8 @@ class SightengineService:
     def is_unsafe(scores: Dict[str, float]) -> bool:
         adjusted = SightengineService.apply_context_adjustments(scores)
         for attribute, score in adjusted.items():
-            if score > SightengineService.MODEL_THRESHOLDS[attribute]:
+            threshold = SightengineService.MODEL_THRESHOLDS.get(attribute)
+            if threshold is not None and score >= threshold:
                 return True
         return False
     
@@ -159,7 +172,9 @@ class SightengineService:
             return "Image flagged for review by automated moderation."
 
         # Pick the highest-scoring attribute
-        dominant_key, dominant_score = get_dominant_attribute_and_score(meaningful_scores)
+        dominant_key, dominant_score = get_dominant_attribute_and_score(
+            meaningful_scores, SightengineService.MODEL_THRESHOLDS
+        )
 
         # ----- Explicit nudity -----
         if dominant_key in ("sexual_activity", "sexual_display", "erotica"):
@@ -183,10 +198,13 @@ class SightengineService:
         return f"Image flagged due to {dominant_key.replace('_', ' ')} (score {dominant_score:.2f})."
 
     @staticmethod
-    def call_service(image_url: str) -> Tuple[Dict[str, float], bool, str]:
+    def call_service(image_url: str) -> Tuple[Dict[str, float], bool, str, str, float]:
         scores = SightengineService.moderate(image_url)
         if not scores:
-            return {}, False, "Text flagged for review by automated moderation."
+            return {}, False, "Text flagged for review by automated moderation.", "", 0.0
         is_unsafe = SightengineService.is_unsafe(scores)
         summary = SightengineService.summarize_result(scores)
-        return scores, is_unsafe, summary
+        dominant_attribute, severity_score = get_dominant_attribute_and_score(
+            scores, SightengineService.MODEL_THRESHOLDS
+        )
+        return scores, is_unsafe, summary, dominant_attribute, severity_score

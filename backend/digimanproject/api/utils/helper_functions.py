@@ -13,7 +13,6 @@ def update_instance(instance: type[M], allowed_fields: Set, **data: Any) -> None
             setattr(instance, field, value)
             updated_fields.append(field)
     if updated_fields:
-        instance.full_clean()
         instance.save(update_fields=updated_fields)
 
 def get_target_object(
@@ -35,12 +34,19 @@ def serialize_object(obj: M, mapping: Dict[str, type[S]]) -> Dict[str, Any]:
     serializer = serializer_class(obj)
     return serializer.data
 
-def get_dominant_attribute_and_score(scores: Dict[str, float]) -> Tuple[str, float]:
+def get_dominant_attribute_and_score(scores: Dict[str, float], thresholds: Dict[str, float]) -> Tuple[str, float]:
     """
-    Returns the attribute with the highest score.
+    Returns the attribute with the highest margin of score above the threshold.
     """
     if not scores:
         return "unknown", 0.0
-    dominant_key = max(scores, key=scores.get)
-    dominant_score = scores[dominant_key]
+    max_margin = float('-inf')
+    for attribute, score in scores.items():
+        if attribute not in thresholds:
+            continue
+        margin = score - thresholds[attribute]
+        if margin > max_margin:
+            max_margin = margin
+            dominant_key = attribute
+            dominant_score = score
     return dominant_key, dominant_score

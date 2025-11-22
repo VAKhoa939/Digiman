@@ -50,9 +50,9 @@ class AIModerationService:
             # Run the appropriate AI moderation
             try:
                 if is_image:
-                    result, is_unsafe, reason = SightengineService.call_service(content)
+                    result, is_unsafe, reason, dominant_attribute, severity_score = SightengineService.call_service(content)
                 else:
-                    result, is_unsafe, reason = PerspectiveAPIService.call_service(content)
+                    result, is_unsafe, reason, dominant_attribute, severity_score = PerspectiveAPIService.call_service(content)
             except Exception as e:
                 logger.error(f"AI moderation failed for {content_name}: {e}")
                 continue
@@ -70,5 +70,7 @@ class AIModerationService:
                 content=content,
                 is_image=is_image,
                 result=result,
-                reason=reason
+                reason=reason,
+                dominant_attribute=dominant_attribute,
+                severity_score=severity_score
             )
