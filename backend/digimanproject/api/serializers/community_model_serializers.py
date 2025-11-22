@@ -6,7 +6,7 @@ class CommentSerializer(serializers.ModelSerializer):
     """
     Fields for comment: id, owner_id, manga_title_id, chapter_id,
     parent_comment_id, text, attached_image, attached_image_upload,
-    created_at, status, hidden_reasons
+    created_at, status, hidden_reasons, is_edited
     """
     attached_image_upload = serializers.ImageField(required=False, write_only=True)
 
@@ -15,7 +15,7 @@ class CommentSerializer(serializers.ModelSerializer):
         fields = [
             "id", "owner_id", "manga_title_id", "chapter_id", 
             "parent_comment_id", "text", "attached_image", "attached_image_upload",
-            "created_at", "status", "hidden_reasons"
+            "created_at", "status", "hidden_reasons", "is_edited"
         ]
         read_only_fields = [
             field for field in fields if field not in {

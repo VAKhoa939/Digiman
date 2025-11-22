@@ -1,3 +1,4 @@
+import uuid
 from django.db import transaction
 
 from ..models.user_models import User, Reader
@@ -14,7 +15,7 @@ class LogEntryDetailFactory:
     def get_moderation_detail(target_object) -> dict[str, Any]:
         if isinstance(target_object, Reader):
             return {
-                'targetType': FlaggedContent.TargetContentTypeChoices.USER.value, 
+                'targetType': FlaggedContent.TargetObjectTypeChoices.USER.value, 
                 'attributes' : [
                     {"attributeName": "username",
                         "isImage": "False",
@@ -29,7 +30,7 @@ class LogEntryDetailFactory:
             }
         elif isinstance(target_object, User):
             return {
-                'targetType': FlaggedContent.TargetContentTypeChoices.USER.value, 
+                'targetType': FlaggedContent.TargetObjectTypeChoices.USER.value, 
                 'attributes' : [
                     {"attributeName": "username",
                         "isImage": "False",
@@ -38,7 +39,7 @@ class LogEntryDetailFactory:
             }
         elif isinstance(target_object, MangaTitle):
             return {
-                'targetType': FlaggedContent.TargetContentTypeChoices.MANGA_TITLE.value, 
+                'targetType': FlaggedContent.TargetObjectTypeChoices.MANGA_TITLE.value, 
                 'attributes' : [
                     {"attributeName": "title",
                         "isImage": "False",
@@ -56,7 +57,7 @@ class LogEntryDetailFactory:
             }
         elif isinstance(target_object, Chapter):
             return {
-                'targetType': FlaggedContent.TargetContentTypeChoices.CHAPTER.value, 
+                'targetType': FlaggedContent.TargetObjectTypeChoices.CHAPTER.value, 
                 'attributes' : [
                     {"attributeName": "title",
                         "isImage": "False",
@@ -65,7 +66,7 @@ class LogEntryDetailFactory:
             }
         elif isinstance(target_object, Page):
             return {
-                'targetType': FlaggedContent.TargetContentTypeChoices.PAGE.value, 
+                'targetType': FlaggedContent.TargetObjectTypeChoices.PAGE.value, 
                 'attributes' : [
                     {"attributeName": "imageUrl",
                         "isImage": "True",
@@ -74,7 +75,7 @@ class LogEntryDetailFactory:
             }
         elif isinstance(target_object, Comment):
             details = {
-                'targetType': FlaggedContent.TargetContentTypeChoices.COMMENT.value, 
+                'targetType': FlaggedContent.TargetObjectTypeChoices.COMMENT.value, 
                 'attributes': [],
             }
             if target_object.text:
@@ -151,35 +152,17 @@ class SystemService:
     ):
         """
         Creates a new flagged content.
-        Including: marks older flags as resolved, creates a new one, and logs the event.
         """
-        # 1. Mark older flags as resolved
-        old_flags = FlaggedContent.objects.filter(
-            target_content_type=log_entry.target_object_type,
-            target_content_id=log_entry.target_object_id,
-            content_name=content_name,
-            is_resolved=False
-        )
-        if old_flags.exists():
-            for flag in old_flags:
-                flag.resolve()
-                SystemService.create_log_entry(
-                    None,
-                    LogEntry.ActionTypeChoices.AUTO_RESOLVE_FLAG,
-                    flag
-                )
-
-        # 2. Create new flagged content
         obj = FlaggedContent.objects.create(
-            target_content_type=log_entry.target_object_type,
-            target_content_id=log_entry.target_object_id,
-            content_name=content_name,
-            content=content,
             severity_score=severity_score,
             dominant_attribute=dominant_attribute,
             reason=reason,
             details=result,
+            content_name=content_name,
+            content=content,
             is_content_image=is_image,
+            target_object_type=log_entry.target_object_type,
+            target_object_id=log_entry.target_object_id,
         )
 
         SystemService.create_log_entry(
@@ -190,3 +173,34 @@ class SystemService:
 
         return obj
     
+    @staticmethod
+    @transaction.atomic
+    def resolve_flag(flag: FlaggedContent, action_type: LogEntry.ActionTypeChoices):
+        flag.resolve()
+        SystemService.create_log_entry(None, action_type, flag)
+
+    @staticmethod
+    def resolve_old_flags(
+        target_object_type: LogEntry.TargetObjectTypeChoices,
+        target_object_id: uuid.UUID,
+        content_name: str
+    ):
+        """
+        Resolves all old flags for a specific target object's content.
+        """
+        old_flags = FlaggedContent.objects.filter(
+            target_content_type=target_object_type,
+            target_content_id=target_object_id,
+            content_name=content_name,
+            is_resolved=False
+        )
+        if not old_flags.exists():
+            return
+        for flag in old_flags:
+            SystemService.resolve_flag(flag, LogEntry.ActionTypeChoices.AUTO_RESOLVE_FLAG)
+    
+    @staticmethod
+    def get_flagged_content_index(flagged_content: FlaggedContent) -> int:
+        return FlaggedContent.objects.filter(
+            flagged_at__lte=flagged_content.flagged_at
+        ).count()

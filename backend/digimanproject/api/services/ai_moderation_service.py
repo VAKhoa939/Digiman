@@ -17,24 +17,31 @@ class AIModerationService:
     """
 
     @staticmethod
-    @transaction.atomic
     def run_moderation_pipeline() -> None:
         """
-        Main entrypoint for moderation.
-        Should be called by:
-            - cron job
-            - management command
-            - celery worker
+        Runs AI moderation pipeline in background.
+        Safely processes entries one-by-one.
         """
 
         entries = LogEntry.objects.filter(is_moderated=False)
 
         for entry in entries:
-            AIModerationService.process_log_entry(entry)
-            entry.moderate()
+            try:
+                AIModerationService.process_log_entry(entry)
+                with transaction.atomic():
+                    entry.moderate()
+            except Exception as e:
+                # Log error but continue with next entries
+                logger.error(f"[Moderation Error] Entry {entry.id}: {e}")
 
     @staticmethod
     def process_log_entry(entry: LogEntry) -> None:
+        """
+        Processes a single LogEntry object.
+        
+        Includes: extracting attributes, running AI moderation, 
+        deciding if unsafe, and creating FlaggedContent objects.
+        """
         details = entry.details or {}
         attrs: List[Dict[str, Any]] = details.get("attributes", [])
 
@@ -60,6 +67,9 @@ class AIModerationService:
             # If no results, skip
             if not result:
                 continue
+
+            # Resolve old flags for this content
+            SystemService.resolve_old_flags(entry.target_object_type, entry.target_object_id, content_name)
 
             # Decide if unsafe to start creating flagged content
             if not is_unsafe:

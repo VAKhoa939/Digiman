@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from .user_models import User
     from .community_models import Comment, Report, Penalty
 
-FlaggedContentTargetContentType = Union["MangaTitle", "Chapter", 
+FlaggedContentTargetObjectType = Union["MangaTitle", "Chapter", 
                                         "Page", "Comment", "User"]
 
 LogEntryTargetObjectType = Union["MangaTitle", "Chapter", "Page", "Genre", 
@@ -24,7 +24,7 @@ LogEntryTargetObjectType = Union["MangaTitle", "Chapter", "Page", "Genre",
 
 
 class FlaggedContent(models.Model):
-    class TargetContentTypeChoices(models.TextChoices):
+    class TargetObjectTypeChoices(models.TextChoices):
         MANGA_TITLE = "mangatitle", "MangaTitle"
         CHAPTER = "chapter", "Chapter"
         PAGE = "page", "Page"
@@ -37,32 +37,37 @@ class FlaggedContent(models.Model):
     dominant_attribute: str = models.CharField(max_length=100, default="")
     reason: str = models.TextField()
     details: dict[str, Any] = models.JSONField(null=False, default=dict)
+
     flagged_at: datetime = models.DateTimeField(default=timezone.now)
     is_resolved: bool = models.BooleanField(default=False)
+
     is_content_image: bool = models.BooleanField(default=False)
     content_name: str = models.CharField(max_length=100, default="")
     content: str = models.TextField()
-    target_content_type: str = models.CharField(
-        choices=TargetContentTypeChoices.choices)
-    target_content_id: uuid.UUID = models.UUIDField()
+
+    target_object_type: str = models.CharField(
+        choices=TargetObjectTypeChoices.choices)
+    target_object_id: uuid.UUID = models.UUIDField()
 
     def __str__(self) -> str:
-        return f"Flagged Content {self.id} - at {self.flagged_at}"
+        from ..services.system_service import SystemService
+        index = SystemService.get_flagged_content_index(self)
+        return f"Flagged Content #{index} on {self.target_object_type}'s {self.content_name}"
     
-    def get_target_object(self) -> Optional[FlaggedContentTargetContentType]:
+    def get_target_object(self) -> Optional[FlaggedContentTargetObjectType]:
         from .manga_models import MangaTitle, Chapter, Page
         from .user_models import User
         from .community_models import Comment
         
-        mapping: Dict[str, FlaggedContentTargetContentType] = {
-            self.TargetContentTypeChoices.MANGA_TITLE.value: MangaTitle,
-            self.TargetContentTypeChoices.CHAPTER.value: Chapter,
-            self.TargetContentTypeChoices.PAGE.value: Page,
-            self.TargetContentTypeChoices.COMMENT.value: Comment,
-            self.TargetContentTypeChoices.USER.value: User,
+        mapping: Dict[str, FlaggedContentTargetObjectType] = {
+            self.TargetObjectTypeChoices.MANGA_TITLE.value: MangaTitle,
+            self.TargetObjectTypeChoices.CHAPTER.value: Chapter,
+            self.TargetObjectTypeChoices.PAGE.value: Page,
+            self.TargetObjectTypeChoices.COMMENT.value: Comment,
+            self.TargetObjectTypeChoices.USER.value: User,
         }
-        return get_target_object(self.target_content_id,
-                    self.target_content_type, mapping)
+        return get_target_object(self.target_object_id,
+                    self.target_object_type, mapping)
     
     def resolve(self) -> None:
         self.is_resolved = True
@@ -188,6 +193,7 @@ class LogEntry(models.Model):
                     self.target_object_type, mapping)
 
     def moderate(self) -> None:
+        """Mark the log entry as moderated."""
         self.is_moderated = True
         self.save(update_fields=["is_moderated"])
         

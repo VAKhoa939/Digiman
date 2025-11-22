@@ -44,6 +44,7 @@ class Comment(models.Model):
         default=StatusChoices.ACTIVE
     )
     hidden_reasons: str = models.TextField(blank=True)
+    is_edited: bool = models.BooleanField(default=False)
 
     def __str__(self) -> str:
         from ..services.community_service import CommunityService
@@ -70,6 +71,12 @@ class Comment(models.Model):
     def update_metadata(self, **metadata: Any) -> None:
         """Allowed fields: text, attached_image_url, status, hidden_reasons"""
         allowed_fields = {"text", "attached_image_url", "status", "hidden_reasons"}
+
+        # set is_edited to True if any of the allowed fields are changed
+        if not self.is_edited and any(field in allowed_fields for field in metadata.keys()):
+            metadata["is_edited"] = True
+            allowed_fields.add("is_edited")
+            
         update_instance(self, allowed_fields, **metadata)
         
 
