@@ -6,9 +6,9 @@ class FlaggedContentSerializer(serializers.ModelSerializer):
     class Meta:
         model = FlaggedContent
         fields = [
-            "id", "severity_score", "reason", "flagged_at", "is_resolved", 
-            "is_content_image", "content", "target_content_type", 
-            "target_content_id"
+            "id", "severity_score", "dominant_attribute", "reason", "details",
+            "flagged_at", "is_resolved", "is_content_image", "content_name", "content", 
+            "target_object_type", "target_object_id"
         ]
         read_only_fields = [
             field for field in fields if field != "is_resolved"

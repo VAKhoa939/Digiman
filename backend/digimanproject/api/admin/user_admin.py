@@ -97,9 +97,6 @@ class UserAdmin(BaseUserAdmin):
         else:
             UserService.update_user(obj, form.cleaned_data)
 
-        # Call the parent save_model for triggering the signals
-        super().save_model(request, obj, form, change)
-
 
 @admin.register(Reader)
 class ReaderAdmin(BaseUserAdmin):
@@ -135,8 +132,12 @@ class ReaderAdmin(BaseUserAdmin):
         else:
             UserService.update_user(obj, form.cleaned_data, avatar_file)
 
-        # Call the parent save_model for triggering the signals
-        super().save_model(request, obj, form, change)
+    def delete_model(self, request, obj):
+        # Attach the current user to the object for logging
+        user = request.user
+        obj._action_user = user
+        
+        UserService.delete_user(obj)
 
 
 @admin.register(Administrator)
@@ -161,3 +162,6 @@ class AdministratorAdmin(BaseUserAdmin):
         This method calls the ReaderAdmin's save_model method.
         """
         ReaderAdmin.save_model(self, request, obj, form, change)
+
+    def delete_model(self, request, obj):
+        ReaderAdmin.delete_model(self, request, obj)

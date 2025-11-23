@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from ..models.reader_models import ReaderPreferences, LibraryList, ReadingProgress, OfflineChapter
+from ..models.reader_models import ReaderPreferences, LibraryList, ReadingProgress
 
 
 class ReaderPreferencesSerializer(serializers.ModelSerializer):
@@ -44,19 +44,4 @@ class ReadingProgressSerializer(serializers.ModelSerializer):
         read_only_fields = [*fields,]
 
     def get_manga_title_id(self, obj: ReadingProgress) -> str:
-        return obj.get_manga_title().id
-
-
-class OfflineChapterSerializer(serializers.ModelSerializer):
-    manga_title_id = serializers.SerializerMethodField()
-
-    class Meta:
-        model = OfflineChapter
-        fields = [
-            "id", "reader_id", "chapter_id", "storage_path", "size_mb",
-            "download_date", "manga_title_id"
-        ]
-        read_only_fields = [*fields,]
-
-    def get_manga_title_id(self, obj: OfflineChapter) -> str:
         return obj.get_manga_title().id

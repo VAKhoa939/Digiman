@@ -29,11 +29,9 @@ class User(AbstractUser):
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     role: str = models.CharField(
-        max_length=20,
         choices=RoleChoices.choices,
         default=RoleChoices.READER)
     status: str = models.CharField(
-        max_length=20, 
         choices=StatusChoices.choices, 
         default=StatusChoices.ACTIVE)
     created_at: datetime = models.DateTimeField(
