@@ -108,6 +108,7 @@ function AppContent() {
           <Route path="/" element={<Catalog />} />
           <Route path="/search/advanced" element={<AdvancedSearchPage />} />
           <Route path="/manga/:id" element={<MangaRoute />} />
+          <Route path="/offline/mangas/:mangaId/chapter/:chapterId" element={<ChapterPage />} />
           <Route path="/manga/:mangaId/chapter/:chapterId" element={<ChapterPage />} />
           <Route path="/manga/:mangaId/chapter/:chapterId/comments" element={<CommentsPage />} />
           <Route path="/downloads" element={<DownloadsPage />} />

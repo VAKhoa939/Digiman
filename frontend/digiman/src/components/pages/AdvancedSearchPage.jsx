@@ -4,7 +4,7 @@ import api from '../../services/api';
 
 export default function AdvancedSearchPage() {
   const navigate = useNavigate();
-  const [local, setLocal] = useState({ status: 'any', minChapter: '', ordering: 'relevance', q: '' });
+  const [local, setLocal] = useState({ status: 'any', minChapter: '', ordering: 'publication_status', q: '' });
   const [showFilters, setShowFilters] = useState(true);
   const [contentRating, setContentRating] = useState('any');
   const [genres, setGenres] = useState([]);
@@ -111,18 +111,9 @@ export default function AdvancedSearchPage() {
             <div className="col-md-3">
               <label className="small text-muted">Sort by</label>
               <select className="form-select" value={local.ordering} onChange={(e)=>setLocal({...local, ordering: e.target.value})}>
-                <option value="relevance">Relevance</option>
+                <option value="publication_date">Publication date</option>
                 <option value="title">Title</option>
-                <option value="latest_chapter">Latest chapter</option>
-              </select>
-            </div>
-            <div className="col-md-3">
-              <label className="small text-muted">Content Rating</label>
-              <select className="form-select" value={contentRating} onChange={(e)=>setContentRating(e.target.value)}>
-                <option value="any">Any</option>
-                <option value="PG">PG</option>
-                <option value="PG-13">PG-13</option>
-                <option value="R">R</option>
+                <option value="latest_chapter_date">Latest chapter</option>
               </select>
             </div>
             <div className="col-md-3">
@@ -130,8 +121,8 @@ export default function AdvancedSearchPage() {
               <select className="form-select" value={local.status} onChange={(e)=>setLocal({...local, status: e.target.value})}>
                 <option value="any">Any</option>
                 <option value="Ongoing">Ongoing</option>
-                <option value="Completed">Completed</option>
-                <option value="Hiatus">Hiatus</option>
+                <option value="Finished">Finished</option>
+                <option value="Dropped">Dropped</option>
               </select>
             </div>
 
@@ -147,8 +138,8 @@ export default function AdvancedSearchPage() {
             </div>
 
             <div className="col-md-3">
-              <label className="small text-muted">Minimum chapter</label>
-              <input className="form-control" value={local.minChapter} onChange={(e)=>setLocal({...local, minChapter: e.target.value})} placeholder="e.g. 10" />
+              <label className="small text-muted">Author name</label>
+              <input className="form-control" value={local.minChapter} onChange={(e)=>setLocal({...local, minChapter: e.target.value})} placeholder="e.g Oda" />
             </div>
 
             <div className="col-md-3 d-flex align-items-end">

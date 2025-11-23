@@ -3,13 +3,13 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../../services/api';
 import Spinner from '../smallComponents/Spinner';
 import { mockChapter, mockList } from '../../data/chapterMock';
+import { loadDownloadedChapter } from '../../utils/downloads';
 import ChapterMeta from '../chapterComponents/ChapterMeta';
 import ChapterControls from '../chapterComponents/ChapterControls';
 import ChapterReader from '../chapterComponents/ChapterReader';
 import ChapterNav from '../chapterComponents/ChapterNav';
 import ChapterActions from '../chapterComponents/ChapterActions';
-import Comment from '../smallComponents/Comment';
-import { loadComments } from '../../utils/comments';
+import CommentsPage from './CommentsPage';
 import ReaderSettings from '../chapterComponents/ReaderSettings';
 
 export default function ChapterPage() {
@@ -51,6 +51,7 @@ export default function ChapterPage() {
       try {
           // If a downloaded copy exists locally (from Downloads), prefer that
           // so users can read offline copies they've downloaded.
+          
           try{
             const saved = await loadDownloadedChapter(mangaId, chapterId)
             if (saved){
@@ -67,8 +68,14 @@ export default function ChapterPage() {
             }
           }catch(e){ /* ignore and fall back to backend */ }
 
-          // no local mock fallback here; rely on backend
-
+          // local fallback
+          if (import.meta.env.VITE_USE_MOCK_DATA === 'true') {
+            if (!mounted) return;
+            setChapter(mockChapter);
+            setChaptersList(mockList);
+            setLoading(false);
+            return;
+          }
           // Example endpoints - adapt to your backend routes
           const [{ data: chap }, { data: list }] = await Promise.all([
             api.get(`manga/${mangaId}/chapters/${chapterId}`),
@@ -78,8 +85,17 @@ export default function ChapterPage() {
           setChapter(chap);
           setChaptersList(list || []);
       } catch (err) {
-        console.error('Failed to load chapter', err);
-        setError(err);
+        console.error('Failed to load chapter from API, falling back to local mock if available', err);
+        // Provide a graceful local fallback when backend is unavailable.
+        // Prefer bundled mock data if present; otherwise surface the error.
+        if (mockChapter) {
+          // Ensure the mock has pages array
+          setChapter({ ...mockChapter, pages: mockChapter.pages || [] });
+          setChaptersList(mockList || []);
+          setError(null);
+        } else {
+          setError(err);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -104,15 +120,6 @@ export default function ChapterPage() {
   return (
     <div className="chapter-page container py-4">
       <ChapterMeta chapter={chapter} />
-      <div className="mt-2 mb-3">
-        <Link
-          to={`/manga/${mangaId}/chapter/${chapterId}/comments`}
-          className="btn btn-sm"
-          style={{ backgroundColor: '#FFD400', color: '#111', border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}
-        >
-          Comments
-        </Link>
-      </div>
       <ChapterControls
         chapter={chapter}
         onOpenSettings={() => setShowSettings(true)}
@@ -123,25 +130,10 @@ export default function ChapterPage() {
         <ChapterActions chapter={chapter} mangaId={mangaId} />
       </div>
 
-      {/* Inline comments preview (top 3) */}
+      {/* Inline full comments section */}
       <div className="mt-4">
-        <h5>Comments</h5>
-        {(() => {
-          const all = loadComments(mangaId, chapterId) || []
-          if (all.length === 0) return <div className="text-muted">No comments yet. <Link to={`/manga/${mangaId}/chapter/${chapterId}/comments`}>Be the first</Link>.</div>
-          const top = all.slice(0,3)
-          return (
-            <div>
-              {top.map(c => (
-                <div key={c.id} className="mb-2">
-                  <Comment name={c.name} text={c.text} created_at={c.created_at} />
-                </div>
-              ))}
-              {all.length > 3 && <div className="mt-2"><Link to={`/manga/${mangaId}/chapter/${chapterId}/comments`}>View all comments ({all.length})</Link></div>}
-            </div>
-          )
-        })()}
-  </div>
+        <CommentsPage inline={true} />
+      </div>
       <ReaderSettings show={showSettings} settings={readerSettings} onClose={() => setShowSettings(false)} onSave={(s) => {
         // apply select settings to reader and persist them
         try { localStorage.setItem('readerSettings', JSON.stringify(s)); } catch (err) { /* ignore */ }

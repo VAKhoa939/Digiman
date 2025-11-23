@@ -1,0 +1,73 @@
+:root {
+  /* Core color tokens (dark mode defaults) */
+  --bg: #0b0c10;
+  --surface: #111217;
+  --card-bg: #0f1114;
+  --text: #e8eef6;
+  --muted: #9aa0a6;
+  --accent: #ffd400;
+  --accent-dark: #e6c100;
+  --danger: #ef4444;
+  --reader-max-width: 1100px;
+}
+
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --surface: #f7f9fb;
+  --card-bg: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+  --accent: #e11d48;
+  --accent-dark: #b4163a;
+  --danger: #dc2626;
+}
+
+/* Basic element bindings so components using plain elements benefit immediately */
+html, body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+a { color: var(--accent); }
+
+.manga-synopsis { background: var(--card-bg); color: var(--text); }
+
+.btn-primary, .btn-primary:focus, .btn-primary:hover { background: var(--accent); border-color: var(--accent); color: #111; }
+.btn-outline-light { color: var(--text); border-color: rgba(255,255,255,0.08); }
+
+/* Reader max width */
+:root { --reader-max-width: 1100px; }
+
+/* Comments styling to match the provided screenshot */
+.comments-section .comment-rect {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius: 8px;
+  padding: 14px;
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.03);
+}
+.comments-section .comment-row { display:flex; gap:12px; align-items:flex-start }
+.comment-avatar {
+  width:48px; height:48px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; font-weight:700; color:#fff;
+}
+.comment-username { color: var(--accent); font-weight:700 }
+.comment-meta { font-size:0.85rem; color: var(--muted); margin-left:6px }
+.comment-body { margin-top:6px; white-space:pre-wrap; color:var(--text) }
+.comment-actions { margin-left:auto; display:flex; gap:10px; align-items:center }
+.comment-reply { margin-left:60px; margin-top:8px }
+
+/* Posting area */
+.comment-post-area .post-box {
+  background: var(--card-bg);
+  border-radius: 10px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.03);
+}
+.comment-post-area .post-textarea { background: transparent; color:var(--text); border: none; resize: vertical }
+.comment-post-area .toolbar { display:flex; gap:10px; align-items:center; padding:6px 8px; border-top:1px solid rgba(255,255,255,0.02); margin-top:8px }
+.comment-post-area .post-submit { background:#00a8ff; color:#fff; padding:6px 10px; border-radius:6px; }
+
+/* Small helpers */
+.comment-list-controls { display:flex; gap:12px; align-items:center; margin-bottom:8px }
+.comment-list-controls a { color: var(--accent); font-weight:600 }
+

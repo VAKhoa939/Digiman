@@ -6,8 +6,13 @@ import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import SearchBar from './SearchBar';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import { useTheme } from '../../context/ThemeContext';
 
-function NavBar() {
+function NavBar({ onLogin, onRegister }) {
+  const handleLogin = onLogin || ((data) => { console.log('Login submitted:', data); });
+  const handleRegister = onRegister || ((data) => { console.log('Register submitted:', data); });
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -21,9 +26,10 @@ function NavBar() {
     }
   };
 
+  const { theme } = useTheme ? useTheme() : { theme: 'dark' }
   return (
     <>
-      <nav className="navbar fixed-top navbar-expand-lg bg-dark" data-bs-theme="dark">
+      <nav className={`navbar fixed-top navbar-expand-lg ${theme === 'dark' ? 'bg-dark' : 'bg-light'}`} data-bs-theme={theme}>
         <div className="container-fluid">
           <Link className="navbar-brand" to="/">
             <span style={{ color: "white" }}>Digi</span>
@@ -52,6 +58,7 @@ function NavBar() {
                 <button className="btn btn-sm btn-outline-light ms-2" title="Advanced search" onClick={() => navigate('/search/advanced')}>
                   <FilterListIcon />
                 </button>
+                <ThemeToggle />
               </div>
 
               {/* If authenticated, show profile and logout; otherwise show Login/Register */}
@@ -112,6 +119,15 @@ function NavBar() {
       </nav>
     </>
   );
+}
+
+function ThemeToggle(){
+  const { theme, toggle } = useTheme()
+  return (
+    <button className="btn btn-sm btn-outline-light ms-2" title="Toggle theme" onClick={toggle}>
+      {theme === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+    </button>
+  )
 }
 
 function NavLoginButton() {
