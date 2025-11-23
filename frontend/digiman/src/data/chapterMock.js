@@ -4,12 +4,13 @@ export const mockChapter = {
   number: 1,
   title: 'Chapter 1: Prologue',
   date: '2025-11-01T00:00:00Z',
-  scanlator: 'ExampleScan',
-  pages: Array.from({ length: 6 }).map((_, i) => ({
-    index: i,
-    url: `https://via.placeholder.com/800x1200?text=Page+${i + 1}`,
-    alt: `Page ${i + 1}`,
-  })),
+  mangaTitle: 'Shangri-La Frontier: Kusoge Hunter',
+  mangaTitleID: '25146',
+  pages: [
+    { id: '1', url: 'https://nmoilicfzoyfohmzkgiv.supabase.co/storage/v1/object/public/manga-content/4326be02-6f8f-4141-b8dd-bcfd09a9e709.jpg', alt: 'Page 1' },
+    { id: '2', url: 'https://nmoilicfzoyfohmzkgiv.supabase.co/storage/v1/object/public/manga-content/8fbe4ada-0937-4e71-9872-053fff993414.jpg', alt: 'Page 2' },
+    { id: '3', url: 'https://nmoilicfzoyfohmzkgiv.supabase.co/storage/v1/object/public/manga-content/d0b6fef8-a56b-4430-907c-28a75d7f7084.jpg', alt: 'Page 3' },
+  ],
   prevChapterId: null,
   nextChapterId: 'c2',
 };

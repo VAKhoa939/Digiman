@@ -1,4 +1,9 @@
-import React, {useEffect, useState} from 'react'
+import React, {useEffect, useState, useRef} from 'react'
+import FormatBoldIcon from '@mui/icons-material/FormatBold'
+import FormatItalicIcon from '@mui/icons-material/FormatItalic'
+import FormatUnderlinedIcon from '@mui/icons-material/FormatUnderlined'
+import StrikethroughSIcon from '@mui/icons-material/StrikethroughS'
+import ImageIcon from '@mui/icons-material/Image'
 import {useParams, Link, useNavigate, useLocation} from 'react-router-dom'
 import { loadComments, saveComments } from '../../utils/comments'
 import Comment from '../smallComponents/Comment'
@@ -7,7 +12,7 @@ import { useAuth } from '../../context/AuthContext'
 // Simple comments page using localStorage as a fallback for dev.
 // Comments are stored under key `comments_<mangaId>_<chapterId>` as JSON array.
 
-export default function CommentsPage(){
+export default function CommentsPage({ inline = false }){
   const {mangaId, chapterId} = useParams()
   const navigate = useNavigate()
   const location = useLocation()
@@ -15,8 +20,16 @@ export default function CommentsPage(){
   const [comments, setComments] = useState([])
   const [name, setName] = useState('')
   const [text, setText] = useState('')
+  const [selectedImage, setSelectedImage] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [editId, setEditId] = useState(null)
   const [editText, setEditText] = useState('')
+  const [editImage, setEditImage] = useState(null)
+  const [editPreview, setEditPreview] = useState('')
+  const [editUploading, setEditUploading] = useState(false)
+  const [editUploadProgress, setEditUploadProgress] = useState(0)
 
   useEffect(()=>{
     const c = loadComments(mangaId, chapterId)
@@ -32,7 +45,42 @@ export default function CommentsPage(){
       navigate('/login', { state: { background: location } })
       return
     }
-    if(!text.trim()) return
+    if(!text.trim() && !selectedImage) return
+
+    // If there's an image, simulate upload progress then post with placeholder URL
+    if(selectedImage){
+      setUploading(true)
+      setUploadProgress(0)
+      const iv = setInterval(()=>{
+        setUploadProgress(p => {
+          const next = Math.min(100, p + Math.floor(Math.random()*20) + 10)
+          if(next >= 100){
+            clearInterval(iv)
+            // mock remote URL placeholder (picsum seeded)
+            const placeholderUrl = `https://picsum.photos/seed/${Date.now()}/600/400`
+            const newComment = {
+              id: Date.now(),
+              name: name?.trim() || (user && user.username) || 'Guest',
+              text: text.trim(),
+              imageUrl: placeholderUrl,
+              created_at: new Date().toISOString()
+            }
+            const nextList = [newComment, ...comments]
+            setComments(nextList)
+            saveComments(mangaId, chapterId, nextList)
+            // reset UI
+            setText('')
+            setSelectedImage(null)
+            setPreviewUrl('')
+            setUploading(false)
+            setUploadProgress(0)
+          }
+          return next
+        })
+      }, 300)
+      return
+    }
+
     const newComment = {
       id: Date.now(),
       name: name?.trim() || (user && user.username) || 'Guest',
@@ -45,9 +93,59 @@ export default function CommentsPage(){
     setText('')
   }
 
+  // Formatting helpers for the post textarea
+  const postRef = useRef(null)
+  const fileRef = useRef(null)
+
+  function wrapSelection(tag){
+    const ta = postRef.current
+    if(!ta) return
+    const start = ta.selectionStart
+    const end = ta.selectionEnd
+    const before = ta.value.substring(0, start)
+    const sel = ta.value.substring(start, end) || 'text'
+    const after = ta.value.substring(end)
+    const insert = `<${tag}>${sel}</${tag}>`
+    const next = before + insert + after
+    setText(next)
+    // move caret after inserted content
+    requestAnimationFrame(()=>{
+      ta.focus()
+      const pos = before.length + insert.length
+      ta.setSelectionRange(pos, pos)
+    })
+  }
+
+  function onImgClick(){
+    if(fileRef.current) fileRef.current.click()
+  }
+
+  function onFileChange(e){
+    const f = e.target.files && e.target.files[0]
+    if(!f) return
+    // limit to 5MB for safety
+    const MAX = 5 * 1024 * 1024
+    if(f.size > MAX){
+      alert('Image too large (max 5MB)')
+      e.target.value = ''
+      return
+    }
+    setSelectedImage(f)
+    const reader = new FileReader()
+    reader.onload = function(ev){
+      const data = ev.target.result
+      setPreviewUrl(data)
+    }
+    reader.readAsDataURL(f)
+  }
+
   function startEdit(c){
     setEditId(c.id)
     setEditText(c.text)
+    setEditPreview(c.imageUrl || '')
+    setEditImage(null)
+    setEditUploading(false)
+    setEditUploadProgress(0)
   }
 
   function cancelEdit(){
@@ -56,12 +154,43 @@ export default function CommentsPage(){
   }
 
   function saveEdit(id){
-    if(!editText.trim()) return
-    const next = comments.map(c => c.id === id ? {...c, text: editText, edited_at: new Date().toISOString()} : c)
+    if(!editText.trim() && !editPreview) return
+
+    // If a new image file was chosen during edit, simulate upload
+    if(editImage){
+      setEditUploading(true)
+      setEditUploadProgress(0)
+      const iv = setInterval(()=>{
+        setEditUploadProgress(p => {
+          const next = Math.min(100, p + Math.floor(Math.random()*20) + 10)
+          if(next >= 100){
+            clearInterval(iv)
+            const placeholderUrl = `https://picsum.photos/seed/edit${Date.now()}/600/400`
+            const nextList = comments.map(c => c.id === id ? {...c, text: editText, imageUrl: placeholderUrl, edited_at: new Date().toISOString()} : c)
+            setComments(nextList)
+            saveComments(mangaId, chapterId, nextList)
+            // reset edit UI
+            setEditId(null)
+            setEditText('')
+            setEditImage(null)
+            setEditPreview('')
+            setEditUploading(false)
+            setEditUploadProgress(0)
+          }
+          return next
+        })
+      }, 300)
+      return
+    }
+
+    // No new file: apply text and imagePreview (which may be empty to remove image)
+    const next = comments.map(c => c.id === id ? {...c, text: editText, imageUrl: editPreview || undefined, edited_at: new Date().toISOString()} : c)
     setComments(next)
     saveComments(mangaId, chapterId, next)
     setEditId(null)
     setEditText('')
+    setEditImage(null)
+    setEditPreview('')
   }
 
   function deleteComment(id){
@@ -71,14 +200,92 @@ export default function CommentsPage(){
     if(editId === id) cancelEdit()
   }
 
+  const rootClass = inline ? 'comments-section' : 'container my-4 comments-section'
+
   return (
-    <div className="container my-4">
+    <div className={rootClass}>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h3>Comments</h3>
-        <Link to={`/manga/${mangaId}/chapter/${chapterId}`} className="btn btn-outline-secondary btn-sm">Back to chapter</Link>
+        {!inline && (
+          <Link to={`/manga/${mangaId}/chapter/${chapterId}`} className="btn btn-outline-secondary btn-sm">Back to chapter</Link>
+        )}
       </div>
 
       {/* comments list rendered below; posting UI moved to the bottom */}
+
+      {/* Posting area (placed above the comments list) */}
+      <div className="mb-4">
+        {fetchUserLoading ? (
+          <div className="text-center py-3">Loading authentication…</div>
+        ) : isAuthenticated ? (
+          <div className="comment-post-area mb-3">
+            <form onSubmit={addComment} className="post-box">
+              <div>
+                <textarea ref={postRef} className="form-control post-textarea" rows={4} value={text} onChange={e=>setText(e.target.value)} placeholder="Write a comment..."></textarea>
+                <div className="mt-2 d-flex align-items-center gap-2">
+                  <input ref={fileRef} type="file" accept="image/*" onChange={onFileChange} />
+                  <button type="button" className="btn btn-sm btn-outline-secondary" onClick={()=>{ setSelectedImage(null); setPreviewUrl(''); if(fileRef.current) fileRef.current.value=''; }}>Clear</button>
+                </div>
+                {previewUrl && (
+                  <div className="mt-2">
+                    <div className="small text-muted">Selected image preview:</div>
+                    <img src={previewUrl} alt="preview" style={{maxWidth:'100%', borderRadius:6, marginTop:6}} />
+                  </div>
+                )}
+              </div>
+              <div className="toolbar">
+                <div className="d-flex align-items-center gap-2">
+                  <button type="button" className="btn btn-sm btn-outline-secondary" title="Bold" onClick={()=>wrapSelection('b')}>
+                    <FormatBoldIcon fontSize="small" />
+                  </button>
+                  <button type="button" className="btn btn-sm btn-outline-secondary" title="Italic" onClick={()=>wrapSelection('i')}>
+                    <FormatItalicIcon fontSize="small" />
+                  </button>
+                  <button type="button" className="btn btn-sm btn-outline-secondary" title="Underline" onClick={()=>wrapSelection('u')}>
+                    <FormatUnderlinedIcon fontSize="small" />
+                  </button>
+                  <button type="button" className="btn btn-sm btn-outline-secondary" title="Strikethrough" onClick={()=>wrapSelection('s')}>
+                    <StrikethroughSIcon fontSize="small" />
+                  </button>
+                  <button type="button" className="btn btn-sm btn-outline-secondary" title="Insert image" onClick={onImgClick}>
+                    <ImageIcon fontSize="small" />
+                  </button>
+                </div>
+                <div className="ms-auto d-flex align-items-center gap-2">
+                  <label className="small text-muted"><input type="checkbox" className="me-1"/> Blur images in comments (Avoid spoilers)</label>
+                  {uploading && (
+                    <div style={{width:160}}>
+                      <div className="progress" style={{height:8}}>
+                        <div className="progress-bar" role="progressbar" style={{width: `${uploadProgress}%`}} aria-valuenow={uploadProgress} aria-valuemin="0" aria-valuemax="100"></div>
+                      </div>
+                    </div>
+                  )}
+                  <button className="post-submit btn btn-primary" type="submit" disabled={uploading}>{uploading ? 'Uploading...' : 'POST'}</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        ) : (
+          <div className="card mb-3">
+            <div className="card-body">
+              <p className="mb-2">You must be logged in to post comments.</p>
+              <div>
+                <button className="btn btn-primary me-2" onClick={()=>navigate('/login', { state: { background: location } })}>Log in</button>
+                <button className="btn btn-outline-secondary" onClick={()=>navigate('/register', { state: { background: location } })}>Register</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="comment-list-controls">
+        <div className="small text-muted">{comments.length} Responses</div>
+        <div className="ms-auto d-flex gap-2">
+          <a href="#">Upvotes</a>
+          <a href="#">Newest</a>
+          <a href="#">Oldest</a>
+        </div>
+      </div>
 
       <div>
         {comments.length === 0 ? (
@@ -89,62 +296,49 @@ export default function CommentsPage(){
               {editId === c.id ? (
                 <div className="card p-2 bg-transparent border-0">
                   <textarea className="form-control mb-2" rows={3} value={editText} onChange={e=>setEditText(e.target.value)} />
-                  <div className="d-flex gap-2 justify-content-end">
-                    <button className="btn btn-sm btn-outline-secondary" onClick={cancelEdit}>Cancel</button>
-                    <button className="btn btn-sm btn-primary" onClick={()=>saveEdit(c.id)}>Save</button>
+                  <div className="mt-2 d-flex align-items-center gap-2">
+                    <input type="file" accept="image/*" onChange={(e)=>{
+                      const f = e.target.files && e.target.files[0]
+                      if(!f) return
+                      const MAX = 5 * 1024 * 1024
+                      if(f.size > MAX){ alert('Image too large (max 5MB)'); e.target.value=''; return }
+                      setEditImage(f)
+                      const r = new FileReader()
+                      r.onload = ev => setEditPreview(ev.target.result)
+                      r.readAsDataURL(f)
+                    }} />
+                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={()=>{ setEditImage(null); setEditPreview('') }}>Remove image</button>
+                    {editPreview && <div style={{maxWidth:120}}><img src={editPreview} alt="preview" style={{maxWidth:'100%', borderRadius:6}} /></div>}
+                  </div>
+                  {editUploading && (
+                    <div className="mt-2" style={{width:200}}>
+                      <div className="progress" style={{height:8}}>
+                        <div className="progress-bar" role="progressbar" style={{width: `${editUploadProgress}%`}} aria-valuenow={editUploadProgress} aria-valuemin="0" aria-valuemax="100"></div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="d-flex gap-2 justify-content-end mt-2">
+                    <button className="btn btn-sm btn-outline-secondary" onClick={cancelEdit} disabled={editUploading}>Cancel</button>
+                    <button className="btn btn-sm btn-primary" onClick={()=>saveEdit(c.id)} disabled={editUploading}>{editUploading ? 'Uploading...' : 'Save'}</button>
                   </div>
                 </div>
               ) : (
                 <div>
-                  <Comment name={c.name} text={c.text} created_at={c.created_at} onClick={isAuthenticated && user && user.username === c.name ? ()=>startEdit(c) : undefined} />
-                  {/* show edit/delete only for comment owner */}
-                      {isAuthenticated && user && user.username && user.username === c.name && (
-                        <div className="mt-2 d-flex gap-2">
-                          {/* clicking the comment itself starts edit now */}
-                          <button className="btn btn-sm btn-outline-danger" onClick={()=>deleteComment(c.id)}>Delete</button>
-                        </div>
-                      )}
+                  <Comment
+                    name={c.name}
+                    text={c.text}
+                    created_at={c.created_at}
+                    imageUrl={c.imageUrl}
+                    isOwner={isAuthenticated && user && user.username === c.name}
+                    onEdit={() => startEdit(c)}
+                    onDelete={() => deleteComment(c.id)}
+                  />
                 </div>
               )}
             </div>
           ))
         )}
       </div>
-
-          {/* Posting area moved to bottom */}
-          <div className="mt-4">
-            {fetchUserLoading ? (
-              <div className="text-center py-3">Loading authentication…</div>
-            ) : isAuthenticated ? (
-              <div className="card mb-3">
-                <div className="card-body">
-                  <form onSubmit={addComment}>
-                    <div className="mb-2">
-                      <label className="form-label">Name</label>
-                      <input className="form-control" value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" />
-                    </div>
-                    <div className="mb-2">
-                      <label className="form-label">Comment</label>
-                      <textarea className="form-control" rows={3} value={text} onChange={e=>setText(e.target.value)} placeholder="Write a comment..."></textarea>
-                    </div>
-                    <div className="text-end">
-                      <button className="btn btn-primary" type="submit">Post comment</button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            ) : (
-              <div className="card mb-3">
-                <div className="card-body">
-                  <p className="mb-2">You must be logged in to post comments.</p>
-                  <div>
-                    <button className="btn btn-primary me-2" onClick={()=>navigate('/login', { state: { background: location } })}>Log in</button>
-                    <button className="btn btn-outline-secondary" onClick={()=>navigate('/register', { state: { background: location } })}>Register</button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
     </div>
   )
 }

@@ -128,6 +128,77 @@ export async function listDownloadedChapters(){
   }
 }
 
+// Remove a downloaded chapter and all its stored image blobs from IndexedDB
+export async function removeDownloadedChapter(mangaId, chapterId){
+  try{
+    const db = await getDB()
+    const key = `${mangaId}_${chapterId}`
+    // delete chapter record
+    try{ await db.delete(STORE_CHAPTERS, key) }catch(e){ console.warn('failed to delete chapter record', e) }
+
+    // delete image blobs with matching prefix
+    try{
+      // get all keys in images store and remove those that belong to this chapter
+      if (typeof db.getAllKeys === 'function'){
+        const keys = await db.getAllKeys(STORE_IMAGES)
+        const prefix = `${mangaId}_${chapterId}_page_`
+        const toDelete = keys.filter(k => typeof k === 'string' && k.indexOf(prefix) === 0)
+        for (const k of toDelete) await db.delete(STORE_IMAGES, k)
+      } else {
+        // fallback: iterate via getAll and inspect key property
+        const all = await db.getAll(STORE_IMAGES)
+        const prefix = `${mangaId}_${chapterId}_page_`
+        for (const item of all){ if (item && String(item.key).indexOf(prefix) === 0) await db.delete(STORE_IMAGES, item.key) }
+      }
+    }catch(e){ console.warn('failed to delete image blobs', e) }
+
+    // also remove any localStorage fallback key
+    try{ localStorage.removeItem(`download_chapter_${mangaId}_${chapterId}`) }catch(_){ }
+
+    // notify UI
+    try{ window.dispatchEvent(new CustomEvent('digiman:downloadsChanged')) }catch(_){ }
+    try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: 'Removed downloaded chapter' } })) }catch(_){ }
+    return true
+  }catch(e){ console.error('removeDownloadedChapter failed', e); return false }
+}
+
+// Return total size in bytes for a downloaded chapter (sum of image blob sizes)
+export async function getDownloadedChapterSize(mangaId, chapterId){
+  try{
+    const db = await getDB()
+    let total = 0
+    // prefer getAllKeys if available
+    if (typeof db.getAllKeys === 'function'){
+      const keys = await db.getAllKeys(STORE_IMAGES)
+      const prefix = `${mangaId}_${chapterId}_page_`
+      const matches = keys.filter(k => typeof k === 'string' && k.indexOf(prefix) === 0)
+      for (const k of matches){
+        const row = await db.get(STORE_IMAGES, k)
+        if (row && row.blob && typeof row.blob.size === 'number') total += row.blob.size
+      }
+    } else {
+      const all = await db.getAll(STORE_IMAGES)
+      const prefix = `${mangaId}_${chapterId}_page_`
+      for (const item of all){ if (item && String(item.key).indexOf(prefix) === 0 && item.blob && typeof item.blob.size === 'number') total += item.blob.size }
+    }
+    return total
+  }catch(e){ console.warn('getDownloadedChapterSize failed', e); return 0 }
+}
+
+// Check if a chapter has been downloaded (without creating object URLs)
+export async function isChapterDownloaded(mangaId, chapterId){
+  try{
+    const db = await getDB()
+    const key = `${mangaId}_${chapterId}`
+    const row = await db.get(STORE_CHAPTERS, key)
+    if (row && row.data) return true
+  }catch(e){ /* fallback below */ }
+  try{
+    const key = `download_chapter_${mangaId}_${chapterId}`
+    return !!localStorage.getItem(key)
+  }catch(e){ return false }
+}
+
 // Start a backend download for the given chapter. This will create a queue
 // entry, simulate progress, fetch the chapter via API, save the chapter data
 // locally and mark the queue item as downloaded/failed.
@@ -157,7 +228,33 @@ export async function startDownload(mangaId, chapterId, opts = {}){
   }, 700)
 
   try{
-    const res = await api.get(`manga/${mangaId}/chapters/${chapterId}`)
+    // Try fetching chapter metadata. If the API returns 404, retry with a trailing slash.
+    let res
+    const attemptPath = `manga/${mangaId}/chapters/${chapterId}`
+    try{
+      res = await api.get(attemptPath)
+    }catch(e){
+      const status = e?.response?.status
+      const triedUrl = (e?.config && api.defaults && api.defaults.baseURL) ? `${api.defaults.baseURL}${e.config.url}` : attemptPath
+      console.warn('startDownload: chapter metadata request failed', triedUrl, status)
+      // If 404, try with trailing slash as some backends require it
+      if (status === 404){
+        try{
+          const alt = `${attemptPath}/`
+          res = await api.get(alt)
+        }catch(e2){
+          const tried2 = (e2?.config && api.defaults && api.defaults.baseURL) ? `${api.defaults.baseURL}${e2.config.url}` : `${attemptPath}/`
+          console.error('startDownload: retry with trailing slash also failed', tried2, e2?.response?.status)
+          const msg = `Failed to fetch chapter metadata (404). Tried: ${triedUrl} and ${tried2}. Check VITE_API_URL and backend routes.`
+          try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: msg } })) }catch(_){ }
+          throw e2
+        }
+      } else {
+        const msg = `Failed to fetch chapter metadata: ${status || 'network error'} (${triedUrl})`
+        try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: msg } })) }catch(_){ }
+        throw e
+      }
+    }
     const chap = res.data
     // save chapter metadata for offline reading
     saveDownloadedChapter(mangaId, chapterId, chap)
@@ -166,7 +263,14 @@ export async function startDownload(mangaId, chapterId, opts = {}){
     const pages = Array.isArray(chap.pages) ? chap.pages : []
     for (let i=0;i<pages.length;i++){
       try{
-        const imgRes = await fetch(pages[i])
+        const pageUrl = pages[i]
+        // Ensure we fetch with credentials in case images require auth
+        const imgRes = await fetch(pageUrl, { credentials: 'include' })
+        if (!imgRes.ok){
+          console.warn('startDownload: image fetch failed', pageUrl, imgRes.status)
+          try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: `Failed to fetch image ${imgRes.status}: ${pageUrl}` } })) }catch(_){ }
+          continue
+        }
         const blob = await imgRes.blob()
         await saveImageBlob(mangaId, chapterId, i, blob)
         // update progress proportionally: 30% for metadata + 60% for images
@@ -174,6 +278,7 @@ export async function startDownload(mangaId, chapterId, opts = {}){
         updateDownload(id, { progress: Math.min(95, pct) })
       }catch(e){
         console.warn('failed to fetch/store page', pages[i], e)
+        try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: `Failed to fetch image: ${pages[i]}` } })) }catch(_){ }
       }
     }
 
@@ -214,5 +319,9 @@ export function removeDownload(id){
 
 export default {
   loadDownloads, saveDownloads, addDownload, updateDownload, removeDownload,
-  saveDownloadedChapter, loadDownloadedChapter, startDownload
+  saveDownloadedChapter, loadDownloadedChapter, startDownload,
+  removeDownloadedChapter, getDownloadedChapterSize, isChapterDownloaded
 }
+
+
+
