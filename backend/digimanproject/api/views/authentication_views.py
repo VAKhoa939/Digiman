@@ -7,6 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from ..services.user_service import UserService
 from rest_framework_simplejwt.views import TokenRefreshView
+from ..services.system_service import SystemService
 
 
 def set_refresh_cookie(response: Response, refresh_token: str, remember: bool):
@@ -62,6 +63,10 @@ class RegisterView(APIView):
             }
         )
 
+        # Log creation and login
+        SystemService.log_object_save(user, True)
+        SystemService.log_login(user)
+
         # Issue JWT
         refresh = RefreshToken.for_user(user)
         response = Response(
@@ -102,6 +107,9 @@ class LoginView(APIView):
             return Response(
                 {"detail": "Invalid credentials."}, 
                 status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Log login
+        SystemService.log_login(user)
 
         # Issue JWT
         refresh = RefreshToken.for_user(user)
@@ -155,6 +163,10 @@ class LogoutView(APIView):
         """
         response = Response({"detail": "Logged out."}, status=200)
         response.delete_cookie("refresh_token")
+
+        # Log logout
+        SystemService.log_logout(request.user)
+        
         return response
     
 

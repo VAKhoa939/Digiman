@@ -82,7 +82,7 @@ ROOT_URLCONF = 'digimanproject.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -188,9 +188,21 @@ STATIC_ROOT = BASE_DIR / 'collected_static'
 #     BASE_DIR / "static",  # Global static files
 # ]
 
+
 # WhiteNoise for static file serving
+
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+
+# Celery Settings
+
+CELERY_BROKER_URL = env("REDIS_URL")
+CELERY_RESULT_BACKEND = env("REDIS_URL")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -233,6 +245,14 @@ JAZZMIN_SETTINGS = {
                 "api.Comment",
             ],
         },
+        {
+            "app": "api",
+            "label": "System Management",
+            "models": [
+                "api.LogEntry",
+                "api.FlaggedContent",
+            ],
+        },
     ],
 
     # --- Optional visuals ---
@@ -246,6 +266,8 @@ JAZZMIN_SETTINGS = {
         "api.Chapter": "fas fa-scroll",
         "api.Page": "fas fa-image",
         "api.Comment": "fas fa-comments",
+        "api.LogEntry": "fas fa-history",
+        "api.FlaggedContent": "fas fa-flag",
     },
 }
 

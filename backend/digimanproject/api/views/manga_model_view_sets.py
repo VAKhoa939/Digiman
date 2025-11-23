@@ -57,11 +57,14 @@ class ChapterViewSet(viewsets.ModelViewSet):
         manga_title_id = self.request.query_params.get("manga_title_id")
         if manga_title_id is not None:
             queryset = queryset.filter(manga_title_id=manga_title_id)
+        if self.request.query_params.get("no_paging") == "true":
+            self.pagination_class = None
         return queryset
     
 
 class PageViewSet(viewsets.ModelViewSet):
     queryset = Page.objects.all()
+    pagination_class = None
     serializer_class = PageSerializer
     permission_classes = [AdminWriteOnly]
 
@@ -90,3 +93,7 @@ class AuthorViewSet(viewsets.ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorSerializer
     permission_classes = [AdminWriteOnly]
+    search_fields = ["name"]
+    filter_backends = [SearchFilter, OrderingFilter]
+    ordering_fields = ["name"]
+    ordering = ["name"]

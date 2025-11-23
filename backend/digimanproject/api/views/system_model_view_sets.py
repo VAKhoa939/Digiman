@@ -1,5 +1,5 @@
 from rest_framework import viewsets
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from ..models.system_models import FlaggedContent, Announcement, LogEntry
@@ -8,7 +8,7 @@ from ..serializers.system_model_serializers import FlaggedContentSerializer, Ann
 
 class FlaggedContentViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [AllowAny]
+    permission_classes = [IsAdminUser]
     queryset = FlaggedContent.objects.all()
     serializer_class = FlaggedContentSerializer
 
@@ -18,7 +18,7 @@ class FlaggedContentViewSet(viewsets.ModelViewSet):
 
 class AnnouncementViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [AllowAny]
+    permission_classes = [IsAdminUser]
     queryset = Announcement.objects.all()
     serializer_class = AnnouncementSerializer
 
@@ -26,6 +26,6 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
 
 class LogEntryViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [AllowAny]
+    permission_classes = [IsAdminUser]
     queryset = LogEntry.objects.all()
     serializer_class = LogEntrySerializer

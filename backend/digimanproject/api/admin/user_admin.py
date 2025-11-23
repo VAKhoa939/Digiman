@@ -5,6 +5,7 @@ from django.utils.safestring import mark_safe
 from django import forms
 from ..models.user_models import User, Reader, Administrator
 from ..services.user_service import UserService, UserType
+from .mixins import LogUserMixin
 
 
 # --- Form classes ---
@@ -48,7 +49,7 @@ class ReaderAdminForm(forms.ModelForm):
 
 # --- Base User Admin class ---
 
-class BaseUserAdmin(admin.ModelAdmin):
+class BaseUserAdmin(LogUserMixin, admin.ModelAdmin):
     list_display: tuple[str, ...] = ("username", "email", "role", "status", "created_at")
     list_filter: tuple[str, ...] = ("role", "status", "created_at")
     search_fields: tuple[str, ...] = ("username", "email")
@@ -86,8 +87,13 @@ class UserAdmin(BaseUserAdmin):
         Dynamically control model saving based on role field 
         when creating or updating a new user.
         """
-        if not change: # If this is a create form
-            UserService.create_user(form.cleaned_data)
+        # Attach the current user to the object for logging
+        user = request.user
+        obj._action_user = user
+
+        if not change:
+            new_user = UserService.create_user(form.cleaned_data)
+            obj.pk = new_user.pk # Make sure the obj is attached
         else:
             UserService.update_user(obj, form.cleaned_data)
 
@@ -113,15 +119,25 @@ class ReaderAdmin(BaseUserAdmin):
         """
         Override save_model to handle avatar image upload.
         """
+        # Attach the current user to the object for logging
+        user = request.user
+        obj._action_user = user
+
         # Get the uploaded avatar file
         avatar_file: InMemoryUploadedFile = form.cleaned_data.pop("avatar_upload")
 
         if not change:
-            # If this is a create form, create a new user
-            UserService.create_user(form.cleaned_data, avatar_file)
+            new_user = UserService.create_user(form.cleaned_data, avatar_file)
+            obj.pk = new_user.pk # Make sure the obj is attached
         else:
-            # If this is an update form, update the user
             UserService.update_user(obj, form.cleaned_data, avatar_file)
+
+    def delete_model(self, request, obj):
+        # Attach the current user to the object for logging
+        user = request.user
+        obj._action_user = user
+        
+        UserService.delete_user(obj)
 
 
 @admin.register(Administrator)
@@ -146,3 +162,6 @@ class AdministratorAdmin(BaseUserAdmin):
         This method calls the ReaderAdmin's save_model method.
         """
         ReaderAdmin.save_model(self, request, obj, form, change)
+
+    def delete_model(self, request, obj):
+        ReaderAdmin.delete_model(self, request, obj)
