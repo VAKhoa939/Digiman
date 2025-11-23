@@ -22,17 +22,23 @@ class AIModerationService:
         Runs AI moderation pipeline in background.
         Safely processes entries one-by-one.
         """
-
         entries = LogEntry.objects.filter(is_moderated=False)
+        if not entries:
+            print("No entries to moderate")
+            return
+        
+        print(f"Moderating {len(entries)} entries")
 
         for entry in entries:
             try:
+                print(f"Moderating entry {str(entry)}")
                 AIModerationService.process_log_entry(entry)
                 with transaction.atomic():
                     entry.moderate()
             except Exception as e:
                 # Log error but continue with next entries
                 logger.error(f"[Moderation Error] Entry {entry.id}: {e}")
+                print(f"[Moderation Error] Entry {entry.id}: {e}")
 
     @staticmethod
     def process_log_entry(entry: LogEntry) -> None:

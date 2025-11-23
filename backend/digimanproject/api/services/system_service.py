@@ -73,7 +73,8 @@ class LogEntryDetailFactory:
                         "content": target_object.image_url},
                 ],
             }
-        elif isinstance(target_object, Comment):
+        elif (isinstance(target_object, Comment) 
+              and target_object.status != Comment.StatusChoices.DELETED):
             details = {
                 'targetType': FlaggedContent.TargetObjectTypeChoices.COMMENT.value, 
                 'attributes': [],
@@ -96,6 +97,9 @@ class LogEntryDetailFactory:
         
 
 class SystemService:
+
+    # ------------------------------ Log Entry ------------------------------
+    
     @staticmethod
     @transaction.atomic
     def create_log_entry(
@@ -143,6 +147,9 @@ class SystemService:
     def log_logout(user: User):
         SystemService.create_log_entry(user, LogEntry.ActionTypeChoices.LOGOUT, user)
 
+
+    # ------------------------------ Flagged Content ------------------------------
+
     @staticmethod
     @transaction.atomic
     def create_flag(
@@ -189,8 +196,8 @@ class SystemService:
         Resolves all old flags for a specific target object's content.
         """
         old_flags = FlaggedContent.objects.filter(
-            target_content_type=target_object_type,
-            target_content_id=target_object_id,
+            target_object_type=target_object_type,
+            target_object_id=target_object_id,
             content_name=content_name,
             is_resolved=False
         )
