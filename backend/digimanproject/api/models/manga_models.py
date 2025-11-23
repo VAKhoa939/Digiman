@@ -63,16 +63,15 @@ class MangaTitle(models.Model):
 
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
-    title: str = models.CharField(max_length=200, unique=True)
+    title: str = models.CharField(max_length=500, unique=True)
     alternative_title: str = models.CharField(
-        max_length=200, blank=True, null=True, default="")
+        max_length=500, blank=True, null=True, default="")
     author: Optional["Author"] = models.ForeignKey(
         "Author", on_delete=models.SET_NULL, null=True, 
         related_name="manga_titles")
     description: str = models.TextField(blank=True)
     cover_image: str = models.URLField(blank=True, null=True, default="")
     publication_status: str = models.CharField(
-        max_length=30,
         choices=PublicationStatusChoices.choices,
         default=PublicationStatusChoices.ONGOING)
     publication_date: datetime = models.DateTimeField(default=timezone.now)

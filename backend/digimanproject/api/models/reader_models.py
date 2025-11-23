@@ -38,19 +38,15 @@ class ReaderPreferences(models.Model):
     reader: "Reader" = models.OneToOneField(
         "Reader", on_delete=models.CASCADE, related_name="preferences")
     theme_mode: str = models.CharField(
-        max_length=20, 
         choices=ThemeModeChoices.choices,
         default=ThemeModeChoices.LIGHT)
     page_display_style: str = models.CharField(
-        max_length=20, 
         choices=PageDisplayStyleChoices.choices,
         default=PageDisplayStyleChoices.SINGLE_PAGE)
     reading_direction: str = models.CharField(
-        max_length=20, 
         choices=ReadingDirectionChoices.choices,
         default=ReadingDirectionChoices.LEFT_TO_RIGHT)
     image_size_mode: str = models.CharField(
-        max_length=20, 
         choices=ImageSizeModeChoices.choices,
         default=ImageSizeModeChoices.FIT_BOTH)
     is_progress_bar_visible: bool = models.BooleanField(default=True)
@@ -83,7 +79,6 @@ class LibraryList(models.Model):
         "Reader", related_name="library_lists", on_delete=models.CASCADE)
     name: str = models.CharField(max_length=100)
     visibility: str = models.CharField(
-        max_length=10, 
         choices=VisibilityChoices.choices,
         default=VisibilityChoices.PRIVATE)
     created_at: datetime = models.DateTimeField(default=timezone.now)
@@ -125,20 +120,6 @@ class ReadingProgress(models.Model):
     chapter: Optional["Chapter"] = models.ForeignKey(
         "Chapter", on_delete=models.SET_NULL, null=True)
     last_read_timestamp: datetime = models.DateTimeField(default=timezone.now)
-
-    def get_manga_title(self) -> "MangaTitle":
-        return self.chapter.get_manga_title()
-
-
-class OfflineChapter(models.Model):
-    id: uuid.UUID = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False)
-    reader: "Reader" = models.ForeignKey(
-        "Reader", related_name="offline_chapters", on_delete=models.CASCADE)
-    chapter: "Chapter" = models.ForeignKey("Chapter", on_delete=models.CASCADE)
-    storage_path: str = models.CharField(max_length=255)
-    size_mb: float = models.FloatField()
-    download_date: datetime = models.DateTimeField(default=timezone.now)
 
     def get_manga_title(self) -> "MangaTitle":
         return self.chapter.get_manga_title()

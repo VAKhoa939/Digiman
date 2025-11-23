@@ -1,3 +1,5 @@
+from typing import Optional
+import uuid
 from django.db import transaction
 from ..models.manga_models import MangaTitle, Page, Chapter
 from ..services.image_service import ImageService, BucketNames
@@ -116,3 +118,31 @@ class MangaService:
                     raise
 
         page.delete()
+
+    @staticmethod
+    def get_previous_chapter_id(chapter: Chapter) -> Optional[str]:
+        return (
+            Chapter.objects
+            .filter(
+                manga_title=chapter.manga_title, 
+                chapter_number__lt=chapter.chapter_number)
+            .order_by("-chapter_number")
+            .values_list("id", flat=True)
+            .first()
+        )
+
+    @staticmethod
+    def get_next_chapter_id(chapter: Chapter) -> Optional[str]:
+        return (
+            Chapter.objects
+            .filter(
+                manga_title=chapter.manga_title, 
+                chapter_number__gt=chapter.chapter_number)
+            .order_by("chapter_number")
+            .values_list("id", flat=True)
+            .first()
+        )
+    
+    @staticmethod
+    def get_chapter_display_name(chapter_id: uuid.UUID) -> str:
+        return str(Chapter.objects.get(id=chapter_id))

@@ -1,6 +1,7 @@
+from typing import Optional
 from rest_framework import serializers
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
-
+from ..services.manga_service import MangaService
 from datetime import datetime
 
 class MangaTitleSerializer(serializers.ModelSerializer):
@@ -45,17 +46,34 @@ class MangaTitleSerializer(serializers.ModelSerializer):
 class ChapterSerializer(serializers.ModelSerializer):
     """Fields for chapter: id, manga_title_id, title, chapter_number, 
     upload_date, page_count"""
+    manga_title = serializers.SerializerMethodField()
     page_count = serializers.SerializerMethodField()
+    previous_chapter_id = serializers.SerializerMethodField()
+    next_chapter_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Chapter
         fields = [
-            "id", "manga_title_id", "title", "chapter_number", "upload_date",
-            "page_count"
+            "id", "manga_title", "manga_title_id", "title", "chapter_number", 
+            "upload_date", "page_count", "previous_chapter_id", "next_chapter_id",
         ]
+        read_only_fields = [
+            field for field in fields if field not in {
+                "title", "chapter_number", "manga_title_id",
+            }
+        ]
+
+    def get_manga_title(self, obj: Chapter) -> str:
+        return obj.get_manga_title_title()
 
     def get_page_count(self, obj: Chapter) -> int:
         return obj.get_page_count()
+    
+    def get_previous_chapter_id(self, obj: Chapter) -> Optional[str]:
+        return MangaService.get_previous_chapter_id(obj)
+    
+    def get_next_chapter_id(self, obj: Chapter) -> Optional[str]:
+        return MangaService.get_next_chapter_id(obj)
 
 
 class PageSerializer(serializers.ModelSerializer):
@@ -65,6 +83,7 @@ class PageSerializer(serializers.ModelSerializer):
         fields = [
             "id", "chapter_id", "page_number", "image_url",
         ]
+        read_only_fields = ["id"]
 
 
 class GenreSerializer(serializers.ModelSerializer):
