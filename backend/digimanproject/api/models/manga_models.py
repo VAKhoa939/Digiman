@@ -197,7 +197,7 @@ class Chapter(models.Model):
         description="Manga Title"
     )
     def get_manga_title_title(self) -> str:
-        return self.manga_title
+        return str(self.manga_title)
     
     def get_chapter_number(self) -> int:
         return self.chapter_number
