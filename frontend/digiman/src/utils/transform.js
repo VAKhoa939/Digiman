@@ -20,16 +20,30 @@ export function mapChapter(fetchedData) {
     id: fetchedData.id,
     number: fetchedData.chapter_number,
     title: fetchedData.title,
+    mangaTitle: fetchedData.manga_title,
+    mangaTitleID: fetchedData.manga_title_id,
     date: fetchedData.upload_date,
-    prevChapterId: fetchedData.prev_chapter_id,
+    pageCount: fetchedData.page_count,
+    prevChapterId: fetchedData.previous_chapter_id,
     nextChapterId: fetchedData.next_chapter_id,
   };
 }
 
 export function mapPage(fetchedData) {
   return {
-    index: fetchedData.index,
-    url: fetchedData.url,
-    alt: fetchedData.alt,
+    id: fetchedData.id,
+    index: fetchedData.page_number,
+    url: fetchedData.image_url,
+    alt: `Page ${fetchedData.page_number}`,
+  };
+}
+
+export function mapComment(fetchedData) {
+  return {
+    id: fetchedData.id,
+    name: fetchedData.owner_name,
+    text: fetchedData.text,
+    imageUrl: fetchedData.image_url,
+    created_at: fetchedData.created_at,
   };
 }

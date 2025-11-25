@@ -5,23 +5,28 @@ from ..models.community_models import Comment, Report, Notification, Penalty
 class CommentSerializer(serializers.ModelSerializer):
     """
     Fields for comment: id, owner_id, manga_title_id, chapter_id,
-    parent_comment_id, text, attached_image, attached_image_upload,
-    created_at, status, hidden_reasons, is_edited
+    parent_comment_id, text, attached_image_url, attached_image_upload,
+    created_at, status, hidden_reasons, is_edited, owner_name
     """
+    owner_name = serializers.SerializerMethodField()
     attached_image_upload = serializers.ImageField(required=False, write_only=True)
 
     class Meta:
         model = Comment
         fields = [
             "id", "owner_id", "manga_title_id", "chapter_id", 
-            "parent_comment_id", "text", "attached_image", "attached_image_upload",
-            "created_at", "status", "hidden_reasons", "is_edited"
+            "parent_comment_id", "text", "attached_image_url", "attached_image_upload",
+            "created_at", "status", "hidden_reasons", "is_edited", "owner_name"
         ]
         read_only_fields = [
             field for field in fields if field not in {
-                "text", "attached_image", "attached_image_upload"
+                "manga_title_id", "chapter_id", "parent_comment_id",
+                "text", "attached_image_url", "attached_image_upload"
             }
         ]
+    
+    def get_owner_name(self, obj: Comment) -> str:
+        return obj.get_owner_name()
 
 
 class ReportSerializer(serializers.ModelSerializer):
