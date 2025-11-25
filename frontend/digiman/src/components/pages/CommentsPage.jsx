@@ -8,6 +8,8 @@ import {useParams, Link, useNavigate, useLocation} from 'react-router-dom'
 import { loadComments, saveComments } from '../../utils/comments'
 import Comment from '../smallComponents/Comment'
 import { useAuth } from '../../context/AuthContext'
+import useGetComments from '../../customHooks/useGetComments'
+import Spinner from '../smallComponents/Spinner'
 
 // Simple comments page using localStorage as a fallback for dev.
 // Comments are stored under key `comments_<mangaId>_<chapterId>` as JSON array.
@@ -17,7 +19,6 @@ export default function CommentsPage({ inline = false }){
   const navigate = useNavigate()
   const location = useLocation()
   const { isAuthenticated, user, fetchUserLoading } = useAuth()
-  const [comments, setComments] = useState([])
   const [name, setName] = useState('')
   const [text, setText] = useState('')
   const [selectedImage, setSelectedImage] = useState(null)
@@ -31,12 +32,11 @@ export default function CommentsPage({ inline = false }){
   const [editUploading, setEditUploading] = useState(false)
   const [editUploadProgress, setEditUploadProgress] = useState(0)
 
+  const { comments, isLoading, error } = useGetComments(mangaId, chapterId);
+
   useEffect(()=>{
-    const c = loadComments(mangaId, chapterId)
-    setComments(c)
-    // prefill name for logged-in users
     if (user && user.username) setName(user.username)
-  }, [mangaId, chapterId, user])
+  }, [user])
 
   function addComment(e){
     e.preventDefault()
@@ -66,7 +66,7 @@ export default function CommentsPage({ inline = false }){
               created_at: new Date().toISOString()
             }
             const nextList = [newComment, ...comments]
-            setComments(nextList)
+            //setComments(nextList)
             saveComments(mangaId, chapterId, nextList)
             // reset UI
             setText('')
@@ -288,9 +288,9 @@ export default function CommentsPage({ inline = false }){
       </div>
 
       <div>
-        {comments.length === 0 ? (
-          <div className="text-muted">No comments yet. Be the first to comment!</div>
-        ) : (
+        {isLoading && <Spinner/>}
+        {error ? <p className="text-center py-3 text-danger">Failed to load comments.</p> :
+        (comments && comments.length > 0 ? (
           comments.map(c => (
             <div key={c.id} className="mb-2">
               {editId === c.id ? (
@@ -337,7 +337,9 @@ export default function CommentsPage({ inline = false }){
               )}
             </div>
           ))
-        )}
+        ) : (
+          <div className="text-muted">No comments yet. Be the first to comment!</div>
+        ))}
       </div>
     </div>
   )

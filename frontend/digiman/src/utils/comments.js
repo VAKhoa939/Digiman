@@ -1,7 +1,11 @@
 // Utilities for loading/saving comments in localStorage used by the dev UI.
 export function loadComments(mangaId, chapterId){
   try{
-    const raw = localStorage.getItem(`comments_${mangaId}_${chapterId}`)
+    const raw = []
+    if (chapterId)
+      raw = localStorage.getItem(`comments_${mangaId}_${chapterId}`)
+    elif (mangaId)
+      raw = localStorage.getItem(`comments_${mangaId}`)
     if(!raw) return []
     return JSON.parse(raw)
   }catch(e){

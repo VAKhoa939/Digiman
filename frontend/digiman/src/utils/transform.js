@@ -41,7 +41,7 @@ export function mapPage(fetchedData) {
 export function mapComment(fetchedData) {
   return {
     id: fetchedData.id,
-    name: fetchedData.name,
+    name: fetchedData.owner_name,
     text: fetchedData.text,
     imageUrl: fetchedData.image_url,
     created_at: fetchedData.created_at,
