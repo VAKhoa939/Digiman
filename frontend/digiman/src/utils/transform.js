@@ -47,3 +47,14 @@ export function mapComment(fetchedData) {
     created_at: fetchedData.created_at,
   };
 }
+
+export function mapInputCommentData(text, mangaId, chapterId) {
+  // only one of manga_title_id or chapter_id should be set
+  let manga_title_id = mangaId;
+  if (chapterId !== undefined && chapterId !== null) manga_title_id = null; 
+  return {
+    text: text.trim(),
+    manga_title_id: manga_title_id,
+    chapter_id: chapterId ?? null,
+  };
+}
