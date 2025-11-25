@@ -18,8 +18,8 @@ class CommunityService:
             and not data.get("attached_image_upload")
         ):
             raise ValueError("Either 'text' or 'attached_image' must be provided.")
-        if not data.get("manga_title") and not data.get("chapter"):
-            raise ValueError("Either 'manga_title' or 'chapter' must be provided.")
+        if not data.get("manga_title_id") and not data.get("chapter_id"):
+            raise ValueError("Either 'manga_title_id' or 'chapter_id' must be provided.")
 
         # Handle image upload
         image_url = None
@@ -43,8 +43,8 @@ class CommunityService:
             and not data.get("attached_image_upload")
         ):
             raise ValueError("Either 'text' or 'attached_image' must be provided.")
-        if not data.get("manga_title") and not data.get("chapter"):
-            raise ValueError("Either 'manga_title' or 'chapter' must be provided.")
+        if not data.get("manga_title_id") and not data.get("chapter_id"):
+            raise ValueError("Either 'manga_title_id' or 'chapter_id' must be provided.")
         
         bucket = BucketNames.COMMENT_IMAGES
 
