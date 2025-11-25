@@ -5,21 +5,19 @@ import FormatUnderlinedIcon from '@mui/icons-material/FormatUnderlined'
 import StrikethroughSIcon from '@mui/icons-material/StrikethroughS'
 import ImageIcon from '@mui/icons-material/Image'
 import {useParams, Link, useNavigate, useLocation} from 'react-router-dom'
-import { loadComments, saveComments } from '../../utils/comments'
 import Comment from '../smallComponents/Comment'
 import { useAuth } from '../../context/AuthContext'
 import useGetComments from '../../customHooks/useGetComments'
 import Spinner from '../smallComponents/Spinner'
-
-// Simple comments page using localStorage as a fallback for dev.
-// Comments are stored under key `comments_<mangaId>_<chapterId>` as JSON array.
+import useCreateEditComment from '../../customHooks/useCreateEditComment'
+import { mapInputCommentData } from '../../utils/transform'
+import uploadProgressHandler from '../../utils/uploadProgress'
 
 export default function CommentsPage({ inline = false }){
   const {mangaId, chapterId} = useParams()
   const navigate = useNavigate()
   const location = useLocation()
   const { isAuthenticated, user, fetchUserLoading } = useAuth()
-  const [name, setName] = useState('')
   const [text, setText] = useState('')
   const [selectedImage, setSelectedImage] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
@@ -33,10 +31,7 @@ export default function CommentsPage({ inline = false }){
   const [editUploadProgress, setEditUploadProgress] = useState(0)
 
   const { comments, isLoading, error } = useGetComments(mangaId, chapterId);
-
-  useEffect(()=>{
-    if (user && user.username) setName(user.username)
-  }, [user])
+  const { create, edit } = useCreateEditComment();
 
   function addComment(e){
     e.preventDefault()
@@ -47,50 +42,29 @@ export default function CommentsPage({ inline = false }){
     }
     if(!text.trim() && !selectedImage) return
 
-    // If there's an image, simulate upload progress then post with placeholder URL
-    if(selectedImage){
-      setUploading(true)
-      setUploadProgress(0)
-      const iv = setInterval(()=>{
-        setUploadProgress(p => {
-          const next = Math.min(100, p + Math.floor(Math.random()*20) + 10)
-          if(next >= 100){
-            clearInterval(iv)
-            // mock remote URL placeholder (picsum seeded)
-            const placeholderUrl = `https://picsum.photos/seed/${Date.now()}/600/400`
-            const newComment = {
-              id: Date.now(),
-              name: name?.trim() || (user && user.username) || 'Guest',
-              text: text.trim(),
-              imageUrl: placeholderUrl,
-              created_at: new Date().toISOString()
-            }
-            const nextList = [newComment, ...comments]
-            //setComments(nextList)
-            saveComments(mangaId, chapterId, nextList)
-            // reset UI
-            setText('')
-            setSelectedImage(null)
-            setPreviewUrl('')
-            setUploading(false)
-            setUploadProgress(0)
-          }
-          return next
-        })
-      }, 300)
-      return
-    }
+    const commentData = mapInputCommentData(text, mangaId, chapterId)
 
-    const newComment = {
-      id: Date.now(),
-      name: name?.trim() || (user && user.username) || 'Guest',
-      text: text.trim(),
-      created_at: new Date().toISOString()
-    }
-    const next = [newComment, ...comments]
-    setComments(next)
-    saveComments(mangaId, chapterId, next)
-    setText('')
+    setUploading(true)
+    setUploadProgress(0)
+
+    create({
+      commentData,
+      attachedImage: selectedImage,
+      manga_title_id: mangaId,
+      chapter_id: chapterId ?? null,
+      onUploadProgress: (ev) => uploadProgressHandler(ev, setUploadProgress)
+    }).then(() => {
+      // success: clear form — the hook updates the cached list
+      setText('')
+      setSelectedImage(null)
+      setPreviewUrl('')
+    }).catch(err => {
+      console.error('post comment failed', err)
+      // optional: show UI error
+    }).finally(() => {
+      setUploading(false)
+      setUploadProgress(0)
+    })
   }
 
   // Formatting helpers for the post textarea
@@ -156,48 +130,35 @@ export default function CommentsPage({ inline = false }){
   function saveEdit(id){
     if(!editText.trim() && !editPreview) return
 
-    // If a new image file was chosen during edit, simulate upload
-    if(editImage){
-      setEditUploading(true)
-      setEditUploadProgress(0)
-      const iv = setInterval(()=>{
-        setEditUploadProgress(p => {
-          const next = Math.min(100, p + Math.floor(Math.random()*20) + 10)
-          if(next >= 100){
-            clearInterval(iv)
-            const placeholderUrl = `https://picsum.photos/seed/edit${Date.now()}/600/400`
-            const nextList = comments.map(c => c.id === id ? {...c, text: editText, imageUrl: placeholderUrl, edited_at: new Date().toISOString()} : c)
-            setComments(nextList)
-            saveComments(mangaId, chapterId, nextList)
-            // reset edit UI
-            setEditId(null)
-            setEditText('')
-            setEditImage(null)
-            setEditPreview('')
-            setEditUploading(false)
-            setEditUploadProgress(0)
-          }
-          return next
-        })
-      }, 300)
-      return
-    }
+    const commentData = { text: editText, manga_title_id: mangaId, chapter_id: chapterId ?? null }
 
-    // No new file: apply text and imagePreview (which may be empty to remove image)
-    const next = comments.map(c => c.id === id ? {...c, text: editText, imageUrl: editPreview || undefined, edited_at: new Date().toISOString()} : c)
-    setComments(next)
-    saveComments(mangaId, chapterId, next)
-    setEditId(null)
-    setEditText('')
-    setEditImage(null)
-    setEditPreview('')
+    setEditUploading(true)
+    setEditUploadProgress(0)
+
+    edit({
+      commentId: id,
+      commentData,
+      attachedImage: editImage,
+      manga_title_id: mangaId,
+      chapter_id: chapterId ?? null,
+      onUploadProgress: (ev) => uploadProgressHandler(ev, setEditUploadProgress)
+    }).then(() => {
+      // Clear edit UI — the hook already updated cache
+      setEditId(null)
+      setEditText('')
+      setEditImage(null)
+      setEditPreview('')
+    }).catch(err => {
+      console.error('edit comment failed', err)
+    }).finally(() => {
+      setEditUploading(false)
+      setEditUploadProgress(0)
+    })
   }
 
   function deleteComment(id){
-    const next = comments.filter(c => c.id !== id)
-    setComments(next)
-    saveComments(mangaId, chapterId, next)
-    if(editId === id) cancelEdit()
+    // would implement delete functionality here
+    alert('Delete functionality not implemented yet.')
   }
 
   const rootClass = inline ? 'comments-section' : 'container my-4 comments-section'
