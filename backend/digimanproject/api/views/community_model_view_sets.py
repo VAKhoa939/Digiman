@@ -1,15 +1,52 @@
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.filters import OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 
 from ..models.community_models import Comment, Report, Notification, Penalty
 from ..serializers.community_model_serializers import CommentSerializer, ReportSerializer, NotificationSerializer, PenaltySerializer
+from ..services.community_service import CommunityService
+from ..filters.community_filters import CommentFilter
 
 
 class CommentViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = CommentFilter
+    ordering_fields = ["created_at"]
+    ordering = ["created_at"]
+    
+    def perform_create(self, serializer: CommentSerializer):
+        request = self.request
+        attached_image_file = request.FILES.get("attached_image_upload")
+
+        comment = CommunityService.create_comment(
+            serializer.validated_data, request.user, attached_image_file
+        )
+        serializer.instance = comment
+
+    def perform_update(self, serializer: CommentSerializer):
+        request = self.request
+
+        comment: Comment = serializer.instance
+        # Check if the user is the owner of the comment
+        if request.user != comment.owner:
+            raise PermissionDenied("You are not the owner of this comment.")
+
+        attached_image_file = request.FILES.get("attached_image_upload")
+
+        updated_comment = CommunityService.update_comment(
+            comment, serializer.validated_data, attached_image_file
+        )
+        serializer.instance = updated_comment
+
+    def perform_destroy(self, instance: Comment):
+        # Not allowed
+        raise PermissionDenied("Deleting comments is not allowed.")
 
 
 class ReportViewSet(viewsets.ModelViewSet):

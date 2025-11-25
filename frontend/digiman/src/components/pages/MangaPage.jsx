@@ -99,14 +99,14 @@ const MangaPage = ({
             <div className="me-3">Artist: <strong>{artist}</strong></div>
             <div className="genres">
               {genresIsLoading && <Spinner />}
-              {genresError && <div className="text-danger">Error loading genres.</div>}
-              {genres && genres.length > 0 ? genres.map((g) => (
+              {genresError ? <div className="text-danger">Error loading genres.</div>:
+              (genres && genres.length > 0 ? genres.map((g) => (
                 <Link key={g.id} to={'#'/*`/search/advanced?genre=${encodeURIComponent(g)}`*/} 
                   className="text-decoration-none"
                 >
                   <span className="badge bg-light text-dark me-1">{g.name}</span>
                 </Link>
-              )) : <span className="text-muted">No genres added.</span>}
+              )) : <span className="text-muted">No genres added.</span>)}
             </div>
           </div>
 
@@ -135,8 +135,8 @@ const MangaPage = ({
         <div className="col-12">
           <h4 className="mb-3">Chapters</h4>
           {chaptersIsLoading && <Spinner />}
-          {chaptersError && <div className="text-danger">Error loading chapters.</div>}
-          <ul className="list-group chapter-list">
+          {chaptersError ? <div className="text-danger">Error loading chapters.</div> :
+          (<ul className="list-group chapter-list">
             {chapters && chapters.length > 0 ? (
               chapters.map((c) => (
                 <li key={c.id} 
@@ -195,7 +195,7 @@ const MangaPage = ({
                 </li>
               ))
             ) : <li className="list-group-item text-muted">No chapters found.</li>}
-          </ul>
+          </ul>)}
         </div>
       </div>
     </div>

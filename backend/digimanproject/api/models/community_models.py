@@ -47,13 +47,15 @@ class Comment(models.Model):
     is_edited: bool = models.BooleanField(default=False)
 
     def __str__(self) -> str:
-        from ..services.community_service import CommunityService
-        index = CommunityService.get_comment_index(self)
+        index = Comment.get_comment_index(self)
         where = self.manga_title if self.manga_title else self.chapter
         if index is not None:
             return f"Comment #{index} in {where}"
         else:
-            return f"Comment by {self.owner.get_display_name()} at {self.created_at}"
+            return f"Comment by {self.get_owner_name()} at {self.created_at}"
+        
+    def get_owner_name(self) -> str:
+        return self.owner.get_display_name() if self.owner else "Guest"
 
     def toggle_hidden(self, hidden_reasons: str = "") -> None:
         self.status = (
@@ -78,6 +80,16 @@ class Comment(models.Model):
             allowed_fields.add("is_edited")
             
         update_instance(self, allowed_fields, **metadata)
+
+    @staticmethod
+    def get_comment_index(comment: Comment) -> Optional[int]:
+        if comment.manga_title:
+            comments = comment.manga_title.get_comments().order_by("created_at")
+        elif comment.chapter:
+            comments = comment.chapter.get_comments().order_by("created_at")
+        else:
+            return None
+        return comments.filter(created_at__lte=comment.created_at).count()
         
 
 

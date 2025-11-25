@@ -69,17 +69,4 @@ class CommunityService:
         if comment.attached_image_url:
             ImageService.delete_image(comment.attached_image_url, BucketNames.COMMENT_IMAGES)
         comment.delete()
-
-    @staticmethod
-    def get_comment_index(comment: Comment) -> Optional[int]:
-        if comment.manga_title:
-            comments = comment.manga_title.get_comments().order_by("created_at")
-        elif comment.chapter:
-            comments = comment.chapter.get_comments().order_by("created_at")
-        else:
-            return None
-        return comments.filter(created_at__lte=comment.created_at).count()
-    
-    @staticmethod
-    def get_comment_display_name(comment_id: uuid.UUID) -> str:
-        return str(Comment.objects.get(id=comment_id))
+        
