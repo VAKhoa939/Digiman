@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Spinner from '../smallComponents/Spinner';
 import ChapterMeta from '../chapterComponents/ChapterMeta';
 import ChapterControls from '../chapterComponents/ChapterControls';
@@ -59,7 +59,7 @@ export default function ChapterPage() {
         onNavigate={(id) => navigate(`/manga/${mangaId}/chapter/${id}`)}
         onOpenSettings={() => setShowSettings(true)}
       />
-  <ChapterReader pages={chapter.pages || []} mode={readerMode} swipeAxis={swipeAxis} settings={readerSettings} />
+      <ChapterReader pages={chapter.pages || []} mode={readerMode} swipeAxis={swipeAxis} settings={readerSettings} />
       <div className="d-flex justify-content-between align-items-center mt-3">
         <ChapterNav chapters={chaptersList} currentId={chapter.id} onNavigate={(id) => navigate(`/manga/${mangaId}/chapter/${id}`)} />
         <ChapterActions chapter={chapter} mangaId={mangaId} />
@@ -69,6 +69,7 @@ export default function ChapterPage() {
       <div className="mt-4">
         <CommentsPage inline={true} />
       </div>
+      
       <ReaderSettings show={showSettings} settings={readerSettings} onClose={() => setShowSettings(false)} onSave={(s) => {
         // apply select settings to reader and persist them
         try { localStorage.setItem('readerSettings', JSON.stringify(s)); } catch (err) { /* ignore */ }

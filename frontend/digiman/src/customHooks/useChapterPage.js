@@ -25,8 +25,8 @@ export default function useChapterPage(chapterId, mangaId) {
 		queryKey: ["chapters", mangaId],
 		queryFn: () => fetchMangaTitleChapters(mangaId),
 		staleTime: staleTime,
-		retry: 1,
-		enabled: !useMock,
+		retry: navigator.onLine ? 1 : 0,
+		enabled: !useMock && navigator.onLine,
 	});
 
 	const { 
@@ -37,8 +37,8 @@ export default function useChapterPage(chapterId, mangaId) {
 		queryKey: ["chapter", chapterId],
 		queryFn: () => fetchChapter(chapterId),
 		staleTime: staleTime,
-		retry: 1,
-		enabled: !useMock,
+		retry: navigator.onLine ? 1 : 0,
+		enabled: !useMock && navigator.onLine,
 	});
 
 	const {
@@ -49,8 +49,8 @@ export default function useChapterPage(chapterId, mangaId) {
 		queryKey: ["pages", chapterId],
 		queryFn: () => fetchChapterPages(chapterId),
 		staleTime: staleTime,
-		retry: 1,
-		enabled: !useMock,
+		retry: navigator.onLine ? 1 : 0,
+		enabled: !useMock && navigator.onLine,
 	});
 
 	useEffect(() => {
@@ -61,16 +61,17 @@ export default function useChapterPage(chapterId, mangaId) {
 			// --- Downloaded version ---
 			try{
 				const saved = await loadDownloadedChapter(mangaId, chapterId);
-				if (saved && mounted){
-					const pages = saved.blobUrls || saved.chapter.pages || []
+				if (saved && mounted) {
+					const { chapter, pages, createdUrls: savedUrls } = saved;
 
-					// remember urls so we can revoke them on cleanup
-					if (Array.isArray(saved.blobUrls)) createdUrls.push(...saved.blobUrls)
+					// Track object URLs for cleanup
+					if (Array.isArray(savedUrls)) createdUrls.push(...savedUrls);
 
-					setChapter({...saved.chapter, pages})
+					console.log("Loaded downloaded chapter:", chapter);
+					setChapter({ ...chapter, pages }); // Use the `chapter` and `pages` from `saved`
 					setChaptersList([]); // No chapters list for downloaded chapters
 					setLoading(false);
-					return // Exit early if downloaded chapter is found
+					return; // Exit early if downloaded chapter is found
 				}
 			}catch(e){ /* ignore and fall back to backend */ }
 

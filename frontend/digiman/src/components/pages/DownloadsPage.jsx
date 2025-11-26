@@ -13,6 +13,8 @@ export default function DownloadsPage(){
   }, [])
 
   useEffect(()=>{
+    // return early if offline
+    if (!navigator.onLine) return;
     // For demo: simulate progress for items with status 'downloading'
     const list = loadDownloads()
     list.forEach(item => {
@@ -40,6 +42,10 @@ export default function DownloadsPage(){
   }, [])
 
   function handleCancel(id){
+    if (!navigator.onLine) {
+      alert("You are offline. Cannot cancel download.");
+      return;
+    }
     // mark failed
     updateDownload(id, { status: 'failed' })
     setDownloads(loadDownloads())
@@ -47,6 +53,10 @@ export default function DownloadsPage(){
   }
 
   function handleRemove(id){
+    if (!navigator.onLine) {
+      alert("You are offline. Cannot remove download.");
+      return;
+    }
     // find the download entry
     const item = loadDownloads().find(x=>x.id===id)
     if (!item){ removeDownload(id); setDownloads(loadDownloads()); return }
@@ -65,6 +75,10 @@ export default function DownloadsPage(){
   }
 
   async function handleRetry(item){
+    if (!navigator.onLine) {
+      alert("You are offline. Cannot retry download.");
+      return;
+    }
     // start a fresh download for the same chapter then remove the old failed entry
     try{
       await startDownload(item.mangaId, item.chapterId, { chapterTitle: item.chapterTitle, mangaTitle: item.mangaTitle })
@@ -128,7 +142,14 @@ export default function DownloadsPage(){
                 <div className="small text-muted">Size: {sizes[d.id] ? bytesToHuman(sizes[d.id]) : 'calculating...'}</div>
               </div>
               <div className="ms-3">
-                <Link to={`/offline/mangas/${d.mangaId}/chapter/${d.chapterId}`} className="btn btn-sm btn-warning me-2">Read</Link>
+                { d.status !== 'failed' ? (
+                <Link
+                  to={`/offline/mangas/${d.mangaId}/chapter/${d.chapterId}`}
+                  className="btn btn-sm btn-warning me-2"
+                >
+                  Read
+                </Link>
+                ) : null}
                 <button className="btn btn-sm btn-outline-danger" onClick={()=>handleRemove(d.id)}><CloseIcon /></button>
               </div>
             </div>
