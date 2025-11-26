@@ -22,8 +22,9 @@ class CommentViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer: CommentSerializer):
         request = self.request
-        print("Request data in perform_create:", serializer.validated_data)
-        attached_image_file = request.FILES.pop("attached_image_upload")
+        attached_image_file = request.FILES.get("attached_image_upload")
+        if isinstance(attached_image_file, list):
+            attached_image_file = attached_image_file[0]
 
         comment = CommunityService.create_comment(
             serializer.validated_data, request.user, attached_image_file
@@ -39,6 +40,8 @@ class CommentViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You are not the owner of this comment.")
 
         attached_image_file = request.FILES.get("attached_image_upload")
+        if isinstance(attached_image_file, list):
+            attached_image_file = attached_image_file[0]
 
         updated_comment = CommunityService.update_comment(
             comment, serializer.validated_data, attached_image_file

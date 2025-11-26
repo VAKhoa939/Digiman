@@ -22,8 +22,6 @@ export async function postComment(
         config.headers = { ...(config.headers || {}) };
         delete config.headers['Content-Type'];
     }
-	
-    console.log("Posting comment with payload:", payload);
 
     if (onUploadProgress) config.onUploadProgress = onUploadProgress;
 
@@ -33,7 +31,7 @@ export async function postComment(
 }
 
 export async function editComment(
-    commentId, commentData, attachedImage = null, onUploadProgress = null
+    comment, commentData, attachedImage = null, onUploadProgress = null
 ) {
     const config = {};
     const payload = buildCommentPayload(commentData, attachedImage);
@@ -47,7 +45,7 @@ export async function editComment(
 
     if (onUploadProgress) config.onUploadProgress = onUploadProgress;
 
-    const res = await api.patch(`comments/${commentId}/`, payload, config);
+    const res = await api.patch(`comments/${comment}/`, payload, config);
     if (res.data && res.data.detail) throw new Error(res.data.detail);
     return res.data;
 }

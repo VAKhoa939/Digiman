@@ -379,6 +379,7 @@ class CommentAdmin(LogUserMixin, admin.ModelAdmin):
 
         # Get the uploaded image file
         image_file: InMemoryUploadedFile = form.cleaned_data.pop("attached_image_upload")
+        print("attached_image_upload", image_file)
 
         if not change:
             comment = CommunityService.create_comment(form.cleaned_data, request.user, image_file)

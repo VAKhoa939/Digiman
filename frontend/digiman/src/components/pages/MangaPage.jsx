@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Comment from '../smallComponents/Comment';
-import { loadComments } from '../../utils/comments';
 import DownloadIcon from '@mui/icons-material/Download';
 import CheckIcon from '@mui/icons-material/Check';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -10,6 +8,7 @@ import { startDownload, loadDownloads, listDownloadedChapters, isChapterDownload
 import { useAuth } from '../../context/AuthContext';
 import Spinner from '../smallComponents/Spinner';
 import { getTimeAgo } from '../../utils/formatTime';
+import CommentsPage from './CommentsPage';
 
 const MangaPage = ({
   id, title, altTitle, coverUrl, author, artist, synopsis, status, 
@@ -197,6 +196,10 @@ const MangaPage = ({
             ) : <li className="list-group-item text-muted">No chapters found.</li>}
           </ul>)}
         </div>
+      </div>
+      {/* Inline full comments section */}
+      <div className="mt-4">
+        <CommentsPage inline={true} />
       </div>
     </div>
   );

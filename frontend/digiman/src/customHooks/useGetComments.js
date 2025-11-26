@@ -11,12 +11,9 @@ export default function useGetComments(mangaId, chapterId) {
 			fetchCommentsByChapter(chapterId) : 
 			fetchCommentsByMangaTitle(mangaId)),
 		staleTime: 1000 * 60 * 5,
-		retry: 1,
+		retry: navigator.onLine ? 1 : 0,
+		enabled: navigator.onLine
 	});
-
-	if (data && data.results) {
-		console.log("useGetComments", data.results);
-	}
 
 	return {
 		comments: data?.results?.map(mapComment) || [],

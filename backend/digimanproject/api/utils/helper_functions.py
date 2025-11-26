@@ -1,7 +1,10 @@
-from typing import Any, Dict, Optional, Set, Tuple, TypeVar
+from typing import Any, Dict, Optional, Set, Tuple, TypeVar, TYPE_CHECKING
 import uuid
 from django.db.models import Model
 from rest_framework.serializers import Serializer
+
+if TYPE_CHECKING:
+    from ..models.user_models import User
 
 M = TypeVar("M", bound=Model)
 S = TypeVar("S", bound=Serializer)
@@ -50,3 +53,12 @@ def get_dominant_attribute_and_score(scores: Dict[str, float], thresholds: Dict[
             dominant_key = attribute
             dominant_score = score
     return dominant_key, dominant_score
+
+def cast_user_to_subclass(user: "User"):
+    from ..models.user_models import User, Reader, Administrator
+    if user.role == User.RoleChoices.READER:
+        return Reader.objects.get(pk=user.pk)
+    elif user.role == User.RoleChoices.ADMIN:
+        return Administrator.objects.get(pk=user.pk)
+    else:
+        return user

@@ -18,8 +18,8 @@ class CommunityService:
             and not data.get("attached_image_upload")
         ):
             raise ValueError("Either 'text' or 'attached_image' must be provided.")
-        if not data.get("manga_title_id") and not data.get("chapter_id"):
-            raise ValueError("Either 'manga_title_id' or 'chapter_id' must be provided.")
+        if not data.get("manga_title") and not data.get("chapter"):
+            raise ValueError("Either 'manga_title' or 'chapter' must be provided.")
 
         # Handle image upload
         image_url = None
@@ -38,15 +38,30 @@ class CommunityService:
     @staticmethod
     @transaction.atomic
     def update_comment(comment: Comment, data: dict, image_file=None) -> Comment:
+        # If the status is deleted, only the status should be updated
+        status = data.get("status")
+        if status and status == Comment.StatusChoices.DELETED:
+            comment.set_deleted()
+            return comment
+        # If the status is not deleted and the status is changed, 
+        # only the status and hidden_reasons should be updated
+        elif status and status != comment.status and status in {
+            Comment.StatusChoices.HIDDEN, Comment.StatusChoices.ACTIVE
+        }:
+            comment.toggle_hidden(data.get("hidden_reasons"))
+            return comment
+        
+        # Validate data
         if (not data.get("text")
             and not data.get("attached_image_url") 
             and not data.get("attached_image_upload")
         ):
             raise ValueError("Either 'text' or 'attached_image' must be provided.")
-        if not data.get("manga_title_id") and not data.get("chapter_id"):
-            raise ValueError("Either 'manga_title_id' or 'chapter_id' must be provided.")
+        if not data.get("manga_title") and not data.get("chapter"):
+            raise ValueError("Either 'manga_title' or 'chapter' must be provided.")
         
         bucket = BucketNames.COMMENT_IMAGES
+        data = data.copy()
 
         # Replace image if a new one is provided
         if image_file:
@@ -57,6 +72,10 @@ class CommunityService:
             if comment.attached_image_url:
                 ImageService.delete_image(comment.attached_image_url, bucket)
             data["attached_image_url"] = new_image_url
+        else:
+            # Delete image if it's an empty string
+            if data.get("attached_image_url") == "":
+                ImageService.delete_image(comment.attached_image_url, bucket)
 
         # Update other fields
         comment.update_metadata(**data)
