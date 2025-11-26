@@ -127,16 +127,18 @@ export default function CommentsPage({ inline = false }){
     setEditText('')
   }
 
-  function saveEdit(id){
-    if(!editText.trim() && !editPreview) return
+  function saveEdit(id, isDeleted=false){
+    if(!editText.trim() && !editPreview && !isDeleted) return
 
-    const commentData = { text: editText, manga_title_id: mangaId, chapter_id: chapterId ?? null }
+    const commentData = mapInputCommentData(
+      editText, mangaId, chapterId, editPreview || null, isDeleted
+    );
 
     setEditUploading(true)
     setEditUploadProgress(0)
 
     edit({
-      commentId: id,
+      comment: id,
       commentData,
       attachedImage: editImage,
       manga_title_id: mangaId,
@@ -157,8 +159,8 @@ export default function CommentsPage({ inline = false }){
   }
 
   function deleteComment(id){
-    // would implement delete functionality here
-    alert('Delete functionality not implemented yet.')
+    if (!window.confirm('Are you sure you want to delete this comment?')) return
+    saveEdit(id, true)
   }
 
   const rootClass = inline ? 'comments-section' : 'container my-4 comments-section'
@@ -290,6 +292,9 @@ export default function CommentsPage({ inline = false }){
                     text={c.text}
                     created_at={c.created_at}
                     imageUrl={c.imageUrl}
+                    avatar={c.avatar}
+                    status={c.status}
+                    isEdited={c.isEdited}
                     isOwner={isAuthenticated && user && user.username === c.name}
                     onEdit={() => startEdit(c)}
                     onDelete={() => deleteComment(c.id)}

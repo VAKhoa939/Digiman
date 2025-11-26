@@ -10,30 +10,42 @@ class CommentSerializer(serializers.ModelSerializer):
     created_at, status, hidden_reasons, is_edited, owner_name
     """
     owner_name = serializers.SerializerMethodField()
-    attached_image_upload = serializers.ImageField(required=False, write_only=True)
-    manga_title_id = serializers.PrimaryKeyRelatedField(
+    owner_avatar = serializers.SerializerMethodField()
+    #attached_image_upload = serializers.ImageField(required=False, write_only=True)
+    manga_title = serializers.PrimaryKeyRelatedField(
         queryset=MangaTitle.objects.all(),
         required=False,
         allow_null=True,
         write_only=True,
     )
-    chapter_id = serializers.PrimaryKeyRelatedField(
+    chapter = serializers.PrimaryKeyRelatedField(
         queryset=Chapter.objects.all(),
         required=False,
         allow_null=True,
         write_only=True,
     )
+    
     class Meta:
         model = Comment
         fields = [
             "id", "owner_id", "manga_title_id", "chapter_id", 
-            "parent_comment_id", "text", "attached_image_url", "attached_image_upload",
-            "created_at", "status", "hidden_reasons", "is_edited", "owner_name",
-            
+            "parent_comment_id", "text", "attached_image_url",
+            "created_at", "status", "hidden_reasons", "is_edited", 
+            "owner_name", "owner_avatar",
+            "manga_title", "chapter", #"attached_image_upload",
         ]
     
     def get_owner_name(self, obj: Comment) -> str:
         return obj.get_owner_name()
+    
+    def get_owner_avatar(self, obj: Comment) -> str:
+        return obj.get_owner_avatar()
+
+    def validate(self, attrs):
+        # Ensure `attached_image_url` is included in validated data even if it's an empty string
+        if "attached_image_url" in self.initial_data:
+            attrs["attached_image_url"] = self.initial_data.get("attached_image_url", None)
+        return super().validate(attrs)
 
 
 class ReportSerializer(serializers.ModelSerializer):

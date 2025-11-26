@@ -4,6 +4,7 @@ import { mapComment } from "../utils/transform";
 
 
 export default function useGetComments(mangaId, chapterId) {
+	console.log("useGetComments", mangaId, chapterId);
 	const { data, isLoading, error } = useQuery({
 		queryKey: ["comments", mangaId, chapterId],
 		queryFn: () => (

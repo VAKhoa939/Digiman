@@ -43,6 +43,9 @@ class User(AbstractUser):
     def __str__(self):
         return self.username
     
+    def get_avatar(self):
+        return ""
+    
     def get_display_name(self):
         return self.username
 
@@ -77,9 +80,12 @@ class Reader(User):
             "avatar", "age"
         }
         update_instance(self, allowed_fields, **metadata)
-    
+   
     def get_display_name(self):
-        return self.display_name if self.display_name != "" else self.username
+        return self.display_name if self.display_name != "" else super().get_display_name()
+    
+    def get_avatar(self):
+        return self.avatar if self.avatar != "" else super().get_avatar()
     
     # Library List Management
     def get_library_lists(self) -> models.QuerySet["LibraryList"]:

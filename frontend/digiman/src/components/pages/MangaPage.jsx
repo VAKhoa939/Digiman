@@ -10,6 +10,7 @@ import { startDownload, loadDownloads, listDownloadedChapters, isChapterDownload
 import { useAuth } from '../../context/AuthContext';
 import Spinner from '../smallComponents/Spinner';
 import { getTimeAgo } from '../../utils/formatTime';
+import CommentsPage from './CommentsPage';
 
 const MangaPage = ({
   id, title, altTitle, coverUrl, author, artist, synopsis, status, 
@@ -197,6 +198,10 @@ const MangaPage = ({
             ) : <li className="list-group-item text-muted">No chapters found.</li>}
           </ul>)}
         </div>
+      </div>
+      {/* Inline full comments section */}
+      <div className="mt-4">
+        <CommentsPage inline={true} />
       </div>
     </div>
   );

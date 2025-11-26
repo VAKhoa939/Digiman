@@ -70,13 +70,13 @@ function AppContent() {
 
   // Small wrapper used by the Route to pass the :id param and load data from local fixture.
   const MangaRoute = () => {
-    const { id } = useParams();
+    const { mangaId } = useParams();
 
     const { 
       mangaData, mangaIsLoading, mangaError,
       genresData, genresIsLoading, genresError,
       chaptersData, chaptersIsLoading, chaptersError
-    } = useMangaPage(id);
+    } = useMangaPage(mangaId);
 
     if (mangaError) return <div className="text-danger">No manga found.</div>;
 
@@ -107,7 +107,7 @@ function AppContent() {
         <Routes location={background || location}>
           <Route path="/" element={<Catalog />} />
           <Route path="/search/advanced" element={<AdvancedSearchPage />} />
-          <Route path="/manga/:id" element={<MangaRoute />} />
+          <Route path="/manga/:mangaId" element={<MangaRoute />} />
           <Route path="/manga/:mangaId/comments" element={<CommentsPage />} />
           <Route path="/offline/mangas/:mangaId/chapter/:chapterId" element={<ChapterPage />} />
           <Route path="/manga/:mangaId/chapter/:chapterId" element={<ChapterPage />} />
