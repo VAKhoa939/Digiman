@@ -42,19 +42,32 @@ export function mapComment(fetchedData) {
   return {
     id: fetchedData.id,
     name: fetchedData.owner_name,
+    avatar: fetchedData.owner_avatar,
     text: fetchedData.text,
-    imageUrl: fetchedData.image_url,
+    imageUrl: fetchedData.attached_image_url,
     created_at: fetchedData.created_at,
+    status: fetchedData.status,
+    isEdited: fetchedData.is_edited,
+    hiddenReasons: fetchedData.hidden_reasons,
   };
 }
 
-export function mapInputCommentData(text, mangaId, chapterId) {
+export function mapInputCommentData(
+  text, mangaId, chapterId, editPreview, isDeleted
+) {
+  // if isDeleted, only status should be set
+  if (isDeleted) return { status: "deleted" };
   // only one of manga_title_id or chapter_id should be set
-  let manga_title_id = mangaId;
-  if (chapterId !== undefined && chapterId !== null) manga_title_id = null; 
+  let manga_title = mangaId;
+  if (chapterId !== undefined && chapterId !== null) manga_title = null;
+
+  let attached_image_url = undefined;
+  if (editPreview === null || editPreview.length === 0) 
+    attached_image_url = ''; 
   return {
     text: text.trim(),
-    manga_title_id: manga_title_id,
-    chapter_id: chapterId ?? null,
+    manga_title: manga_title,
+    chapter: chapterId ?? null,
+    attached_image_url: attached_image_url
   };
 }
