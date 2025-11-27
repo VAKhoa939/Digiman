@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
       const data = await apiFetchUser();
       setUser(data);
       setIsAuthenticated(true);
-      console.log("fetchUser successful");
+      console.log("fetchUser successful", data);
       return true;
     } catch (err) {
       setUser(null);
@@ -90,6 +90,12 @@ export function AuthProvider({ children }) {
   // Auto-login on page refresh (using refresh cookie)
   useEffect(() => {
     async function tryAutoLogin() {
+        if (!navigator.onLine) {
+        console.log("Auto-login skipped: User is offline.");
+        setfetchUserLoading(false); // Mark auto-login as complete
+        return;
+      }
+      
       // Attempt to refresh token by calling any protected endpoint
       const result = await fetchUser();
       if (result) console.log("Auto-login successful");

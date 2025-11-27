@@ -1,17 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { loadDownloads, updateDownload, removeDownload, startDownload } from '../../utils/downloads'
+import { loadDownloads, updateDownload, removeDownload, startDownload, removeDownloadedChapter, getDownloadedChapterSize } from '../../utils/downloads'
 import { Link } from 'react-router-dom'
 import CloseIcon from '@mui/icons-material/Close'
 
 export default function DownloadsPage(){
   const [downloads, setDownloads] = useState(() => loadDownloads())
   const timers = useRef({})
+  const [sizes, setSizes] = useState({}) // id -> bytes
 
   useEffect(()=>{
     setDownloads(loadDownloads())
   }, [])
 
   useEffect(()=>{
+    // return early if offline
+    if (!navigator.onLine) return;
     // For demo: simulate progress for items with status 'downloading'
     const list = loadDownloads()
     list.forEach(item => {
@@ -39,6 +42,10 @@ export default function DownloadsPage(){
   }, [])
 
   function handleCancel(id){
+    if (!navigator.onLine) {
+      alert("You are offline. Cannot cancel download.");
+      return;
+    }
     // mark failed
     updateDownload(id, { status: 'failed' })
     setDownloads(loadDownloads())
@@ -46,11 +53,32 @@ export default function DownloadsPage(){
   }
 
   function handleRemove(id){
-    removeDownload(id)
-    setDownloads(loadDownloads())
+    if (!navigator.onLine) {
+      alert("You are offline. Cannot remove download.");
+      return;
+    }
+    // find the download entry
+    const item = loadDownloads().find(x=>x.id===id)
+    if (!item){ removeDownload(id); setDownloads(loadDownloads()); return }
+    (async ()=>{
+      try{
+        const bytes = await getDownloadedChapterSize(item.mangaId, item.chapterId)
+        const human = bytesToHuman(bytes)
+        const ok = window.confirm(`Remove downloaded chapter "${item.chapterTitle}" (${human})? This will free up storage.`)
+        if (!ok) return
+        await removeDownloadedChapter(item.mangaId, item.chapterId)
+      }catch(e){ console.warn('removeDownloadedChapter failed', e) }
+      // remove the queue entry/meta
+      removeDownload(id)
+      setDownloads(loadDownloads())
+    })()
   }
 
   async function handleRetry(item){
+    if (!navigator.onLine) {
+      alert("You are offline. Cannot retry download.");
+      return;
+    }
     // start a fresh download for the same chapter then remove the old failed entry
     try{
       await startDownload(item.mangaId, item.chapterId, { chapterTitle: item.chapterTitle, mangaTitle: item.mangaTitle })
@@ -66,6 +94,19 @@ export default function DownloadsPage(){
   const downloading = downloads.filter(d=>d.status==='downloading')
   const downloaded = downloads.filter(d=>d.status==='downloaded')
   const failed = downloads.filter(d=>d.status==='failed')
+
+  useEffect(()=>{
+    let mounted = true
+    async function loadSizes(){
+      const next = {}
+      for (const d of downloaded){
+        try{ const bytes = await getDownloadedChapterSize(d.mangaId, d.chapterId); next[d.id] = bytes }catch(e){ next[d.id] = 0 }
+      }
+      if (mounted) setSizes(next)
+    }
+    if (downloaded.length > 0) loadSizes()
+    return ()=>{ mounted = false }
+  }, [downloaded])
 
   return (
     <div className="container py-4">
@@ -98,9 +139,17 @@ export default function DownloadsPage(){
               <div className="flex-grow-1">
                 <div className="fw-bold">{d.chapterTitle} {d.mangaTitle ? `– ${d.mangaTitle}` : ''} <span className="badge bg-success ms-2">Downloaded</span></div>
                 <div className="text-success small">Successfully downloaded</div>
+                <div className="small text-muted">Size: {sizes[d.id] ? bytesToHuman(sizes[d.id]) : 'calculating...'}</div>
               </div>
               <div className="ms-3">
-                <Link to={`/manga/${d.mangaId}/chapter/${d.chapterId}`} className="btn btn-sm btn-warning me-2">Read</Link>
+                { d.status !== 'failed' ? (
+                <Link
+                  to={`/offline/mangas/${d.mangaId}/chapter/${d.chapterId}`}
+                  className="btn btn-sm btn-warning me-2"
+                >
+                  Read
+                </Link>
+                ) : null}
                 <button className="btn btn-sm btn-outline-danger" onClick={()=>handleRemove(d.id)}><CloseIcon /></button>
               </div>
             </div>
@@ -118,7 +167,7 @@ export default function DownloadsPage(){
                 <div className="text-danger small">Failed to download{d.error ? ` — ${d.error}` : ''}</div>
               </div>
               <div className="ms-3">
-                <Link to={`/manga/${d.mangaId}/chapter/${d.chapterId}`} className="btn btn-sm btn-warning me-2">Read</Link>
+                <Link to={`/offline/mangas/${d.mangaId}/chapter/${d.chapterId}`} className="btn btn-sm btn-warning me-2">Read</Link>
                 <button className="btn btn-sm btn-outline-secondary me-2" onClick={()=>handleRetry(d)}>Retry</button>
                 <button className="btn btn-sm btn-outline-danger" onClick={()=>handleRemove(d.id)}><CloseIcon /></button>
               </div>
@@ -128,4 +177,11 @@ export default function DownloadsPage(){
       </section>
     </div>
   )
+}
+
+function bytesToHuman(bytes){
+  if (!bytes || bytes === 0) return '0 B'
+  const units = ['B','KB','MB','GB','TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  return `${(bytes / Math.pow(1024, i)).toFixed(i===0?0:2)} ${units[i]}`
 }

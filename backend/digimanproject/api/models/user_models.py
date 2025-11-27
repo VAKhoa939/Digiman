@@ -12,8 +12,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .manga_models import MangaTitle, Chapter
-    from .reader_models import ReaderPreferences, LibraryList,\
-        ReadingProgress, OfflineChapter
+    from .reader_models import ReaderPreferences, LibraryList, ReadingProgress
     from .community_models import Comment, Report, Notification
 
 class User(AbstractUser):
@@ -25,6 +24,7 @@ class User(AbstractUser):
         ACTIVE = "active", "Active"
         SUSPENDED = "suspended", "Suspended"
         DEACTIVATED = "deactivated", "Deactivated"
+        DELETED = "deleted", "Deleted"
     
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
@@ -43,6 +43,9 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+    
+    def get_avatar(self):
+        return ""
     
     def get_display_name(self):
         return self.username
@@ -78,9 +81,12 @@ class Reader(User):
             "avatar", "age"
         }
         update_instance(self, allowed_fields, **metadata)
-    
+   
     def get_display_name(self):
-        return self.display_name if self.display_name != "" else self.username
+        return self.display_name if self.display_name != "" else super().get_display_name()
+    
+    def get_avatar(self):
+        return self.avatar if self.avatar != "" else super().get_avatar()
     
     # Library List Management
     def get_library_lists(self) -> models.QuerySet["LibraryList"]:
@@ -158,55 +164,32 @@ class Reader(User):
     
     def remove_reading_progress(self, reading_progress: "ReadingProgress") -> None:
         reading_progress.delete()
-    
-    # Offline Chapter Management
-    def get_offline_chapters(self) -> models.QuerySet["OfflineChapter"]:
-        chapters: models.Manager["OfflineChapter"] = self.offline_chapters
-        return chapters.all()
-    
-    def add_offline_chapter(
-        self, chapter: "Chapter", **other_data: Any
-    ) -> "OfflineChapter":
-        from .reader_models import OfflineChapter
-        return OfflineChapter.objects.create(
-            reader=self, chapter=chapter, **other_data
-        )
-    
-    def remove_offline_chapter(self, offline_chapter: "OfflineChapter") -> None:
-        offline_chapter.delete()
 
     # Comment Management
     def post_comment(
-        self, content: str, is_image: bool = False, 
+        self, text: Optional[str] = None,
+        attached_image_url: Optional[str] = None,
         parent_comment: Optional["Comment"] = None, 
         manga_title: Optional["MangaTitle"] = None, 
         chapter: Optional["Chapter"] = None
     ) -> "Comment":
         from .community_models import Comment
         
-        if (manga_title is None and chapter is None) \
-            or (manga_title is not None and chapter is not None):
-            raise ValueError("Either manga_title or chapter must be provided")
-        
-        new_comment = Comment(
-            owner=self, content=content, is_image=is_image, 
+        return Comment.objects.create(
+            owner=self, text=text, attached_image_url=attached_image_url,
             parent_comment=parent_comment, 
             manga_title=manga_title, chapter=chapter
         )
-        new_comment.clean()
-        return Comment.objects.create(new_comment)
 
-    def update_comment_text_only(self, comment: "Comment", content: str) -> None:
-        comment.update_content(content=content)
+    def update_comment(
+        self, comment: "Comment", text: Optional[str], content: Optional[str]
+    ) -> None:
+        comment.update_metadata(text=text, content=content)
 
     def delete_comment(self, comment: "Comment") -> None:
         comment.set_deleted()
 
-    # Other Methods
-    def view_catalog(self) -> models.QuerySet["MangaTitle"]:
-        from .manga_models import MangaTitle
-        return MangaTitle.objects.filter(is_visible=True)
-    
+    # Report Management
     def post_report(
         self, content: str, target_content_type: str, 
         target_content_id: uuid.UUID

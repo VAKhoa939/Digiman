@@ -38,6 +38,20 @@ class CommunityService:
     @staticmethod
     @transaction.atomic
     def update_comment(comment: Comment, data: dict, image_file=None) -> Comment:
+        # If the status is deleted, only the status should be updated
+        status = data.get("status")
+        if status and status == Comment.StatusChoices.DELETED:
+            comment.set_deleted()
+            return comment
+        # If the status is not deleted and the status is changed, 
+        # only the status and hidden_reasons should be updated
+        elif status and status != comment.status and status in {
+            Comment.StatusChoices.HIDDEN, Comment.StatusChoices.ACTIVE
+        }:
+            comment.toggle_hidden(data.get("hidden_reasons"))
+            return comment
+        
+        # Validate data
         if (not data.get("text")
             and not data.get("attached_image_url") 
             and not data.get("attached_image_upload")
@@ -47,6 +61,7 @@ class CommunityService:
             raise ValueError("Either 'manga_title' or 'chapter' must be provided.")
         
         bucket = BucketNames.COMMENT_IMAGES
+        data = data.copy()
 
         # Replace image if a new one is provided
         if image_file:
@@ -57,6 +72,10 @@ class CommunityService:
             if comment.attached_image_url:
                 ImageService.delete_image(comment.attached_image_url, bucket)
             data["attached_image_url"] = new_image_url
+        else:
+            # Delete image if it's an empty string
+            if data.get("attached_image_url") == "":
+                ImageService.delete_image(comment.attached_image_url, bucket)
 
         # Update other fields
         comment.update_metadata(**data)
@@ -69,17 +88,4 @@ class CommunityService:
         if comment.attached_image_url:
             ImageService.delete_image(comment.attached_image_url, BucketNames.COMMENT_IMAGES)
         comment.delete()
-
-    @staticmethod
-    def get_comment_index(comment: Comment) -> Optional[int]:
-        if comment.manga_title:
-            comments = comment.manga_title.get_comments().order_by("created_at")
-        elif comment.chapter:
-            comments = comment.chapter.get_comments().order_by("created_at")
-        else:
-            return None
-        return comments.filter(created_at__lte=comment.created_at).count()
-    
-    @staticmethod
-    def get_comment_display_name(comment_id: uuid.UUID) -> str:
-        return str(Comment.objects.get(id=comment_id))
+        

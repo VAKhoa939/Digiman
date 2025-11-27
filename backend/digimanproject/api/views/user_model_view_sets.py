@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -42,6 +43,12 @@ class BaseUserViewSet(viewsets.ModelViewSet):
         # Get uploaded avatar file (if provided)
         request = self.request
         avatar_file = request.FILES.get("avatar_upload")
+        if isinstance(avatar_file, list):
+            avatar_file = avatar_file[0]
+
+        # Add the action user to the validated data
+        data = serializer.validated_data
+        data["_action_user"] = request.user
 
         # Call service to handle creation logic
         user = UserService.create_user(serializer.validated_data, avatar_file)
@@ -52,13 +59,16 @@ class BaseUserViewSet(viewsets.ModelViewSet):
         request = self.request
         avatar_file = request.FILES.get("avatar_upload")
 
-        # Call service to handle creation logic
+        # Add the action user to the object
         user = serializer.instance
+        user._action_user = request.user
+
+        # Call service to handle creation logic
         updated_user = UserService.update_user(user, serializer.validated_data, avatar_file)
         serializer.instance = updated_user  # attach instance for response
         
     def perform_destroy(self, instance):
-        UserService.delete_user(instance)
+        raise PermissionDenied("Deleting users is not allowed.")
 
     def destroy(self, request: Request, *args, **kwargs) -> Response:
         """Custom destroy method to clear refresh token cookie on self-delete.

@@ -60,6 +60,7 @@ button.btn-primary {
   --app-muted: #9AA3B2;
   --card-bg: rgba(255,255,255,0.02);
   --accent: #FFCB3D;
+  --accent-dark: #e6b233;
   --dropdown-bg: rgba(15,15,15,0.96);
 }
 
@@ -69,6 +70,7 @@ button.btn-primary {
   --app-muted: #6B7280;
   --card-bg: #FFFFFF;
   --accent: #FFD400;
+  --accent-dark: #e6a800;
   --dropdown-bg: rgba(255,255,255,0.98);
 }
 
@@ -78,6 +80,7 @@ button.btn-primary {
   --app-muted: #9FB0C8;
   --card-bg: rgba(255,255,255,0.02);
   --accent: #FFCB3D;
+  --accent-dark: #e6b233;
   --dropdown-bg: rgba(12,20,30,0.92);
 }
 
@@ -98,6 +101,29 @@ body {
 }
 
 a { color: #FFCB3D; }
+
+/* ChapterMeta: manga link uses theme accent and darkens slightly on hover */
+.chapter-meta .manga-link {
+  color: var(--accent);
+  font-weight: 600;
+  transition: color 140ms ease;
+}
+.chapter-meta .manga-link:hover,
+.chapter-meta .manga-link:focus {
+  color: var(--accent-dark);
+  text-decoration: none;
+}
+
+/* Home breadcrumb color (red) */
+.home-link {
+  color: #ff4d4d;
+  transition: color 140ms ease;
+}
+.home-link:hover,
+.home-link:focus {
+  color: #e04343;
+  text-decoration: none;
+}
 
 /* Slightly darken panels/list items while keeping borders subtle */
 .card, .card-body, .list-group-item {
@@ -401,6 +427,23 @@ a { color: #FFCB3D; }
 
 .chapter-reader-vertical img { max-width: 100%; }
 
+/* Long-strip centering and max-width constraint
+   Ensures individual pages in long_strip mode are horizontally centered
+   and do not grow beyond a comfortable reading width on large screens.
+   Use --reader-max-width to tune (defaults to 920px). */
+.chapter-reader-vertical .mb-3,
+.chapter-reader-vertical > div {
+  display: flex;
+  justify-content: center;
+}
+.chapter-reader-vertical img {
+  display: block;
+  margin: 0 auto;
+  max-width: min(var(--reader-max-width, 920px), 96%);
+  width: auto;
+  height: auto;
+}
+
 /* Profile / User settings ------------------------------------------------- */
 .profile-container {
   background: #000;
@@ -468,14 +511,20 @@ a { color: #FFCB3D; }
   /* Hovering will still use the app-wide yellow fill via the general button hover rule */
   cursor: pointer;
 }
-.reader-nav-btn.outline {
-  /* Strong, high-contrast ring that should be visible in all themes.
-     Use !important to beat competing rules when necessary. */
-  box-shadow: 0 0 0 4px var(--accent, #FFD400) !important, 0 8px 28px rgba(0,0,0,0.18) !important;
-  border-color: var(--accent, #FFD400) !important;
-  outline: none !important;
-  z-index: 12; /* ensure ring renders above nearby elements */
-  background-clip: padding-box; /* keep the ring outside the button's background */
+.reader-nav-btn {
+  position: relative; /* helps z-index take effect and avoid some clipping issues */
+  transition: box-shadow 140ms ease, border-color 140ms ease;
+}
+
+/* Apply the same visible ring for explicit .outline AND keyboard focus */
+.reader-nav-btn.outline,
+.reader-nav-btn:focus-visible,
+.reader-nav-btn:focus {
+  box-shadow: 0 0 0 4px var(--accent, #FFD400), 0 8px 28px rgba(0,0,0,0.18);
+  border-color: var(--accent, #FFD400);
+  outline: none;
+  z-index: 12;
+  background-clip: padding-box;
 }
 .reader-nav-btn:disabled {
   opacity: 0.45;

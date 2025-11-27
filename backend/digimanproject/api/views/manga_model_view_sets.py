@@ -5,7 +5,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
 from ..serializers.manga_model_serializers import MangaTitleSerializer, ChapterSerializer, PageSerializer, GenreSerializer, AuthorSerializer
 
-from ..filters.manga_filters import MangaTitleFilter
+from ..filters.manga_filters import MangaTitleFilter, ChapterFilter
 from ..permissions.admin_permissions import AdminWriteOnly
 from django.db.models import Max
 
@@ -42,21 +42,24 @@ class MangaTitleViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Add prefetch/select related for performance"""
         return (MangaTitle.objects
+            .filter(is_visible=True)
             .annotate(latest_chapter_date=Max("chapters__upload_date"))
             .select_related("author")
-            .prefetch_related("genres"))
+            .prefetch_related("genres")
+        )
 
 
 class ChapterViewSet(viewsets.ModelViewSet):
     queryset = Chapter.objects.all()
     serializer_class = ChapterSerializer
     permission_classes = [AdminWriteOnly]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = ChapterFilter
+    ordering_fields = ["upload_date", "title", "chapter_number"]
+    ordering = ["-chapter_number", "title"]
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        manga_title_id = self.request.query_params.get("manga_title_id")
-        if manga_title_id is not None:
-            queryset = queryset.filter(manga_title_id=manga_title_id)
         if self.request.query_params.get("no_paging") == "true":
             self.pagination_class = None
         return queryset
@@ -80,6 +83,10 @@ class GenreViewSet(viewsets.ModelViewSet):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
     permission_classes = [AdminWriteOnly]
+    filter_backends = [OrderingFilter, SearchFilter]
+    search_fields = ["name"]
+    ordering_fields = ["name"]
+    ordering = ["name"]
 
     def get_queryset(self):
         queryset = super().get_queryset()

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Comment from '../smallComponents/Comment';
-import { loadComments } from '../../utils/comments';
 import DownloadIcon from '@mui/icons-material/Download';
-import { addDownload } from '../../utils/downloads';
+import CheckIcon from '@mui/icons-material/Check';
+import CircularProgress from '@mui/material/CircularProgress';
+import HomeIcon from '@mui/icons-material/Home';
+import { startDownload, loadDownloads, listDownloadedChapters, isChapterDownloaded } from '../../utils/downloads';
 import { useAuth } from '../../context/AuthContext';
 import Spinner from '../smallComponents/Spinner';
 import { getTimeAgo } from '../../utils/formatTime';
+import CommentsPage from './CommentsPage';
 
 const MangaPage = ({
   id, title, altTitle, coverUrl, author, artist, synopsis, status, 
@@ -21,6 +23,7 @@ const MangaPage = ({
   const [imgSrc, setImgSrc] = useState(coverUrl);
   const [followed, setFollowed] = useState(false);
   const [downloadedSet, setDownloadedSet] = useState(new Set())
+  const [statuses, setStatuses] = useState({}) // chapterId -> { status, progress }
 
   useEffect(() => {
     setImgSrc(coverUrl);
@@ -31,17 +34,32 @@ const MangaPage = ({
     function onDownloadsChanged(){
       (async ()=>{
         try{
-          const list = await listDownloadedChapters()
+          const q = loadDownloads()
+          const ns = {}
+          // check each chapter individually using isChapterDownloaded for robust detection
+          await Promise.all((chapters || []).map(async (c) => {
+            try{
+              const downloaded = await isChapterDownloaded(id, c.id)
+              if (downloaded) ns[c.id] = { status: 'downloaded', progress: 100 }
+              else {
+                const it = q.find(x => String(x.mangaId) === String(id) && String(x.chapterId) === String(c.id))
+                if (it) ns[c.id] = { status: it.status || 'downloading', progress: it.progress || 0 }
+                else ns[c.id] = { status: 'idle', progress: 0 }
+              }
+            }catch(e){ ns[c.id] = { status: 'idle', progress: 0 } }
+          }))
           if(!mounted) return
-          const s = new Set(list.map(x=>`${x.mangaId}_${x.chapterId}`))
+          // rebuild downloadedSet for quick checks elsewhere
+          const s = new Set(Object.keys(ns).filter(k => ns[k] && ns[k].status === 'downloaded').map(k => `${id}_${k}`))
           setDownloadedSet(s)
+          setStatuses(ns)
         }catch(e){ /* ignore */ }
       })()
     }
     onDownloadsChanged()
     window.addEventListener('digiman:downloadsChanged', onDownloadsChanged)
     return ()=>{ mounted=false; window.removeEventListener('digiman:downloadsChanged', onDownloadsChanged) }
-  }, [id])
+  }, [id, chapters])
 
   const handleImageError = () => {
     // fallback to a safe remote placeholder if the provided URL fails to load
@@ -80,14 +98,14 @@ const MangaPage = ({
             <div className="me-3">Artist: <strong>{artist}</strong></div>
             <div className="genres">
               {genresIsLoading && <Spinner />}
-              {genresError && <div className="text-danger">Error loading genres.</div>}
-              {genres && genres.length > 0 ? genres.map((g) => (
+              {genresError ? <div className="text-danger">Error loading genres.</div>:
+              (genres && genres.length > 0 ? genres.map((g) => (
                 <Link key={g.id} to={'#'/*`/search/advanced?genre=${encodeURIComponent(g)}`*/} 
                   className="text-decoration-none"
                 >
                   <span className="badge bg-light text-dark me-1">{g.name}</span>
                 </Link>
-              )) : <span className="text-muted">No genres added.</span>}
+              )) : <span className="text-muted">No genres added.</span>)}
             </div>
           </div>
 
@@ -116,8 +134,8 @@ const MangaPage = ({
         <div className="col-12">
           <h4 className="mb-3">Chapters</h4>
           {chaptersIsLoading && <Spinner />}
-          {chaptersError && <div className="text-danger">Error loading chapters.</div>}
-          <ul className="list-group chapter-list">
+          {chaptersError ? <div className="text-danger">Error loading chapters.</div> :
+          (<ul className="list-group chapter-list">
             {chapters && chapters.length > 0 ? (
               chapters.map((c) => (
                 <li key={c.id} 
@@ -125,7 +143,7 @@ const MangaPage = ({
                 >
                   <div>
                     <div className="fw-bold chapter-title">
-                      <Link to={`/manga/${id}/chapter/${c.id}`} 
+                      <Link to={statuses[c.id] && statuses[c.id].status === 'downloaded' ? `/offline/mangas/${id}/chapter/${c.id}` : `/manga/${id}/chapter/${c.id}`} 
                         className="text-decoration-none text-white"
                       >{c.title ? `${c.number}. ${c.title}` : `${c.number}. Chapter ${c.number}`}
                       </Link>
@@ -133,32 +151,55 @@ const MangaPage = ({
                     <div className="small text-muted">{getTimeAgo(c.date)}</div>
                   </div>
                   <div>
-                    <button
-                      className="btn btn-sm btn-outline-light d-flex align-items-center"
-                      onClick={() => {
-                        const entry = {
-                          id: `d_${Date.now()}`,
-                          mangaId: id,
-                          chapterId: c.id,
-                          chapterTitle: c.title || `Chapter ${c.number}`,
-                          mangaTitle: title,
-                          status: 'downloading',
-                          progress: 0,
-                          created_at: new Date().toISOString()
-                        }
-                        addDownload(entry)
-                        navigate('/downloads')
-                      }}
-                    >
-                      <DownloadIcon style={{ fontSize: 16, marginRight: 6 }} />
-                      Download
-                    </button>
+                    {statuses[c.id] && statuses[c.id].status === 'downloaded' ? (
+                      <button className="btn btn-sm btn-success d-flex align-items-center" disabled>
+                        <CheckIcon style={{ fontSize: 16, marginRight: 6 }} />
+                        Downloaded
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-sm btn-outline-light d-flex align-items-center"
+                        onClick={() => {
+                          // optimistically mark as downloading
+                          console.log('MangaPage: download clicked', { mangaId: id, chapterId: c.id });
+                          setStatuses(s => ({ ...s, [c.id]: { status: 'downloading', progress: 0 } }))
+                          try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'Download queued' } })) }catch(_){ }
+                          startDownload(id, c.id, { chapterTitle: c.title || `Chapter ${c.number}`, mangaTitle: title })
+                            .then(() => {
+                              try{ window.dispatchEvent(new CustomEvent('digiman:downloadsChanged')) }catch(_){ }
+                              navigate('/downloads')
+                            })
+                            .catch((err) => {
+                              console.warn('startDownload failed (manga page)', err)
+                              try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Failed to start download' } })) }catch(_){ }
+                              navigate('/downloads')
+                            })
+                        }}
+                        disabled={statuses[c.id] && statuses[c.id].status === 'downloading'}
+                      >
+                        {statuses[c.id] && statuses[c.id].status === 'downloading' ? (
+                          <>
+                            <CircularProgress size={16} thickness={5} style={{ marginRight: 6 }} />
+                            Downloading{statuses[c.id].progress ? ` ${statuses[c.id].progress}%` : ''}
+                          </>
+                        ) : (
+                          <>
+                            <DownloadIcon style={{ fontSize: 16, marginRight: 6 }} />
+                            Download
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </li>
               ))
             ) : <li className="list-group-item text-muted">No chapters found.</li>}
-          </ul>
+          </ul>)}
         </div>
+      </div>
+      {/* Inline full comments section */}
+      <div className="mt-4">
+        <CommentsPage inline={true} />
       </div>
     </div>
   );

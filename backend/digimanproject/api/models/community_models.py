@@ -3,11 +3,10 @@ from typing import Any, Dict, Optional, Union
 from datetime import datetime
 from django.db import models
 from django.utils import timezone
-from django.core.validators import URLValidator
-from django.core.exceptions import ValidationError
+
 
 import uuid
-from ..utils.helper_functions import get_target_object, update_instance
+from ..utils.helper_functions import get_target_object, update_instance, cast_user_to_subclass
 
 from typing import TYPE_CHECKING
 
@@ -47,13 +46,20 @@ class Comment(models.Model):
     is_edited: bool = models.BooleanField(default=False)
 
     def __str__(self) -> str:
-        from ..services.community_service import CommunityService
-        index = CommunityService.get_comment_index(self)
+        index = Comment.get_comment_index(self)
         where = self.manga_title if self.manga_title else self.chapter
         if index is not None:
             return f"Comment #{index} in {where}"
         else:
-            return f"Comment by {self.owner.get_display_name()} at {self.created_at}"
+            return f"Comment by {self.get_owner_name()} at {self.created_at}"
+        
+    def get_owner_name(self) -> str:
+        return (cast_user_to_subclass(self.owner).get_display_name() 
+                if self.owner else "Guest")
+    
+    def get_owner_avatar(self) -> str:
+        return (cast_user_to_subclass(self.owner).get_avatar() 
+                if self.owner else "")
 
     def toggle_hidden(self, hidden_reasons: str = "") -> None:
         self.status = (
@@ -65,7 +71,7 @@ class Comment(models.Model):
         self.save(update_fields=["status", "hidden_reasons"])
     
     def set_deleted(self) -> None:
-        self.status = "deleted"
+        self.status = Comment.StatusChoices.DELETED
         self.save(update_fields=["status"])
 
     def update_metadata(self, **metadata: Any) -> None:
@@ -78,6 +84,16 @@ class Comment(models.Model):
             allowed_fields.add("is_edited")
             
         update_instance(self, allowed_fields, **metadata)
+
+    @staticmethod
+    def get_comment_index(comment: Comment) -> Optional[int]:
+        if comment.manga_title:
+            comments = comment.manga_title.get_comments().order_by("created_at")
+        elif comment.chapter:
+            comments = comment.chapter.get_comments().order_by("created_at")
+        else:
+            return None
+        return comments.filter(created_at__lte=comment.created_at).count()
         
 
 

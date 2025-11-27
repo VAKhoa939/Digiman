@@ -1,55 +1,71 @@
 import api from "./api";
 
-export async function fetchAllMangaTitles(page) {
-  const res = await api.get(`manga_titles/?page=${page}`);
+export async function fetchAllMangaTitles(page=1) {
+  const res = await api.get(`manga_titles/`, { params: { page: page } });
   if (res.data.detail) throw new Error(res.data.detail);
   return res.data;
 }
 
-export async function fetchLatestUpdatedMangaTitle() {
-  const res = await api.get("manga-titles/?ordering=-latest_chapter_date");
+export async function fetchLatestUpdatedMangaTitle(page=1) {
+  const res = await api.get("manga-titles/",{ 
+    params: { 
+      ordering: "-updated_at", page: page 
+    } 
+  });
   if (res.data.detail) throw new Error(res.data.detail);
   return res.data;
 }
 
-export async function fetchMangaTitle(manga_title_id) {
-  const res = await api.get(`manga-titles/${manga_title_id}/`);
+export async function fetchMangaTitle(mangaTitleId) {
+  const res = await api.get(`manga-titles/${mangaTitleId}/`);
   if (res.data.detail) throw new Error(res.data.detail);
   return res.data;
 }
 
-export async function fetchMangaTitleChapters(manga_title_id) {
-  const res = await api.get(
-    `chapters/?manga_title_id=${manga_title_id}&ordering=chapter_number`
-  );
+export async function fetchMangaTitleChapters(
+  mangaTitleId, isAscending=true, page=1
+) {
+  const ordering = isAscending ? "chapter_number" : "-chapter_number";
+  const res = await api.get("chapters/", {
+    params: {
+      manga_title_id: mangaTitleId,
+      ordering: ordering,
+      page: page,
+    }
+  });
   if (res.data.detail) throw new Error(res.data.detail);
   return res.data;
 }
 
-export async function fetchMangaTitleGenres(manga_title_id) {
-  const res = await api.get(
-    `genres/?manga_title_id=${manga_title_id}`
-  );
+export async function fetchMangaTitleGenres(mangaTitleId) {
+  const res = await api.get("genres/", {
+    params: {
+      manga_title_id: mangaTitleId,
+    }
+  });
   if (res.data.detail) throw new Error(res.data.detail);
   return res.data;
 }
 
-export async function fetchChapter(chapter_id) {
-  const res = await api.get(`chapters/${chapter_id}/`);
+export async function fetchChapter(chapterId) {
+  const res = await api.get(`chapters/${chapterId}/`);
   if (res.data.detail) throw new Error(res.data.detail);
   return res.data;
 }
 
-export async function fetchChapterPages(chapter_id) {
-  const res = await api.get(
-    `pages/?chapter_id=${chapter_id}&ordering=page_number`
-  );
+export async function fetchChapterPages(chapterId) {
+  const res = await api.get("pages/", {
+    params: {
+      chapter_id: chapterId,
+      ordering: "page_number",
+    }
+  });
   if (res.data.detail) throw new Error(res.data.detail);
   return res.data;
 }
 
 export async function fetchGenres() {
-  const res = await api.get("genres/");
+  const res = await api.get("genres/", { params: { ordering: "name" } });
   if (res.data.detail) throw new Error(res.data.detail);
   return res.data;
 }
