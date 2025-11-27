@@ -43,6 +43,7 @@ export function mapComment(fetchedData) {
     id: fetchedData.id,
     name: fetchedData.owner_name,
     avatar: fetchedData.owner_avatar,
+    ownerId: fetchedData.owner_id,
     text: fetchedData.text,
     imageUrl: fetchedData.attached_image_url,
     created_at: fetchedData.created_at,
@@ -53,7 +54,7 @@ export function mapComment(fetchedData) {
 }
 
 export function mapInputCommentData(
-  text, mangaId, chapterId, editPreview, isDeleted
+  text, mangaId, chapterId, editPreview = null, isDeleted = false
 ) {
   // if isDeleted, only status should be set
   if (isDeleted) return { status: "deleted" };

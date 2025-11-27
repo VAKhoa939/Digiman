@@ -24,6 +24,7 @@ class User(AbstractUser):
         ACTIVE = "active", "Active"
         SUSPENDED = "suspended", "Suspended"
         DEACTIVATED = "deactivated", "Deactivated"
+        DELETED = "deleted", "Deleted"
     
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)

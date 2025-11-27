@@ -24,13 +24,12 @@ class UserSerializer(serializers.ModelSerializer):
 
 class ReaderSerializer(UserSerializer):
     """Fields for reader: id, username, email, role, status, created_at,
-    display_name, age, avatar, avatar_upload"""
-    avatar_upload = serializers.ImageField(write_only=True, required=False)
+    display_name, age, avatar"""
 
     class Meta:
         model = Reader
         fields = UserSerializer.Meta.fields + [
-            "display_name", "age", "avatar", "avatar_upload",
+            "display_name", "age", "avatar",
         ]
         read_only_fields = UserSerializer.Meta.read_only_fields
 

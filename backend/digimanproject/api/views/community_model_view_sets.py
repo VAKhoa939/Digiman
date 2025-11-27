@@ -26,22 +26,25 @@ class CommentViewSet(viewsets.ModelViewSet):
         if isinstance(attached_image_file, list):
             attached_image_file = attached_image_file[0]
 
+        # Add the action user to the validated data
+        data = serializer.validated_data
+        data["_action_user"] = request.user
+
         comment = CommunityService.create_comment(
-            serializer.validated_data, request.user, attached_image_file
+            data, request.user, attached_image_file
         )
         serializer.instance = comment
 
     def perform_update(self, serializer: CommentSerializer):
         request = self.request
 
-        comment: Comment = serializer.instance
-        # Check if the user is the owner of the comment
-        if request.user != comment.owner:
-            raise PermissionDenied("You are not the owner of this comment.")
-
         attached_image_file = request.FILES.get("attached_image_upload")
         if isinstance(attached_image_file, list):
             attached_image_file = attached_image_file[0]
+
+        # Add the action user to the object
+        comment: Comment = serializer.instance
+        comment._action_user = request.user
 
         updated_comment = CommunityService.update_comment(
             comment, serializer.validated_data, attached_image_file
