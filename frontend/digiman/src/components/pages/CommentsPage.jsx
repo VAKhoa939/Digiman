@@ -164,7 +164,8 @@ export default function CommentsPage({ inline = false }){
   }
 
   const rootClass = inline ? 'comments-section' : 'container my-4 comments-section'
-
+  console.log('comments', comments)
+  console.log('user', user)
   return (
     <div className={rootClass}>
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -295,7 +296,7 @@ export default function CommentsPage({ inline = false }){
                     avatar={c.avatar}
                     status={c.status}
                     isEdited={c.isEdited}
-                    isOwner={isAuthenticated && user && user.username === c.name}
+                    isOwner={isAuthenticated && user && user.id === c.ownerId}
                     onEdit={() => startEdit(c)}
                     onDelete={() => deleteComment(c.id)}
                   />

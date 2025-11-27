@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
       const data = await apiFetchUser();
       setUser(data);
       setIsAuthenticated(true);
-      console.log("fetchUser successful");
+      console.log("fetchUser successful", data);
       return true;
     } catch (err) {
       setUser(null);
