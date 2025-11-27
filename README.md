@@ -14,9 +14,25 @@ DIGIMAN/
 │       ├── collected_static/     ← Static files (after collectstatic)
 │       └── requirements.txt      ← Dependencies list
 │
-└── frontend/                     ← React + Vite app
+├── frontend/
+│
+├── src/
+│   ├── components/             ← Reusable React components
+│   │   ├── pages/              ← Page-level components
+│   │   └── smallComponents/    ← Smaller UI components (e.g., NavBar, Toaster)
+│   ├── context/                ← React Context for global state (e.g., Auth, Theme)
+│   ├── customHooks/            ← Custom React hooks (e.g., useMangaPage)
+│   ├── data/                   ← Static data (e.g., mangaData)
+│   ├── styles/                 ← CSS files for themes and custom styles
+│   └── App.jsx                 ← Main app component
+│
+├── public/                     ← Static assets (e.g., icons, manifest)
+├── index.html                  ← HTML template
+├── vite.config.js              ← Vite configuration
+├── package.json                ← Dependencies and scripts
+└── package_lock.json           ← Dependencies and scripts for clean install
 
-````
+```
 
 ---
 
@@ -44,7 +60,7 @@ Before setting up, make sure you have installed:
 ## 2. Clone Repository
 
 ```
-# Clone from GitHub
+# Clone from GitHub (if you haven't done it)
 git clone https://github.com/<your-username>/DIGIMAN.git
 
 # Move to backend directory
@@ -221,7 +237,7 @@ http://127.0.0.1:8000/api/
 
 ---
 
-## 12. Notes
+## 13. Notes
 
 * The backend can run independently from the frontend.
 * Supabase is used for **PostgreSQL database** and **Storage (image upload)**.
@@ -233,5 +249,172 @@ http://127.0.0.1:8000/api/
   * `CORS_ALLOWED_ORIGINS`
   * `DEBUG=False`
   * `REDIS_URL` (Change from Key Value's external url to internal url only when deploying to Render)
+
+---
+
+# II. DIGIMAN Frontend
+
+This is the **frontend** of the DIGIMAN project — a React application built with **Vite**. 
+
+It provides a user-friendly interface for browsing, reading, and managing manga content.
+
+---
+
+## 1. Prerequisites
+
+Before setting up, make sure you have installed:
+
+| Tool           | Version |
+|----------------|---------|
+| **Node.js**    | 18.*    |
+| **npm**        | 9.*     |
+| **Git**        | latest  |
+
+---
+
+## 2. Clone Repository
+
+```
+Clone from GitHub (if you haven't done it)
+git clone https://github.com/<your-username>/DIGIMAN.git
+
+Move to frontend directory
+cd DIGIMAN/frontend/digiman
+```
+
+---
+
+## 3. Install Dependencies
+
+```bash
+npm ci
+```
+
+This will install all required packages listed in `package_lock.json`.
+
+---
+
+## 4. Create `.local` File
+
+In the `frontend/digiman` directory, create a file named:
+
+```
+.env.local
+```
+
+Then add:
+
+```
+VITE_API_URL=http://127.0.0.1:8000/api/
+VITE_USE_MOCK_DATA=false
+```
+
+> **Notes:**
+> * Replace the VITE_API_URL value with your backend URL if it's hosted elsewhere.
+> * Replace the VITE_USE_MOCK_DATA value with true for running the frontend with mock data
+
+---
+
+## 5. Run the server
+
+```bash
+npm run dev
+```
+
+This will start the Vite development server. Open your browser and navigate to:
+
+```
+http://127.0.0.1:5173
+```
+
+---
+
+## 6. Build for Production
+
+To build the frontend for production, run:
+
+```bash
+npm run build
+```
+
+The optimized build will be output to the dist folder.
+
+---
+
+## 7. Run the Production Build Locally
+
+After building the project, you can preview the production build locally:
+
+```bash
+npm run preview
+```
+
+This will serve the production build at:
+
+```
+http://127.0.0.1:4173
+```
+
+---
+
+## 8. Progressive Web App (PWA) Support
+
+The DIGIMAN frontend is configured as a Progressive Web App (PWA) using the vite-plugin-pwa. This allows the app to work offline and provide a better user experience.
+
+Key Features:
+
+* Offline Support: The app caches assets and API responses for offline use.
+* Auto Updates: The service worker automatically updates when a new version is available.
+
+Testing PWA:
+
+1. Open the app in your browser.
+2. Go to Developer Tools (press f12) > Application > Service Workers.
+3. Test offline functionality by disabling your network.
+
+---
+
+## 9. Useful Commands
+
+| Action                   | Command           |
+| ------------------------ | ----------------- |
+| Start development server | `npm run dev`     |
+| Build for production     | `npm run build`   |
+| Preview production build | `npm run preview` |
+| Lint code                | `npm run lint`    |
+
+---
+
+## 10. Quick Recap
+
+```bash
+git clone https://github.com/<your-username>/DIGIMAN.git
+cd DIGIMAN/frontend/digiman
+npm ci
+npm run dev
+```
+
+Or run production build locally:
+
+```bash
+npm run build
+npm run preview
+```
+
+Now visit:
+
+```
+http://127.0.0.1:5173 
+http://127.0.0.1:4173 
+```
+
+---
+
+## 11. Notes
+
+* The frontend communicates with the backend via the VITE_API_URL environment variable.
+* The app uses React Router for navigation and React Query for data fetching and caching.
+* Bootstrap is used for styling, and custom themes are applied dynamically based on user preferences.
+* The PWA configuration ensures the app is optimized for offline use.
 
 ---
