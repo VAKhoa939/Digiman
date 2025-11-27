@@ -97,8 +97,10 @@ Then add:
 
 ```env
 DEBUG=True
-SECRET_KEY=your-local-secret-key
+SECRET_KEY=your-django-local-secret-key
 ALLOWED_HOSTS=localhost,127.0.0.1
+CORS_ALLOWED_ORIGINS=<your-frontend-url>
+PYTHON_VERSION=3.11.9
 
 # --- Supabase Database ---
 DATABASE_URL=postgresql://postgres.<your-db-id>:[YOUR-PASSWORD]@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
@@ -107,6 +109,15 @@ DATABASE_URL=postgresql://postgres.<your-db-id>:[YOUR-PASSWORD]@aws-1-ap-southea
 SUPABASE_URL=https://<your-project>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 DB_SSL_REQUIRE=True
+
+# --- Perspective API and Sightengine ---
+PERSPECTIVE_API_KEY=<your-perspective-api-key-in-google-cloud-project>
+SIGHTENGINE_USER=<your-sightengine-api-user>
+SIGHTENGINE_SECRET=<your-sightengine-api-secret>
+
+# --- Redis ---
+# Note that this project's redis uses Render's Key Value service for hosting
+REDIS_URL=rediss://red-xxxxx:PASSWORD@singapore-keyvalue.render.com:6379?ssl_cert_reqs=CERT_NONE
 ```
 
 > **Note:** Do **not** commit `backend.env` — keep it local.
@@ -147,7 +158,18 @@ Then open:
 
 ---
 
-## 9. Troubleshooting
+## 9. Run the Celery Worker (for AI Moderation)
+
+Open another terminal in the project root and paste these command:
+
+```bash
+cd backend/digimanproject
+celery -A digimanproject worker -l info -P solo --pool=solo --without-gossip --without-mingle --without-heartbeat
+```
+
+---
+
+## 10. Troubleshooting
 
 | Issue                          | Possible Fix                                                        |
 | ------------------------------ | ------------------------------------------------------------------- |
@@ -159,7 +181,7 @@ Then open:
 
 ---
 
-## 10. Useful Commands
+## 11. Useful Commands
 
 | Action                  | Command                                    |
 | ----------------------- | ------------------------------------------ |
@@ -170,7 +192,7 @@ Then open:
 
 ---
 
-## 11. Quick Recap
+## 12. Quick Recap
 
 ```bash
 git clone https://github.com/<your-username>/DIGIMAN.git
@@ -181,6 +203,13 @@ pip install -r requirements.txt
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
+```
+
+Then open another terminal:
+
+```bash
+cd backend/digimanproject
+celery -A digimanproject worker -l info -P solo --pool=solo --without-gossip --without-mingle --without-heartbeat
 ```
 
 Now visit:
@@ -196,12 +225,13 @@ http://127.0.0.1:8000/api/
 
 * The backend can run independently from the frontend.
 * Supabase is used for **PostgreSQL database** and **Storage (image upload)**.
-* The `.env` file contains all secret and environment-specific variables.
+* The `backend.env` file contains all secret and environment-specific variables.
 * Keep `DEBUG=True` only in local development.
 * When deploying to Render or other services, adjust:
 
   * `ALLOWED_HOSTS`
-  * `CSRF_TRUSTED_ORIGINS`
+  * `CORS_ALLOWED_ORIGINS`
   * `DEBUG=False`
+  * `REDIS_URL` (Change from Key Value's external url to internal url only when deploying to Render)
 
 ---
