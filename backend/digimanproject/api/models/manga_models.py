@@ -150,27 +150,6 @@ class MangaTitle(models.Model):
         }
         update_instance(self, allowed_fields, **metadata)
 
-    def add_genre(self, genre: "Genre") -> None:
-        self.genres.add(genre)
-
-    def remove_genre(self, genre: "Genre") -> bool:
-        if genre in self.genres.all():
-            self.genres.remove(genre)
-            return True
-        return False
-    
-    def clear_genres(self) -> None:
-        self.genres.clear()
-
-    def add_chapter(self, title: str, chapter_number: int) -> "Chapter":
-        return Chapter.objects.create(
-            manga_title=self, title=title, chapter_number=chapter_number
-        )
-
-    def remove_chapter(self, chapter: "Chapter") -> bool:
-        deleted, _ = chapter.delete()
-        return deleted > 0
-
 
 class Chapter(models.Model):
     id: uuid.UUID = models.UUIDField(
@@ -234,17 +213,6 @@ class Chapter(models.Model):
         return (
             pages.aggregate(models.Max("page_number"))["page_number__max"] or 0
         )
-
-    def add_page(self, page_number: int, image_url: str) -> "Page":
-        return Page.objects.create(
-            chapter=self,
-            page_number=page_number,
-            image_url=image_url,
-        )
-
-    def remove_page(self, page: "Page") -> bool:
-        deleted, _ = page.delete()
-        return deleted > 0
 
 
 class Page(models.Model):
