@@ -43,7 +43,7 @@ export default function DownloadsPage(){
 
   function handleCancel(id){
     if (!navigator.onLine) {
-      alert("You are offline. Cannot cancel download.");
+        try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'You are offline. Cannot cancel download.' } })); } catch (_) {}
       return;
     }
     // mark failed
@@ -54,7 +54,7 @@ export default function DownloadsPage(){
 
   function handleRemove(id){
     if (!navigator.onLine) {
-      alert("You are offline. Cannot remove download.");
+        try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'You are offline. Cannot remove download.' } })); } catch (_) {}
       return;
     }
     // find the download entry
@@ -76,7 +76,7 @@ export default function DownloadsPage(){
 
   async function handleRetry(item){
     if (!navigator.onLine) {
-      alert("You are offline. Cannot retry download.");
+        try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'You are offline. Cannot retry download.' } })); } catch (_) {}
       return;
     }
     // start a fresh download for the same chapter then remove the old failed entry
