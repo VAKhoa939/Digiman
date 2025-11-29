@@ -27,13 +27,20 @@ function NavBar({ onLogin, onRegister }) {
   };
 
   const { theme } = useTheme ? useTheme() : { theme: 'dark' }
+  // Brand colors adapt to theme
+  const brandPrimaryColor = theme === 'dark' ? '#ffffff' : '#111827'
+  const brandAccentColor = theme === 'dark' ? '#FFD400' : '#B8860B'
+  // Button variant for nav actions (visible on both themes)
+  const navButtonVariant = theme === 'dark' ? 'btn-outline-light' : 'btn-outline-dark'
+  const avatarTextClass = theme === 'dark' ? 'text-light' : 'text-dark'
+  const linkTextClass = theme === 'dark' ? 'text-light' : 'text-dark'
   return (
     <>
-      <nav className={`navbar fixed-top navbar-expand-lg ${theme === 'dark' ? 'bg-dark' : 'bg-light'}`} data-bs-theme={theme}>
+      <nav className={`navbar fixed-top navbar-expand-lg ${theme === 'dark' ? 'bg-dark navbar-dark' : 'bg-light navbar-light'}`} data-bs-theme={theme}>
         <div className="container-fluid">
           <Link className="navbar-brand" to="/">
-            <span style={{ color: "white" }}>Digi</span>
-            <span style={{ color: "yellow" }}>man</span>
+            <span style={{ color: brandPrimaryColor }}>Digi</span>
+            <span style={{ color: brandAccentColor }}>man</span>
           </Link>
 
           <button
@@ -52,10 +59,10 @@ function NavBar({ onLogin, onRegister }) {
             <ul className="navbar-nav ms-auto align-items-center">
               <div className="d-flex align-items-center me-2">
                 <SearchBar />
-                <button className="btn btn-sm btn-outline-light ms-2" title="Downloads" onClick={() => navigate('/downloads')}>
+                <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Downloads" onClick={() => navigate('/downloads')}>
                   <CloudDownloadIcon />
                 </button>
-                <button className="btn btn-sm btn-outline-light ms-2" title="Advanced search" onClick={() => navigate('/search/advanced')}>
+                <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Advanced search" onClick={() => navigate('/search/advanced')}>
                   <FilterListIcon />
                 </button>
                 <ThemeToggle />
@@ -66,25 +73,42 @@ function NavBar({ onLogin, onRegister }) {
                 <>
                 <li className="nav-item dropdown">
                   <a
-                    className="nav-link dropdown-toggle d-flex align-items-center"
+                    className={`nav-link dropdown-toggle d-flex align-items-center ${linkTextClass}`}
                     href="#"
                     role="button"
                     data-bs-toggle="dropdown"
                     aria-expanded="false"
                   >
                     {/* Simple avatar placeholder using initials */}
-                    <div className="rounded-circle bg-secondary text-dark d-inline-flex justify-content-center align-items-center me-2" style={{ width: 32, height: 32 }}>
+                    <div className={`rounded-circle bg-secondary ${avatarTextClass} d-inline-flex justify-content-center align-items-center me-2`} style={{ width: 32, height: 32 }}>
                       <small>{(user && user.username && user.username[0]) || 'U'}</small>
                     </div>
                     <span className="me-1">{(user && user.username) || 'User'}</span>
                   </a>
-                  <ul className="dropdown-menu dropdown-menu-end">
+                  <ul
+                    className={`dropdown-menu dropdown-menu-end ${theme === 'dark' ? 'dropdown-menu-dark' : ''}`}
+                    style={{ backgroundColor: theme === 'dark' ? '#212529' : '#ffffff', color: theme === 'dark' ? '#ffffff' : '#111827' }}
+                  >
                     <li>
                       <button className="dropdown-item" onClick={() => navigate('/profile')}>Profile</button>
                     </li>
                     <li>
                       <button className="dropdown-item" onClick={() => navigate('/settings')}>Settings</button>
                     </li>
+                    {/* Admin link for users with administrative privileges */}
+                    {(() => {
+                      const isAdmin = Boolean(user && (
+                        user.is_staff || user.is_superuser || user.is_admin ||
+                        (user.role && String(user.role).toLowerCase() === 'admin') ||
+                        (Array.isArray(user.roles) && user.roles.includes('admin')) ||
+                        (Array.isArray(user.groups) && user.groups.includes('admin'))
+                      ));
+                      return isAdmin ? (
+                        <li>
+                          <button className="dropdown-item" onClick={() => window.open('/admin/', '_blank', 'noopener')}>Admin</button>
+                        </li>
+                      ) : null;
+                    })()}
                     <li><hr className="dropdown-divider" /></li>
                     <li>
                       <button className="dropdown-item" onClick={handleLogout}>Logout</button>
@@ -95,7 +119,7 @@ function NavBar({ onLogin, onRegister }) {
               ) : (
                 <li className="nav-item dropdown">
                   <a
-                    className="nav-link dropdown-toggle"
+                    className={`nav-link dropdown-toggle ${linkTextClass}`}
                     href="#"
                     role="button"
                     data-bs-toggle="dropdown"
@@ -103,28 +127,33 @@ function NavBar({ onLogin, onRegister }) {
                   >
                     <FormatListBulletedIcon />
                   </a>
-                  <ul className="dropdown-menu dropdown-menu-end">
-                    <li>
-                      <NavLoginButton />
-                    </li>
-                    <li>
-                      <NavRegisterButton />
-                    </li>
-                  </ul>
+                    <ul
+                      className={`dropdown-menu dropdown-menu-end ${theme === 'dark' ? 'dropdown-menu-dark' : ''}`}
+                      style={{ backgroundColor: theme === 'dark' ? '#212529' : '#ffffff', color: theme === 'dark' ? '#ffffff' : '#111827' }}
+                    >
+                      <li>
+                        <NavLoginButton />
+                      </li>
+                      <li>
+                        <NavRegisterButton />
+                      </li>
+                    </ul>
                 </li>
               )}
             </ul>
           </div>
         </div>
       </nav>
+      
     </>
   );
 }
 
 function ThemeToggle(){
   const { theme, toggle } = useTheme()
+  const navButtonVariant = theme === 'dark' ? 'btn-outline-light' : 'btn-outline-dark'
   return (
-    <button className="btn btn-sm btn-outline-light ms-2" title="Toggle theme" onClick={toggle}>
+    <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Toggle theme" onClick={toggle}>
       {theme === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
     </button>
   )

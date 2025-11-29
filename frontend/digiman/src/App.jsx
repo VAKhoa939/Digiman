@@ -13,6 +13,7 @@ import AdvancedSearchPage from './components/pages/AdvancedSearchPage'
 import DownloadsPage from './components/pages/DownloadsPage'
 import PrivateRoute from './components/smallComponents/PrivateRoute'
 import Settings from './components/pages/Settings'
+import Profile from './components/pages/Profile'
 import mangaData from './data/mangaData'
 import { AuthProvider } from './context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -113,6 +114,7 @@ function AppContent() {
           <Route path="/manga/:mangaId/chapter/:chapterId" element={<ChapterPage />} />
           <Route path="/manga/:mangaId/chapter/:chapterId/comments" element={<CommentsPage />} />
           <Route path="/downloads" element={<DownloadsPage />} />
+          <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
           <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
           {/* Also allow the modal routes to render as full pages when visited directly */}
           <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
@@ -139,6 +141,7 @@ export default function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
+          <Toaster />
           <AppContent />
         </BrowserRouter>
       </QueryClientProvider>

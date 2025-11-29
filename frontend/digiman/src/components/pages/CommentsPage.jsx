@@ -100,7 +100,7 @@ export default function CommentsPage({ inline = false }){
     // limit to 5MB for safety
     const MAX = 5 * 1024 * 1024
     if(f.size > MAX){
-      alert('Image too large (max 5MB)')
+      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Image too large (max 5MB)' } })); } catch(_){}
       e.target.value = ''
       return
     }
@@ -265,7 +265,7 @@ export default function CommentsPage({ inline = false }){
                       const f = e.target.files && e.target.files[0]
                       if(!f) return
                       const MAX = 5 * 1024 * 1024
-                      if(f.size > MAX){ alert('Image too large (max 5MB)'); e.target.value=''; return }
+                      if(f.size > MAX){ try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Image too large (max 5MB)' } })); } catch(_){} e.target.value=''; return }
                       setEditImage(f)
                       const r = new FileReader()
                       r.onload = ev => setEditPreview(ev.target.result)
