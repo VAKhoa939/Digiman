@@ -113,7 +113,7 @@ const MangaPage = ({
             <button className="btn btn-primary me-2" onClick={() => {
               // Navigate to first chapter if available
               if (chapterCount > 0) navigate(`/manga/${id}/chapter/${chapters[0].id}`);
-              else alert('No chapters available');
+              else try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'No chapters available' } })); }catch(_){ }
             }}>Read</button>
             <button
               className={followed ? 'btn btn-success btn-follow' : 'btn btn-outline-light btn-follow'}

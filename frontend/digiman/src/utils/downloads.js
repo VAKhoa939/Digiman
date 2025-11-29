@@ -277,7 +277,7 @@ async function fetchWithRetry(url, retries = 3) {
 // locally and mark the queue item as downloaded/failed.
 export async function startDownload(mangaId, chapterId, opts = {}) {
   if (!navigator.onLine) {
-    alert("You are offline. Cannot start download.");
+    try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'You are offline. Cannot start download.' } })); } catch (_) {}
     return;
   }
 

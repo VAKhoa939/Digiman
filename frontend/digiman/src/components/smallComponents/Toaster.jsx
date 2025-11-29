@@ -20,7 +20,7 @@ export default function Toaster(){
   if (toasts.length === 0) return null
 
   return (
-    <div style={{ position: 'fixed', right: 16, bottom: 16, zIndex: 2000 }}>
+    <div style={{ position: 'fixed', left: 16, top: 16, zIndex: 2000 }}>
       {toasts.map(t => (
         <div key={t.id} className={`toast show mb-2 align-items-center text-bg-${t.type==='error'?'danger': t.type==='success'?'success':'secondary'}`} role="alert" aria-live="assertive" aria-atomic="true">
           <div className="d-flex">

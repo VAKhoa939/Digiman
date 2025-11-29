@@ -8,7 +8,9 @@ export function ThemeProvider({ children }) {
       const raw = localStorage.getItem('profile_display')
       if (raw) {
         const d = JSON.parse(raw)
-        return (d.theme || 'Dark').toString().toLowerCase()
+        const t = (d.theme || 'Dark').toString().toLowerCase()
+        // map removed 'slate' theme to 'dark' to avoid unknown theme value
+        return t === 'slate' ? 'dark' : t
       }
     } catch (e) { /* ignore */ }
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark'
@@ -31,6 +33,34 @@ export function ThemeProvider({ children }) {
 
     try { window.dispatchEvent(new CustomEvent('digiman:themeChanged', { detail: { theme } })) } catch (e) { }
   }, [theme])
+
+  // Listen for external theme changes (for example from Settings component)
+  useEffect(() => {
+    function onExternalTheme(e){
+      try{
+        const t = (e && e.detail && e.detail.theme) || null
+        if (t){
+          const low = t.toString().toLowerCase()
+          setTheme(low === 'slate' ? 'dark' : low)
+        }
+      }catch(_){ }
+    }
+    window.addEventListener('digiman:themeChanged', onExternalTheme)
+    // Also listen to storage events in case another tab updated localStorage
+    function onStorage(e){
+      try{
+        if (e.key === 'profile_display' && e.newValue){
+          const d = JSON.parse(e.newValue)
+          if (d.theme){
+            const low = d.theme.toString().toLowerCase()
+            setTheme(low === 'slate' ? 'dark' : low)
+          }
+        }
+      }catch(_){ }
+    }
+    window.addEventListener('storage', onStorage)
+    return ()=>{ window.removeEventListener('digiman:themeChanged', onExternalTheme); window.removeEventListener('storage', onStorage) }
+  }, [])
 
   const toggle = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'))
 

@@ -74,15 +74,7 @@ button.btn-primary {
   --dropdown-bg: rgba(255,255,255,0.98);
 }
 
-:root[data-theme="slate"] {
-  --app-bg: #0f1724;
-  --app-fg: #E6EEF8;
-  --app-muted: #9FB0C8;
-  --card-bg: rgba(255,255,255,0.02);
-  --accent: #FFCB3D;
-  --accent-dark: #e6b233;
-  --dropdown-bg: rgba(12,20,30,0.92);
-}
+/* Removed 'slate' theme — use Dark or Light only */
 
 html, body, #root {
   height: 100%;
@@ -170,6 +162,18 @@ a { color: #FFCB3D; }
 .btn:not(.btn-follow).btn-outline-secondary:hover,
 .btn:not(.btn-follow).btn-outline-primary:hover {
   color: #111 !important;
+}
+
+/* Ensure outline-light buttons (often icon-only) are visible in light theme */
+:root[data-theme="light"] .btn-outline-light {
+  color: var(--app-fg) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+}
+:root[data-theme="light"] .btn-outline-light svg,
+:root[data-theme="light"] .btn-outline-light .MuiSvgIcon-root,
+:root[data-theme="light"] .btn-outline-light i {
+  color: var(--app-fg) !important;
+  fill: currentColor !important;
 }
 
 /* Muted text color utility */
@@ -350,6 +354,67 @@ a { color: #FFCB3D; }
 .dm-hot-track { padding-bottom:6px; }
 .dm-hot-item .card { background: rgba(255,255,255,0.02); }
 
+/* Light-mode overrides for hot controls: ensure visibility on light backgrounds */
+:root[data-theme="light"] .dm-hot-btn {
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  color: var(--app-fg) !important;
+  background: transparent !important;
+}
+:root[data-theme="light"] .dm-hot-btn:hover {
+  background: rgba(0,0,0,0.03) !important;
+}
+:root[data-theme="light"] .dm-hot-line {
+  background: rgba(0,0,0,0.06) !important;
+}
+:root[data-theme="light"] .dm-hot-item .card {
+  background: var(--card-bg) !important;
+  border: 1px solid rgba(0,0,0,0.04) !important;
+}
+
+/* Theme-aware hover/click colors for hot controls
+   - Dark theme: yellow hover (contrast with dark bg)
+   - Light theme: red hover (contrast with light bg)
+*/
+:root[data-theme="dark"] .dm-hot-btn:hover,
+:root[data-theme="dark"] .dm-hot-btn:focus,
+:root[data-theme="dark"] .dm-hot-btn:active,
+:root[data-theme="dark"] .dm-hot-btn.active {
+  background: #FFD400 !important;
+  color: #000 !important;
+  border-color: #FFD400 !important;
+}
+:root[data-theme="dark"] .dm-hot-btn:hover svg,
+:root[data-theme="dark"] .dm-hot-btn:focus svg,
+:root[data-theme="dark"] .dm-hot-btn.active svg,
+:root[data-theme="dark"] .dm-hot-btn:active svg,
+:root[data-theme="dark"] .dm-hot-btn:hover .MuiSvgIcon-root,
+:root[data-theme="dark"] .dm-hot-btn:focus .MuiSvgIcon-root,
+:root[data-theme="dark"] .dm-hot-btn.active .MuiSvgIcon-root,
+:root[data-theme="dark"] .dm-hot-btn:active .MuiSvgIcon-root {
+  color: #000 !important;
+  fill: currentColor !important;
+}
+
+:root[data-theme="light"] .dm-hot-btn:hover,
+:root[data-theme="light"] .dm-hot-btn:focus,
+:root[data-theme="light"] .dm-hot-btn:active,
+:root[data-theme="light"] .dm-hot-btn.active {
+  background: #e11d48 !important;
+  color: #fff !important;
+  border-color: #e11d48 !important;
+}
+:root[data-theme="light"] .dm-hot-btn:hover svg,
+:root[data-theme="light"] .dm-hot-btn:focus svg,
+:root[data-theme="light"] .dm-hot-btn.active svg,
+:root[data-theme="light"] .dm-hot-btn:active svg,
+:root[data-theme="light"] .dm-hot-btn:hover .MuiSvgIcon-root,
+:root[data-theme="light"] .dm-hot-btn:focus .MuiSvgIcon-root,
+:root[data-theme="light"] .dm-hot-btn.active .MuiSvgIcon-root,
+:root[data-theme="light"] .dm-hot-btn:active .MuiSvgIcon-root {
+  color: #fff !important;
+  fill: currentColor !important;
+}
+
 @media (max-width: 575px) {
   .dm-hot-item { flex: 0 0 calc(50% - 0.75rem) !important; }
 }
@@ -406,6 +471,57 @@ a { color: #FFCB3D; }
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.04);
 }
+
+/* Theme-aware overrides for Bootstrap utility .bg-light used in Downloads/Lists
+   Ensure elements using .bg-light show appropriate background/text in dark theme */
+:root[data-theme="dark"] .bg-light {
+  background: var(--card-bg) !important;
+  color: var(--text) !important;
+  border: 1px solid rgba(255,255,255,0.03) !important;
+}
+:root[data-theme="dark"] .bg-light .text-muted {
+  color: var(--muted) !important;
+}
+:root[data-theme="dark"] .bg-light .badge {
+  box-shadow: none;
+}
+
+/* Slightly adjust buttons inside download cards to fit dark theme */
+:root[data-theme="dark"] .bg-light .btn-warning {
+  background: #FFD400 !important;
+  color: #000 !important;
+  border-color: #FFD400 !important;
+}
+:root[data-theme="dark"] .bg-light .btn-outline-danger {
+  border-color: rgba(255,255,255,0.08) !important;
+  color: var(--text) !important;
+}
+
+/* Keep danger buttons clearly red in dark theme (close icons should remain red) */
+:root[data-theme="dark"] .btn-danger {
+  background: var(--danger) !important;
+  color: #fff !important;
+  border-color: var(--danger) !important;
+}
+:root[data-theme="dark"] .btn-danger svg,
+:root[data-theme="dark"] .btn-danger .MuiSvgIcon-root {
+  color: #fff !important;
+  fill: currentColor !important;
+}
+:root[data-theme="dark"] .btn-outline-danger {
+  color: var(--danger) !important;
+  border-color: var(--danger) !important;
+}
+:root[data-theme="dark"] .btn-outline-danger svg,
+:root[data-theme="dark"] .btn-outline-danger .MuiSvgIcon-root {
+  color: var(--danger) !important;
+  fill: currentColor !important;
+}
+:root[data-theme="dark"] .btn-outline-danger:hover,
+:root[data-theme="dark"] .btn-outline-danger:focus {
+  background: rgba(239,68,68,0.12) !important; /* subtle red tint on hover */
+  color: #fff !important;
+}
 .manga-page .chapter-list .list-group-item + .list-group-item {
   border-top: 1px solid rgba(255,255,255,0.02);
 }
@@ -446,12 +562,10 @@ a { color: #FFCB3D; }
 
 /* Profile / User settings ------------------------------------------------- */
 .profile-container {
-  background: #000;
-  color: #fff;
+  background: var(--card-bg);
+  color: var(--app-fg);
   padding: 28px;
   border-radius: 6px;
-}
-.profile-container {
   position: relative;
   transition: box-shadow 180ms ease, transform 120ms ease;
 }
@@ -463,14 +577,62 @@ a { color: #FFCB3D; }
   box-shadow: 0 0 0 4px var(--accent, #FFD400), 0 6px 18px rgba(0,0,0,0.45);
   transform: translateY(-2px);
 }
-.profile-left-nav { min-width: 160px; border-right: 1px solid rgba(255,255,255,0.06); padding-right: 18px; }
+
+/* Left nav border adapts to the active theme for correct contrast */
+:root[data-theme="dark"] .profile-left-nav {
+  min-width: 160px;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  padding-right: 18px;
+}
+:root[data-theme="light"] .profile-left-nav {
+  min-width: 160px;
+  border-right: 1px solid rgba(0,0,0,0.06);
+  padding-right: 18px;
+}
+
+/* Tabs and icons: default subtle background that adapts by theme */
 .profile-tab { display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:8px; cursor:pointer; margin-bottom:12px; }
-.profile-tab .icon { width:36px; height:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; }
-.profile-tab.active { background: #FFD400; color: #111; }
-.profile-tab.active .icon { background: #fff; }
+.profile-tab .icon { width:36px; height:36px; border-radius:18px; display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.04); color: var(--app-fg); }
+:root[data-theme="light"] .profile-tab .icon { background: rgba(0,0,0,0.04); }
+.profile-tab.active { background: var(--accent); color: #111; }
+.profile-tab.active .icon { background: #fff; color: #000; }
 .profile-right { flex:1; padding-left:20px; }
 .profile-section h4 { margin-bottom:12px; }
 .profile-content-filter label { display:flex; gap:8px; align-items:center; margin-right:12px; }
+
+/* Profile page visuals: make the profile component slightly darker than
+   the page background so it stands out while remaining subtle. */
+.profile-page {
+  max-width: 960px;
+  margin: 24px auto;
+  padding: 20px;
+  border-radius: 8px;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+:root[data-theme="dark"] .profile-page {
+  /* Human-hue pink (subtle peachy-pink) to stand out from the app background */
+  background: rgba(255,205,178,0.06); /* very pale peach/pink overlay */
+  border: 1px solid rgba(255,205,178,0.08);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+}
+
+:root[data-theme="light"] .profile-page {
+  /* Very light human-pink (peachy) background to contrast the page background */
+  background: #d5aae9; /* pale peach/pink */
+  border: 1px solid rgba(255,180,150,0.12);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+}
+
+.profile-header {
+  height: 140px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(255,211,64,0.06), rgba(0,0,0,0.02));
+}
+
+.profile-content { box-sizing: border-box; }
+
+.profile-row { }
 
 /* Catalog: visible action button that highlights with theme accent on hover */
 .catalog-btn {
