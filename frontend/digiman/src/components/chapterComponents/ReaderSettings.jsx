@@ -6,7 +6,7 @@ export default function ReaderSettings({ show = false, settings = {}, onClose = 
   const [local, setLocal] = useState({
     imageFit: settings.imageFit || 'both',
     pageDisplay: settings.pageDisplay || 'single',
-    readingDirection: settings.readingDirection || 'rtl',
+    readingDirection: settings.readingDirection || 'ltr',
     enablePaged: settings.enablePaged || false,
     swipeAxis: settings.swipeAxis || 'vertical',
     progressBar: settings.progressBar ?? true,
@@ -16,7 +16,7 @@ export default function ReaderSettings({ show = false, settings = {}, onClose = 
   useEffect(() => setLocal({
     imageFit: settings.imageFit || 'both',
     pageDisplay: settings.pageDisplay || 'single',
-    readingDirection: settings.readingDirection || 'rtl',
+    readingDirection: settings.readingDirection || 'ltr',
     enablePaged: settings.enablePaged || false,
     swipeAxis: settings.swipeAxis || 'vertical',
     progressBar: settings.progressBar ?? true,
@@ -70,19 +70,13 @@ export default function ReaderSettings({ show = false, settings = {}, onClose = 
         </div>
 
         <div className="mb-3">
-          <div className="small text-muted mb-2">Reading direction</div>
-          <div className="btn-group" role="group">
-            <button className={`btn btn-sm ${local.readingDirection==='ltr' ? 'btn-warning text-dark' : 'btn-outline-light'}`} onClick={() => setLocal({...local, readingDirection: 'ltr'})}>Left to Right</button>
-            <button className={`btn btn-sm ${local.readingDirection==='rtl' ? 'btn-warning text-dark' : 'btn-outline-light'}`} onClick={() => setLocal({...local, readingDirection: 'rtl'})}>Right to Left</button>
-          </div>
-        </div>
-
-        <div className="mb-3">
           <div className="form-check">
             <input className="form-check-input" type="checkbox" id="progressBar" checked={local.progressBar} onChange={(e)=>setLocal({...local, progressBar: e.target.checked})} />
             <label className="form-check-label ms-2" htmlFor="progressBar">Progressive bar</label>
           </div>
         </div>
+
+        {/* Reading direction option removed — defaults to Left-to-Right */}
         <div className="d-flex justify-content-end gap-2">
           <button className="btn btn-sm btn-outline-light" onClick={onClose}>Cancel</button>
           <button className="btn btn-sm btn-warning text-dark" onClick={() => { onSave(local); onClose(); }}>Save</button>
