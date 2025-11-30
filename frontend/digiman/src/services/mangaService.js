@@ -1,7 +1,7 @@
 import api from "./api";
 
-export async function fetchAllMangaTitles(page=1) {
-  const res = await api.get(`manga_titles/`, { params: { page: page } });
+export async function fetchAllMangaTitles(params={}, page=1) {
+  const res = await api.get(`manga-titles/`, { params: { page: page, ...params } });
   if (res.data.detail) throw new Error(res.data.detail);
   return res.data;
 }

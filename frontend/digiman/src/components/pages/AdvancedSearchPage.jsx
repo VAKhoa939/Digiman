@@ -1,61 +1,81 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
+import { fetchAllMangaTitles, fetchGenres } from '../../services/mangaService';
+import { mapMangaTitle } from '../../utils/transform';
 import MangaList from '../common/MangaList';
 import SearchMangaCard from '../smallComponents/SearchMangaCard';
 
 export default function AdvancedSearchPage() {
   const navigate = useNavigate();
-  const [local, setLocal] = useState({ status: 'any', minChapter: '', ordering: 'publication_status', q: '' });
+  const [local, setLocal] = useState({ publication_status: '', ordering: 'publication_date', q: '' });
   const [showFilters, setShowFilters] = useState(true);
-  const [contentRating, setContentRating] = useState('any');
   const [genres, setGenres] = useState([]);
   
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const location = useLocation();
-  // Toggle to use mock data instead of calling the backend.
-  const USE_MOCK = true;
 
-  // Small mock dataset used for local UI work and testing.
-  const MOCK_MANGAS = [
-    { id: 1, title: 'One Piece', image: '/assets/placeholders/onepiece.png', latest_chapter: 'Ch. 1090', status: 'Ongoing', genres: ['Action','Adventure'], author: 'Oda' },
-    { id: 2, title: 'Berserk', image: '/assets/placeholders/berserk.png', latest_chapter: 'Ch. 364', status: 'Finished', genres: ['Fantasy','Drama'], author: 'Miura' },
-    { id: 3, title: 'Naruto', image: '/assets/placeholders/naruto.png', latest_chapter: 'Ch. 700', status: 'Finished', genres: ['Action','Adventure'], author: 'Kishimoto' },
-    { id: 4, title: 'My Hero Academia', image: '/assets/placeholders/mha.png', latest_chapter: 'Ch. 400', status: 'Ongoing', genres: ['Action','Comedy'], author: 'Horikoshi' },
-    { id: 5, title: 'Komi Can’t Communicate', image: '/assets/placeholders/komi.png', latest_chapter: 'Ch. 350', status: 'Ongoing', genres: ['Comedy','Romance','Slice of Life'], author: 'Tomo' },
-    { id: 6, title: 'Vagabond', image: '/assets/placeholders/vagabond.png', latest_chapter: 'Ch. 327', status: 'Dropped', genres: ['Drama','Action'], author: 'Inoue' },
-    { id: 7, title: 'Solo Leveling', image: '/assets/placeholders/sololeveling.png', latest_chapter: 'Ch. 179', status: 'Finished', genres: ['Fantasy','Action'], author: 'Chugong' },
-    { id: 8, title: 'Ao Haru Ride', image: '/assets/placeholders/aoharuride.png', latest_chapter: 'Ch. 100', status: 'Finished', genres: ['Romance','Drama'], author: 'Io Sakisaka' }
-  ];
+  // Build genre list from API
+  const [allGenres, setAllGenres] = useState([]);
+  const normalizeName = (s) => {
+    if (s === undefined || s === null) return '';
+    try {
+      // Normalize unicode, replace NBSP, collapse whitespace, trim and lowercase
+      return String(s)
+        .normalize('NFKC')
+        .replace(/\u00A0/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+    } catch (err) {
+      return String(s || '').trim().toLowerCase();
+    }
+  };
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetchGenres();
+        if (!mounted) return;
+        const list = Array.isArray(res) ? res : (res && Array.isArray(res.results) ? res.results : []);
+        setAllGenres(list);
+      } catch (err) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Build genre list from mock data when using mock, otherwise fall back to sensible defaults.
-  const allGenres = USE_MOCK
-    ? Array.from(new Set(MOCK_MANGAS.flatMap(m => (m.genres || []).map(g => g.trim())))).sort()
-    : ['Action','Adventure','Comedy','Drama','Fantasy','Sci-Fi','Slice of Life','Romance','Yuri','Yaoi'];
-
-  // If the page is opened with query params (e.g. ?genre=Action&contentRating=PG),
+  // If the page is opened with query params (e.g. ?genre_names=Action&contentRating=PG),
   // initialize filters and run the search automatically.
   useEffect(() => {
     const qs = new URLSearchParams(location.search);
     const q = qs.get('q') || '';
-    const genreParam = qs.get('genre');
-    const genresFromQs = genreParam ? genreParam.split(',').map(s => decodeURIComponent(s)) : [];
-    const contentRatingParam = qs.get('contentRating') || 'any';
-    const statusParam = qs.get('status') || 'any';
-    const minChapterParam = qs.get('minChapter') || '';
+    const genreParam = qs.get('genre_names');
+    const genresFromQs = genreParam ? genreParam.split(',').map(s => normalizeName(decodeURIComponent(s))) .filter(Boolean) : [];
+    const statusParam = qs.get('publication_status') || '';
     const orderingParam = qs.get('ordering') || 'relevance';
 
     // apply parsed params to local UI state
-    setLocal((prev) => ({ ...prev, q, ordering: orderingParam, status: statusParam, minChapter: minChapterParam }));
+    setLocal((prev) => ({ ...prev, q, ordering: orderingParam, publication_status: statusParam }));
     setGenres(genresFromQs);
-    setContentRating(contentRatingParam);
 
-    // only trigger search if any meaningful param present
-    if (q || genresFromQs.length || (contentRatingParam && contentRatingParam !== 'any') || (statusParam && statusParam !== 'any') || minChapterParam) {
+    // trigger search when any query params are present (Search button navigates
+    // to a URL with query params) or when ordering explicitly requests latest-updated
+    const hasQs = Boolean(location.search && String(location.search).length > 0);
+    const shouldTrigger = hasQs || orderingParam === '-updated_at';
+    if (shouldTrigger) {
       (async () => {
         setLoading(true);
-        const params = { status: statusParam, minChapter: minChapterParam, ordering: orderingParam, contentRating: contentRatingParam, genre: genresFromQs };
+        // If ordering requests latest-updated from Catalog's "View All", only send ordering param
+        // Map normalized keys back to display names when possible
+        const mappedGenreNames = genresFromQs.map(key => {
+          const match = allGenres.find(g => normalizeName(g && g.name ? g.name : String(g)) === key);
+          return match ? (match.name || String(match)) : key;
+        });
+        const params = { publication_status: statusParam, ordering: orderingParam, genre_names: mappedGenreNames };
         const r = await searchBackend(q, params);
         setResults(r);
         setLoading(false);
@@ -63,10 +83,6 @@ export default function AdvancedSearchPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
-
-  useEffect(() => {
-    // no-op
-  }, []);
 
   // On mount, show all manga by default (backend if available, otherwise mock fallback).
   useEffect(() => {
@@ -86,37 +102,22 @@ export default function AdvancedSearchPage() {
   }, []);
 
   const searchBackend = async (term, params = {}) => {
-    // If we're using mock data, perform client-side filtering and return results.
-    if (USE_MOCK) {
-      let items = MOCK_MANGAS.slice();
-      // search by title (case-insensitive)
-      if (term && String(term).trim()) {
-        const t = String(term).toLowerCase();
-        items = items.filter(m => m.title.toLowerCase().includes(t));
-      }
-      // status filter
-      if (params.status && params.status !== 'any') {
-        items = items.filter(m => String(m.status).toLowerCase() === String(params.status).toLowerCase());
-      }
-      // genre filter (params.genre may be CSV)
-      if (params.genre) {
-        const wanted = String(params.genre).split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-        if (wanted.length) {
-          items = items.filter(m => (m.genres || []).some(g => wanted.includes(g.toLowerCase())));
-        }
-      }
-      // author/name filter (minChapter field used as author input in UI)
-      if (params.minChapter && String(params.minChapter).trim()) {
-        const a = String(params.minChapter).toLowerCase();
-        items = items.filter(m => (m.author || '').toLowerCase().includes(a));
-      }
-      return items;
-    }
-
     try {
       const backendParams = { ...params };
-      // Serialize genre array as comma-separated list (backend may expect this)
-      if (Array.isArray(backendParams.genre)) backendParams.genre = backendParams.genre.join(',');
+      // If ordering requests the latest updated list, prefer the paginated "all titles" API
+      if (String(backendParams.ordering) === '-updated_at') {
+        try {
+          const res = await fetchAllMangaTitles({ ordering: backendParams.ordering }, 1);
+          if (Array.isArray(res)) return res.map(mapMangaTitle);
+          if (res && Array.isArray(res.results)) return res.results.map(mapMangaTitle);
+          return [];
+        } catch (err) {
+          return [];
+        }
+      }
+
+      // Serialize genre_names array as comma-separated list (backend may expect this)
+      if (Array.isArray(backendParams.genre_names)) backendParams.genre_names = backendParams.genre_names.join(',');
       // Only include search/q when a non-empty term is provided — sending an empty search param
       // can cause some backends to ignore filters and return all results.
       if (term && String(term).trim()) {
@@ -124,9 +125,9 @@ export default function AdvancedSearchPage() {
         backendParams.q = term; // include alternative key in case backend expects `q`
       }
 
-      const res = await api.get('manga/', { params: backendParams });
-      if (Array.isArray(res.data)) return res.data;
-      if (res.data && Array.isArray(res.data.results)) return res.data.results;
+      const res = await fetchAllMangaTitles(backendParams, 1);
+      if (Array.isArray(res)) return res.map(mapMangaTitle);
+      if (res && Array.isArray(res.results)) return res.results.map(mapMangaTitle);
       return [];
     } catch (err) {
       // backend unavailable — return empty result set
@@ -136,11 +137,27 @@ export default function AdvancedSearchPage() {
 
   const doSearch = async (e) => {
     if (e) e.preventDefault();
+
+    const params = new URLSearchParams();
+    if (local.q && String(local.q).trim()) params.set('q', String(local.q).trim());
+    if (local.ordering) params.set('ordering', local.ordering);
+    if (local.publication_status && local.publication_status !== '') params.set('publication_status', local.publication_status);
+    if (Array.isArray(genres) && genres.length) {
+      // Map normalized keys back to display names when serializing
+      const displayNames = genres.map(key => {
+        const match = allGenres.find(g => normalizeName(g && g.name ? g.name : String(g)) === key);
+        return match ? (match.name || String(match)) : key;
+      });
+      params.set('genre_names', displayNames.join(','));
+    }
+
+    // Update the URL with current search/filter params; use navigate so
+    // the existing effect that watches `location.search` will run the search.
+    // Clear current results and show loading state immediately
+    setResults([]);
     setLoading(true);
-    const params = { status: local.status, minChapter: local.minChapter, ordering: local.ordering, contentRating, genre: Array.isArray(genres) ? genres.join(',') : genres };
-    const r = await searchBackend(local.q, params);
-    setResults(r);
-    setLoading(false);
+
+    navigate(`${location.pathname}${params.toString() ? `?${params.toString()}` : ''}`);
   };
 
   return (
@@ -168,36 +185,49 @@ export default function AdvancedSearchPage() {
             <div className="col-md-3">
               <label className="small text-muted">Sort by</label>
               <select className="form-select" value={local.ordering} onChange={(e)=>setLocal({...local, ordering: e.target.value})}>
-                <option value="publication_date">Publication date</option>
-                <option value="title">Title</option>
-                <option value="latest_chapter_date">Latest chapter</option>
+                <option value="publication_date">Publication date ascending</option>
+                <option value="-publication_date">Publication date descending</option>
+                <option value="title">Title ascending</option>
+                <option value="-title">Title descending</option>
+                <option value="-updated_at">Latest chapter</option>
               </select>
             </div>
             <div className="col-md-3">
               <label className="small text-muted">Publication status</label>
-              <select className="form-select" value={local.status} onChange={(e)=>setLocal({...local, status: e.target.value})}>
-                <option value="any">Any</option>
-                <option value="Ongoing">Ongoing</option>
-                <option value="Finished">Finished</option>
-                <option value="Dropped">Dropped</option>
+                  <select className="form-select" value={local.publication_status} onChange={(e)=>setLocal({...local, publication_status: e.target.value})}>
+                    <option value="">Any</option>
+                    <option value="ongoing">Ongoing</option>
+                    <option value="finished">Finished</option>
+                    <option value="dropped">Dropped</option>
               </select>
             </div>
 
             <div className="col-md-3">
               <label className="small text-muted">Genre</label>
               <div className="d-flex flex-wrap gap-2">
-                {allGenres.map(g => (
-                  <button key={g} type="button" className={`btn btn-sm ${genres.includes(g) ? 'btn-warning text-dark' : 'btn-outline-light'}`} onClick={() => {
-                    setGenres(prev => prev.includes(g) ? prev.filter(x=>x!==g) : [...prev, g]);
-                  }}>{g}</button>
-                ))}
+                {allGenres.map((g) => {
+                  const display = g && g.name ? g.name : String(g);
+                  const n = normalizeName(display);
+                  const key = n || display;
+                  const selected = genres.includes(n);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`btn btn-sm ${selected ? 'btn-warning text-dark' : 'btn-outline-light'}`}
+                      onClick={() => {
+                        setGenres(prev => {
+                          const has = prev.includes(n);
+                          const next = has ? prev.filter(x => x !== n) : [...prev, n];
+                          return next;
+                        });
+                      }}
+                    >{display}</button>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="col-md-3">
-              <label className="small text-muted">Author name</label>
-              <input className="form-control" value={local.minChapter} onChange={(e)=>setLocal({...local, minChapter: e.target.value})} placeholder="e.g Oda" />
-            </div>
           </>
         )}
 

@@ -9,7 +9,6 @@ export default function MangaList({
   loading = false,
   error = null,
   viewAllPath = null,
-  limit = 8,
   cardComponent: Card = MangaCard,
   className = ''
 }) {
@@ -32,7 +31,7 @@ export default function MangaList({
         <p className="text-danger">{typeof error === 'string' ? error : `Failed to load ${title.toLowerCase()}.`}</p>
       ) : (
         <div className="d-flex flex-wrap gap-3">
-          {(items || []).slice(0, limit).map(i => (
+          {(items || []).map(i => (
             <Card key={i.id} {...i} />
           ))}
         </div>
