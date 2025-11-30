@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import DownloadIcon from '@mui/icons-material/Download';
 import CheckIcon from '@mui/icons-material/Check';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -19,7 +19,8 @@ const MangaPage = ({
   onRequireLogin,
 }) => {
   const navigate = useNavigate();
-  const {isAuthenticated} = useAuth();
+  const location = useLocation();
+  const {isAuthenticated, user} = useAuth();
   const [imgSrc, setImgSrc] = useState(coverUrl);
   const [followed, setFollowed] = useState(false);
   const [downloadedSet, setDownloadedSet] = useState(new Set())
@@ -69,15 +70,78 @@ const MangaPage = ({
   const onFollowClick = (e) => {
     e.preventDefault();
     if (isAuthenticated) {
-      // toggle follow state locally (could call API)
-      setFollowed(!followed);
+      // Persist follow/unfollow to localStorage per-user so the Profile page
+      // can show followed manga in user's library. Keyed by user id.
+      try {
+        const key = `followed_mangas_${user && user.id ? user.id : 'guest'}`;
+        const raw = localStorage.getItem(key);
+        let arr = raw ? JSON.parse(raw) : [];
+        if (followed) {
+          // remove
+          arr = arr.filter(x => String(x.mangaId) !== String(id));
+          setFollowed(false);
+        } else {
+          // add
+          arr.push({ mangaId: id, title: title || '', coverUrl: coverUrl || '' });
+          setFollowed(true);
+        }
+        localStorage.setItem(key, JSON.stringify(arr));
+        try { window.dispatchEvent(new CustomEvent('digiman:followChanged', { detail: { userId: user && user.id ? user.id : null } })); } catch (_) {}
+        try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: followed ? 'Removed from your library' : 'Added to your library' } })) }catch(_){ }
+      } catch (err) {
+        console.warn('Failed to persist follow state', err);
+        setFollowed(!followed);
+      }
     } else {
       onRequireLogin();
     }
   };
 
+  // Initialize followed state from localStorage when user or id changes
+  useEffect(() => {
+    try {
+      const key = `followed_mangas_${user && user.id ? user.id : 'guest'}`;
+      const raw = localStorage.getItem(key);
+      const arr = raw ? JSON.parse(raw) : [];
+      const found = arr.find(x => String(x.mangaId) === String(id));
+      setFollowed(!!found);
+    } catch (err) {
+      // ignore
+    }
+  }, [user, id]);
+// Preview is intended for guests: allow when not authenticated
+const canPreview = !Boolean(isAuthenticated);
+
+  // Helper: call parent login handler if provided, otherwise navigate to login route
+  const requireLogin = () => {
+    if (typeof onRequireLogin === 'function') {
+      try { onRequireLogin(); } catch (_) { /* ignore */ }
+    } else {
+      try { navigate('/login', { state: { background: location } }); } catch (_) { /* ignore */ }
+    }
+  };
   return (
     <div className="manga-page container py-4">
+      <style>{`
+        .tooltip-wrapper { position: relative; display: inline-block; }
+        .tooltip-text {
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(0,0,0,0.85);
+          color: #fff;
+          padding: 4px 8px;
+          border-radius: 4px;
+          white-space: nowrap;
+          font-size: 12px;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 80ms ease-in;
+          z-index: 2500;
+        }
+        .tooltip-wrapper:hover .tooltip-text { opacity: 1; }
+      `}</style>
       <div className="row">
         <div className="col-md-3 text-center">
           <img
@@ -110,11 +174,48 @@ const MangaPage = ({
           </div>
 
           <div className="mb-3">
-            <button className="btn btn-primary me-2" onClick={() => {
-              // Navigate to first chapter if available
-              if (chapterCount > 0) navigate(`/manga/${id}/chapter/${chapters[0].id}`);
-              else try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'No chapters available' } })); }catch(_){ }
-            }}>Read</button>
+            {/* Preview button: visible when user is not authenticated (or auth state missing).
+                Disabled for logged-in users. Blue color via btn-info. */}
+            {/** determine preview availability: treat undefined isAuthenticated as not-logged-in **/}
+            {(() => {
+              return (
+                <button
+                  className={`btn btn-info me-2 ${!canPreview ? 'disabled' : ''}`}
+                  onClick={() => {
+                    if (!canPreview) return; // disabled for logged-in users
+                        if (previewChapterId) {
+                      navigate(`/manga/${id}/chapter/${previewChapterId}`);
+                    } else {
+                      try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'No preview available' } })); }catch(_){ }
+                    }
+                  }}
+                  aria-disabled={!canPreview}
+                  disabled={!canPreview}
+                >
+                  Preview
+                </button>
+              );
+            })()}
+
+            { !isAuthenticated ? (
+              <div className="tooltip-wrapper">
+                <button
+                  className="btn btn-primary me-2"
+                  onClick={() => { /* guests: do nothing, require login shown via tooltip */ }}
+                  aria-disabled={true}
+                  disabled={true}
+                >Read</button>
+                <span className="tooltip-text">Login required</span>
+              </div>
+            ) : (
+              <button
+                className="btn btn-primary me-2"
+                onClick={() => {
+                  if (chapterCount > 0) navigate(`/manga/${id}/chapter/${chapters[0].id}`);
+                  else try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'No chapters available' } })); }catch(_){ }
+                }}
+              >Read</button>
+            )}
             <button
               className={followed ? 'btn btn-success btn-follow' : 'btn btn-outline-light btn-follow'}
               onClick={onFollowClick}
@@ -142,15 +243,19 @@ const MangaPage = ({
                   className="list-group-item d-flex justify-content-between align-items-center"
                 >
                   <div>
-                    <div className="fw-bold chapter-title">
-                      <Link to={statuses[c.id] && statuses[c.id].status === 'downloaded' ? `/offline/mangas/${id}/chapter/${c.id}` : `/manga/${id}/chapter/${c.id}`} 
+                      <div className="fw-bold chapter-title">
+                      <Link
+                        to={statuses[c.id] && statuses[c.id].status === 'downloaded' ? `/offline/mangas/${id}/chapter/${c.id}` : `/manga/${id}/chapter/${c.id}`}
                         className="text-decoration-none text-white"
+                        onClick={(e) => {
+                          if (!isAuthenticated) { e.preventDefault(); requireLogin(); }
+                        }}
                       >{c.title ? `${c.number}. ${c.title}` : `${c.number}. Chapter ${c.number}`}
                       </Link>
                     </div>
                     <div className="small text-muted">{getTimeAgo(c.date)}</div>
                   </div>
-                  <div>
+                      <div>
                     {statuses[c.id] && statuses[c.id].status === 'downloaded' ? (
                       <button className="btn btn-sm btn-success d-flex align-items-center" disabled>
                         <CheckIcon style={{ fontSize: 16, marginRight: 6 }} />
@@ -160,6 +265,8 @@ const MangaPage = ({
                       <button
                         className="btn btn-sm btn-outline-light d-flex align-items-center"
                         onClick={() => {
+                          // If user not authenticated, require login first
+                          if (!isAuthenticated) { requireLogin(); return; }
                           // optimistically mark as downloading
                           console.log('MangaPage: download clicked', { mangaId: id, chapterId: c.id });
                           setStatuses(s => ({ ...s, [c.id]: { status: 'downloading', progress: 0 } }))
@@ -176,6 +283,7 @@ const MangaPage = ({
                             })
                         }}
                         disabled={statuses[c.id] && statuses[c.id].status === 'downloading'}
+                        title={!isAuthenticated ? 'Login required' : ''}
                       >
                         {statuses[c.id] && statuses[c.id].status === 'downloading' ? (
                           <>

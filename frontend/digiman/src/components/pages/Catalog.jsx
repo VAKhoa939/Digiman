@@ -3,6 +3,7 @@ import { Container } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import MangaCard from '../../components/smallComponents/MangaCard';
 import Banner from '../../components/smallComponents/Banner';
+import MangaList from '../common/MangaList';
 import useCatalog from '../../customHooks/useCatalog';
 import Spinner from '../smallComponents/Spinner';
 
@@ -26,22 +27,15 @@ function Catalog() {
           {popularError ? <p className="text-danger">Failed to load popular banner.</p>
           : <Banner slides={popular} visible={6} title="Popular" />}
 
-          <div className="latest-updated my-4">
-            <div className="d-flex align-items-center mb-2">
-              <h5 className="mb-0">Latest Updated</h5>
-              <div className="ms-auto">
-                <button className="btn btn-sm catalog-btn outline" onClick={() => { navigate('/search/advanced'); }}>View All</button>
-              </div>
-            </div>
-            {latestIsLoading && <Spinner />}
-            {latestError 
-            ? <p className="text-danger">Failed to load latest updates banner.</p>
-            : <div className="d-flex flex-wrap gap-3">
-              {latest.slice(0, 8).map(m => (
-                <MangaCard key={m.id} {...m} />
-              ))}
-            </div>}
-          </div>
+          <MangaList
+            title="Latest Updated"
+            items={latest}
+            loading={latestIsLoading}
+            error={latestError}
+            viewAllPath="/search/advanced"
+            limit={8}
+            cardComponent={MangaCard}
+          />
         </Container>
       </div>
     </>

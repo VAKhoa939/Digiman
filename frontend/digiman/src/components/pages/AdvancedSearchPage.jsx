@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
+import MangaList from '../common/MangaList';
+import SearchMangaCard from '../smallComponents/SearchMangaCard';
 
 export default function AdvancedSearchPage() {
   const navigate = useNavigate();
@@ -8,10 +10,29 @@ export default function AdvancedSearchPage() {
   const [showFilters, setShowFilters] = useState(true);
   const [contentRating, setContentRating] = useState('any');
   const [genres, setGenres] = useState([]);
-  const allGenres = ['Action','Adventure','Comedy','Drama','Fantasy','Sci-Fi','Slice of Life','Romance','Yuri','Yaoi'];
+  
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const location = useLocation();
+  // Toggle to use mock data instead of calling the backend.
+  const USE_MOCK = true;
+
+  // Small mock dataset used for local UI work and testing.
+  const MOCK_MANGAS = [
+    { id: 1, title: 'One Piece', image: '/assets/placeholders/onepiece.png', latest_chapter: 'Ch. 1090', status: 'Ongoing', genres: ['Action','Adventure'], author: 'Oda' },
+    { id: 2, title: 'Berserk', image: '/assets/placeholders/berserk.png', latest_chapter: 'Ch. 364', status: 'Finished', genres: ['Fantasy','Drama'], author: 'Miura' },
+    { id: 3, title: 'Naruto', image: '/assets/placeholders/naruto.png', latest_chapter: 'Ch. 700', status: 'Finished', genres: ['Action','Adventure'], author: 'Kishimoto' },
+    { id: 4, title: 'My Hero Academia', image: '/assets/placeholders/mha.png', latest_chapter: 'Ch. 400', status: 'Ongoing', genres: ['Action','Comedy'], author: 'Horikoshi' },
+    { id: 5, title: 'Komi Can’t Communicate', image: '/assets/placeholders/komi.png', latest_chapter: 'Ch. 350', status: 'Ongoing', genres: ['Comedy','Romance','Slice of Life'], author: 'Tomo' },
+    { id: 6, title: 'Vagabond', image: '/assets/placeholders/vagabond.png', latest_chapter: 'Ch. 327', status: 'Dropped', genres: ['Drama','Action'], author: 'Inoue' },
+    { id: 7, title: 'Solo Leveling', image: '/assets/placeholders/sololeveling.png', latest_chapter: 'Ch. 179', status: 'Finished', genres: ['Fantasy','Action'], author: 'Chugong' },
+    { id: 8, title: 'Ao Haru Ride', image: '/assets/placeholders/aoharuride.png', latest_chapter: 'Ch. 100', status: 'Finished', genres: ['Romance','Drama'], author: 'Io Sakisaka' }
+  ];
+
+  // Build genre list from mock data when using mock, otherwise fall back to sensible defaults.
+  const allGenres = USE_MOCK
+    ? Array.from(new Set(MOCK_MANGAS.flatMap(m => (m.genres || []).map(g => g.trim())))).sort()
+    : ['Action','Adventure','Comedy','Drama','Fantasy','Sci-Fi','Slice of Life','Romance','Yuri','Yaoi'];
 
   // If the page is opened with query params (e.g. ?genre=Action&contentRating=PG),
   // initialize filters and run the search automatically.
@@ -65,8 +86,44 @@ export default function AdvancedSearchPage() {
   }, []);
 
   const searchBackend = async (term, params = {}) => {
+    // If we're using mock data, perform client-side filtering and return results.
+    if (USE_MOCK) {
+      let items = MOCK_MANGAS.slice();
+      // search by title (case-insensitive)
+      if (term && String(term).trim()) {
+        const t = String(term).toLowerCase();
+        items = items.filter(m => m.title.toLowerCase().includes(t));
+      }
+      // status filter
+      if (params.status && params.status !== 'any') {
+        items = items.filter(m => String(m.status).toLowerCase() === String(params.status).toLowerCase());
+      }
+      // genre filter (params.genre may be CSV)
+      if (params.genre) {
+        const wanted = String(params.genre).split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+        if (wanted.length) {
+          items = items.filter(m => (m.genres || []).some(g => wanted.includes(g.toLowerCase())));
+        }
+      }
+      // author/name filter (minChapter field used as author input in UI)
+      if (params.minChapter && String(params.minChapter).trim()) {
+        const a = String(params.minChapter).toLowerCase();
+        items = items.filter(m => (m.author || '').toLowerCase().includes(a));
+      }
+      return items;
+    }
+
     try {
-      const backendParams = { search: term, ...params };
+      const backendParams = { ...params };
+      // Serialize genre array as comma-separated list (backend may expect this)
+      if (Array.isArray(backendParams.genre)) backendParams.genre = backendParams.genre.join(',');
+      // Only include search/q when a non-empty term is provided — sending an empty search param
+      // can cause some backends to ignore filters and return all results.
+      if (term && String(term).trim()) {
+        backendParams.search = term;
+        backendParams.q = term; // include alternative key in case backend expects `q`
+      }
+
       const res = await api.get('manga/', { params: backendParams });
       if (Array.isArray(res.data)) return res.data;
       if (res.data && Array.isArray(res.data.results)) return res.data.results;
@@ -80,7 +137,7 @@ export default function AdvancedSearchPage() {
   const doSearch = async (e) => {
     if (e) e.preventDefault();
     setLoading(true);
-    const params = { status: local.status, minChapter: local.minChapter, ordering: local.ordering, contentRating, genre: genres };
+    const params = { status: local.status, minChapter: local.minChapter, ordering: local.ordering, contentRating, genre: Array.isArray(genres) ? genres.join(',') : genres };
     const r = await searchBackend(local.q, params);
     setResults(r);
     setLoading(false);
@@ -141,36 +198,25 @@ export default function AdvancedSearchPage() {
               <label className="small text-muted">Author name</label>
               <input className="form-control" value={local.minChapter} onChange={(e)=>setLocal({...local, minChapter: e.target.value})} placeholder="e.g Oda" />
             </div>
-
-            <div className="col-md-3 d-flex align-items-end">
-              <button className="btn btn-primary w-100" type="submit">Search</button>
-            </div>
           </>
         )}
+
+        {/* Keep the Search button visible even when filters are hidden */}
+        <div className="col-12 col-md-3 d-flex align-items-end">
+          <button className="btn btn-primary w-100" type="submit">Search</button>
+        </div>
       </form>
 
-      <div>
-        {loading && <div>Loading...</div>}
-        {!loading && results.length === 0 && <div className="text-muted">No results</div>}
-        {!loading && results.length > 0 && (
-          <div className="row g-3">
-            {results.map((r, idx) => (
-              <div key={r.id} className="col-6 col-md-4 col-lg-3">
-                <div className="card bg-dark text-white border-0">
-                  <div style={{ height: 220, background: '#ddd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <img src={r.image || '/assets/placeholder-image.png'} alt={r.title} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'cover' }} />
-                  </div>
-                  <div className="card-body p-2">
-                    <div className="fw-bold">{r.title}</div>
-                    <div className="small text-muted">{r.latest_chapter || ''} • {r.status || ''}</div>
-                    <div className="small text-muted">{(r.genres||[]).slice(0,3).join(', ')}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <MangaList
+        title={loading ? 'Searching…' : 'Search results'}
+        items={results}
+        loading={loading}
+        error={null}
+        viewAllPath={null}
+        limit={1000}
+        cardComponent={SearchMangaCard}
+        className="search-results"
+      />
     </div>
   );
 }
