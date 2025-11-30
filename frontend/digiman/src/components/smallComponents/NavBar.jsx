@@ -93,6 +93,9 @@ function NavBar({ onLogin, onRegister }) {
                       <button className="dropdown-item" onClick={() => navigate('/profile')}>Profile</button>
                     </li>
                     <li>
+                      <button className="dropdown-item" onClick={() => navigate('/library')}>Library</button>
+                    </li>
+                    <li>
                       <button className="dropdown-item" onClick={() => navigate('/settings')}>Settings</button>
                     </li>
                     {/* Admin link for users with administrative privileges */}

@@ -19,7 +19,7 @@ const MangaPage = ({
   onRequireLogin,
 }) => {
   const navigate = useNavigate();
-  const {isAuthenticated} = useAuth();
+  const {isAuthenticated, user} = useAuth();
   const [imgSrc, setImgSrc] = useState(coverUrl);
   const [followed, setFollowed] = useState(false);
   const [downloadedSet, setDownloadedSet] = useState(new Set())
@@ -69,12 +69,45 @@ const MangaPage = ({
   const onFollowClick = (e) => {
     e.preventDefault();
     if (isAuthenticated) {
-      // toggle follow state locally (could call API)
-      setFollowed(!followed);
+      // Persist follow/unfollow to localStorage per-user so the Profile page
+      // can show followed manga in user's library. Keyed by user id.
+      try {
+        const key = `followed_mangas_${user && user.id ? user.id : 'guest'}`;
+        const raw = localStorage.getItem(key);
+        let arr = raw ? JSON.parse(raw) : [];
+        if (followed) {
+          // remove
+          arr = arr.filter(x => String(x.mangaId) !== String(id));
+          setFollowed(false);
+        } else {
+          // add
+          arr.push({ mangaId: id, title: title || '', coverUrl: coverUrl || '' });
+          setFollowed(true);
+        }
+        localStorage.setItem(key, JSON.stringify(arr));
+        try { window.dispatchEvent(new CustomEvent('digiman:followChanged', { detail: { userId: user && user.id ? user.id : null } })); } catch (_) {}
+        try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: followed ? 'Removed from your library' : 'Added to your library' } })) }catch(_){ }
+      } catch (err) {
+        console.warn('Failed to persist follow state', err);
+        setFollowed(!followed);
+      }
     } else {
       onRequireLogin();
     }
   };
+
+  // Initialize followed state from localStorage when user or id changes
+  useEffect(() => {
+    try {
+      const key = `followed_mangas_${user && user.id ? user.id : 'guest'}`;
+      const raw = localStorage.getItem(key);
+      const arr = raw ? JSON.parse(raw) : [];
+      const found = arr.find(x => String(x.mangaId) === String(id));
+      setFollowed(!!found);
+    } catch (err) {
+      // ignore
+    }
+  }, [user, id]);
 
   return (
     <div className="manga-page container py-4">
