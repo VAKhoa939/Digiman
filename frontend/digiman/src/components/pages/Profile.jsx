@@ -1,5 +1,6 @@
-import React from 'react';
+
 import { useAuth } from '../../context/AuthContext';
+// no extra hooks/imports needed for this simplified profile
 
 // Simple Profile page showing avatar, plain header background, display name,
 // username, id and role. Uses `useAuth()` to read user data fetched by the
@@ -32,7 +33,6 @@ export default function Profile() {
   return (
     <div className="profile-page">
       <div className="profile-header"></div>
-
       <div className="profile-content" style={{ padding: '0 8px' }}>
         {fetchUserLoading ? (
           <div style={{ padding: 24 }}>Loading profile…</div>
