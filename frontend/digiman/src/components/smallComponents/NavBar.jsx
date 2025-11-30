@@ -15,6 +15,7 @@ function NavBar({ onLogin, onRegister }) {
   const handleRegister = onRegister || ((data) => { console.log('Register submitted:', data); });
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     try {
@@ -57,11 +58,13 @@ function NavBar({ onLogin, onRegister }) {
 
           <div className="collapse navbar-collapse" id="navbarColor02">
             <ul className="navbar-nav ms-auto align-items-center">
-              <div className="d-flex align-items-center me-2">
+                <div className="d-flex align-items-center me-2">
                 <SearchBar />
-                <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Downloads" onClick={() => navigate('/downloads')}>
-                  <CloudDownloadIcon />
-                </button>
+                {isAuthenticated && (
+                  <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Downloads" onClick={() => navigate('/downloads')}>
+                    <CloudDownloadIcon />
+                  </button>
+                )}
                 <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Advanced search" onClick={() => navigate('/search/advanced')}>
                   <FilterListIcon />
                 </button>

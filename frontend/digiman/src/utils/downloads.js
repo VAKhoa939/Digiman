@@ -194,6 +194,15 @@ export async function removeDownloadedChapter(mangaId, chapterId) {
     }
 
     // notify UI
+    // Also remove any matching queue entries from the localStorage downloads queue
+    try {
+      const queue = loadDownloads();
+      const matches = queue.filter((it) => String(it.mangaId) === String(mangaId) && String(it.chapterId) === String(chapterId));
+      matches.forEach((m) => {
+        try { removeDownload(m.id); } catch (_) { /* ignore */ }
+      });
+    } catch (e) { /* ignore */ }
+
     try {
       window.dispatchEvent(new CustomEvent("digiman:downloadsChanged"));
     } catch (_) {}

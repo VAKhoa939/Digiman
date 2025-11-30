@@ -70,7 +70,7 @@ export default function ChapterActions({ chapter, mangaId }) {
 
   return (
     <div className="chapter-actions d-flex gap-2">
-      {status === 'downloaded' ? (
+      {status === 'downloaded'? (
         <>
           <button className="btn btn-sm btn-success d-flex align-items-center" disabled>
             <CheckIcon style={{ fontSize: 18, marginRight: 6 }} />
@@ -90,7 +90,7 @@ export default function ChapterActions({ chapter, mangaId }) {
           }}>Remove</button>
         </>
       ) : (
-        <button className="btn btn-sm btn-outline-light d-flex align-items-center" onClick={handleDownload} disabled={status === 'downloading'}>
+        <button disabled={!isAuthenticated || status === 'downloading'} className="btn btn-sm btn-outline-light d-flex align-items-center" onClick={handleDownload}>
           {status === 'downloading' ? (
             <>
               <CircularProgress size={16} thickness={5} style={{ marginRight: 6 }} />
