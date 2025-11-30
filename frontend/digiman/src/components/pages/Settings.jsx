@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { updateProfile as apiUpdateProfile } from '../../services/auth';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function Settings() {
   const { user, isAuthenticated, fetchUser } = useAuth();
@@ -12,6 +13,7 @@ export default function Settings() {
   const [password, setPassword] = useState('');
 
   // Display
+  const { theme: globalTheme, setTheme: setGlobalTheme } = useTheme()
   const [theme, setTheme] = useState('Dark');
   const [filters, setFilters] = useState({ Suggestive: true, Safe: true, Erotica: true, Mature: true });
 
@@ -23,31 +25,28 @@ export default function Settings() {
     }
 
     try {
-      // Prefer the currently-applied document theme if present (this covers
-      // cases where the user switched theme elsewhere but hasn't saved),
-      // otherwise fall back to the saved profile_display in localStorage.
-      const docTheme = (document && document.documentElement && document.documentElement.getAttribute('data-theme')) || null;
-      if (docTheme) {
-        // Stored themes are capitalized in this component (e.g. 'Dark')
-        setTheme(docTheme.charAt(0).toUpperCase() + docTheme.slice(1));
-      } else {
-        const raw = localStorage.getItem('profile_display');
-        if (raw) {
-          const d = JSON.parse(raw);
-          if (d.theme) setTheme(d.theme);
-          if (d.filters) setFilters(d.filters);
+      // Prefer the ThemeContext value (keeps UI in sync with NavBar toggle)
+      try {
+        if (globalTheme) {
+          setTheme(globalTheme.charAt(0).toUpperCase() + globalTheme.slice(1));
+        } else {
+          const raw = localStorage.getItem('profile_display');
+          if (raw) {
+            const d = JSON.parse(raw);
+            if (d.theme) setTheme(d.theme);
+            if (d.filters) setFilters(d.filters);
+          }
         }
-      }
+      } catch (err) {}
     } catch (err) { /* ignore */ }
   }, [user]);
 
-  // whenever theme state changes, apply it to document so the CSS variables take effect
+  // Keep local select in sync when the global theme changes
   useEffect(() => {
     try {
-      const t = (theme || 'Dark').toString().toLowerCase();
-      document.documentElement.setAttribute('data-theme', t);
+      if (globalTheme) setTheme(globalTheme.charAt(0).toUpperCase() + globalTheme.slice(1))
     } catch (err) { /* ignore */ }
-  }, [theme]);
+  }, [globalTheme])
 
   async function saveAccount(e) {
     e && e.preventDefault();
@@ -56,13 +55,13 @@ export default function Settings() {
     try {
       if (!isAuthenticated) throw new Error('Not authenticated');
       await apiUpdateProfile(payload);
-      alert('Account updated (server)');
+      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: 'Account updated (server)' } })); } catch (_) {}
       // re-fetch user data if available
       try { await fetchUser(); } catch (e) { /* ignore */ }
     } catch (err) {
       // fallback: persist to localStorage
       try { localStorage.setItem('profile_account', JSON.stringify(payload)); } catch (e) {}
-      alert('Saved locally (server update failed or unavailable)');
+      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'Saved locally (server update failed or unavailable)' } })); } catch (_) {}
     }
     setPassword('');
   }
@@ -71,8 +70,7 @@ export default function Settings() {
     e && e.preventDefault();
     const payload = { theme, filters };
     try { localStorage.setItem('profile_display', JSON.stringify(payload)); } catch (err) {}
-    try { document.documentElement.setAttribute('data-theme', (theme||'Dark').toLowerCase()); } catch (err) {}
-    alert('Display settings saved');
+    try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: 'Display settings saved' } })); } catch (_) {}
   }
 
   function toggleFilter(key) {
@@ -87,11 +85,11 @@ export default function Settings() {
           <div className="profile-left-nav">
             <div style={{ marginBottom: 18 }}>
               <div className={`profile-tab ${tab === 'account' ? 'active' : ''}`} onClick={() => setTab('account')}>
-                <div className="icon" style={{ background: tab === 'account' ? '#fff' : '#333' }}>👤</div>
+                <div className="icon">👤</div>
                 <strong>Account</strong>
               </div>
               <div className={`profile-tab ${tab === 'display' ? 'active' : ''}`} onClick={() => setTab('display')}>
-                <div className="icon" style={{ background: tab === 'display' ? '#fff' : '#333' }}>🌙</div>
+                <div className="icon">🌙</div>
                 <strong>Display</strong>
               </div>
             </div>
@@ -122,7 +120,7 @@ export default function Settings() {
                     <label className="form-label">Change Password</label>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <input className="form-control" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="New password" />
-                      <button type="button" className="btn btn-outline-light" onClick={() => { alert('Password change saved (mock)'); setPassword(''); }}>Change Password</button>
+                      <button type="button" className="btn btn-outline-light" onClick={() => { try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: 'Password change saved (mock)' } })); } catch (_) {} setPassword(''); }}>Change Password</button>
                     </div>
                   </div>
                 </form>
@@ -137,23 +135,11 @@ export default function Settings() {
                   <select className="form-select" value={theme} onChange={(e) => {
                       const next = e.target.value;
                       setTheme(next);
-                      // Persist immediately so switching theme takes effect across
-                      // navigation even if the user doesn't click Save.
-                      try {
-                        const raw = localStorage.getItem('profile_display');
-                        const d = raw ? JSON.parse(raw) : { filters };
-                        d.theme = next;
-                        localStorage.setItem('profile_display', JSON.stringify(d));
-                      } catch (err) {}
-                      // Apply immediately to the document and notify other listeners
-                      try {
-                        document.documentElement.setAttribute('data-theme', (next||'Dark').toLowerCase());
-                        window.dispatchEvent(new CustomEvent('digiman:themeChanged', { detail: { theme: next } }));
-                      } catch (err) {}
+                      // Update the global theme via ThemeContext (keeps NavBar toggle in sync)
+                      try { setGlobalTheme(next.toString().toLowerCase()) } catch (err) {}
                     }} style={{ width: 160 }}>
                     <option>Dark</option>
                     <option>Light</option>
-                    <option>Slate</option>
                   </select>
                 </div>
 

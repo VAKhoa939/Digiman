@@ -33,19 +33,19 @@ export function AuthProvider({ children }) {
         const result = await fetchUser();
         if (result) {
           console.log("Login successful");
-          alert("Login successful");
+          try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: 'Login successful' } })); } catch (e) { /* fallback */ }
           return true;
         }
         else {
           console.log("Login failed");
-          alert("Login failed. Please try again.");
+          try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Login failed. Please try again.' } })); } catch (e) { /* fallback */ }
           return false;
         }
       }
       return false;
     } catch (err) {
       console.error("Login failed\nMessage: " + err.message);
-      alert("Login failed. Message: " + err.message);
+      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: `Login failed: ${err.message}` } })); } catch (e) { /* fallback */ }
       return false;
     }
   }, [fetchUser]);
@@ -57,19 +57,19 @@ export function AuthProvider({ children }) {
         const result = await fetchUser();
         if (result) {
           console.log("Registration successful");
-          alert("Registration successful");
+          try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: 'Registration successful' } })); } catch (e) { /* fallback */ }
           return true;
         }
         else {
           console.log("Registration failed");
-          alert("Registration failed. Please try again.");
+          try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Registration failed. Please try again.' } })); } catch (e) { /* fallback */ }
           return false;
         }
       }
       return false;
     } catch (err) {
       console.error("Registration failed\nMessage: " + err.message);
-      alert("Registration failed. Message: " + err.message);
+      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: `Registration failed: ${err.message}` } })); } catch (e) { /* fallback */ }
       return false;
     }
   }, [fetchUser]);
@@ -83,7 +83,7 @@ export function AuthProvider({ children }) {
       setUser(null);
       setIsAuthenticated(false);
       console.log("Logout successful");
-      alert("You have been logged out.");
+      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'You have been logged out.' } })); } catch (e) { /* fallback */ }
     }
   }, [fetchUser]);
   
