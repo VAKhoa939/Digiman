@@ -150,6 +150,18 @@ class MangaTitle(models.Model):
         }
         update_instance(self, allowed_fields, **metadata)
 
+    def add_genre(self, genre: "Genre") -> None:
+        self.genres.add(genre)
+
+    def remove_genre(self, genre: "Genre") -> bool:
+        if genre in self.genres.all():
+            self.genres.remove(genre)
+            return True
+        return False
+    
+    def clear_genres(self) -> None:
+        self.genres.clear()
+
 
 class Chapter(models.Model):
     id: uuid.UUID = models.UUIDField(
