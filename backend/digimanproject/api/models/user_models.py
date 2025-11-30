@@ -61,6 +61,10 @@ class User(AbstractUser):
         }
         update_instance(self, allowed_fields, **metadata)
 
+    def set_deleted(self) -> None:
+        self.status = User.StatusChoices.DELETED
+        self.save(update_fields=["status"])
+
 
 class Reader(User):
     display_name: str = models.CharField(max_length=100, blank=True, default="")

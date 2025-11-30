@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from ..models.reader_models import ReaderPreferences, LibraryList, ReadingProgress
+from ..models.reader_models import ReaderPreferences, LibraryList, ReadingProgress, MangaReaderStatistics
 
 
 class ReaderPreferencesSerializer(serializers.ModelSerializer):
@@ -45,3 +45,12 @@ class ReadingProgressSerializer(serializers.ModelSerializer):
 
     def get_manga_title_id(self, obj: ReadingProgress) -> str:
         return obj.get_manga_title().id
+    
+class MangaReaderStatisticsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MangaReaderStatistics
+        fields = [
+            "id", "reader_id", "manga_title_id", "is_reader_visited",
+            "is_reader_read", "is_reader_followed", "is_reader_commented",
+        ]
+        read_only_fields = ["id", "reader_id", "manga_title_id",]

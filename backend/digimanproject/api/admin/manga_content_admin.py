@@ -150,6 +150,9 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
         self, request: HttpRequest, form: forms.ModelForm, 
         formset: forms.BaseInlineFormSet, change: bool
     ):
+        if formset.model == Chapter:
+            return super().save_formset(request, form, formset, change)
+          
         # Save with commit=False to populate .deleted_objects
         formset.save(commit=False)
 
@@ -157,7 +160,6 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
         if hasattr(formset, "deleted_objects"):
             for obj in formset.deleted_objects:
                 if isinstance(obj, Comment):
-                    obj._action_user = request.user
                     CommunityService.delete_comment(obj)
         else:
             # Fallback for Django versions where deleted_objects isn't populated yet
@@ -165,7 +167,6 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
                 if form_instance.cleaned_data.get("DELETE", False):
                     obj = form_instance.instance
                     if obj.pk and isinstance(obj, Comment):
-                        obj._action_user = request.user
                         CommunityService.delete_comment(obj)
 
         # Filter out deleted forms
@@ -178,12 +179,10 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
         for form_instance in active_forms:
             obj = form_instance.instance
             if not isinstance(obj, Comment):
+                # Chapter
                 continue
             if not form_instance.has_changed():
                 continue  # skip unchanged forms
-            
-            # Attach the current user to the object for logging
-            obj._action_user = request.user
 
             image_file = form_instance.cleaned_data.pop("attached_image_upload")
             if obj.pk:
@@ -191,7 +190,6 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
             else:
                 comment = CommunityService.create_comment(form_instance.cleaned_data, request.user, image_file)
                 obj.pk = comment.pk # Make sure the obj is attached
-            obj.save()
 
         formset.save_m2m()
     
@@ -244,10 +242,8 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
         if hasattr(formset, "deleted_objects"):
             for obj in formset.deleted_objects:
                 if isinstance(obj, Page):
-                    obj._action_user = request.user
                     MangaService.delete_page(obj)
                 if isinstance(obj, Comment):
-                    obj._action_user = request.user
                     CommunityService.delete_comment(obj)
         else:
             # Fallback for Django versions where deleted_objects isn't populated yet
@@ -255,10 +251,8 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
                 if form_instance.cleaned_data.get("DELETE", False):
                     obj = form_instance.instance
                     if obj.pk and isinstance(obj, Page):
-                        obj._action_user = request.user
                         MangaService.delete_page(obj)
                     if obj.pk and isinstance(obj, Comment):
-                        obj._action_user = request.user
                         CommunityService.delete_comment(obj)
 
         # Filter out deleted forms
@@ -274,9 +268,6 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
                 continue
             if not form_instance.has_changed():
                 continue  # skip unchanged forms
-            
-            # Attach the current user to the object for logging
-            obj._action_user = request.user
 
             if isinstance(obj, Page):
                 print("saving page", str(obj))
@@ -286,7 +277,6 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
                 else:
                     page = MangaService.create_page(form_instance.cleaned_data, image_file)
                     obj.pk = page.pk # Make sure the obj is attached
-                #obj.save()
             if isinstance(obj, Comment):
                 print("saving comment", str(obj))
                 image_file = form_instance.cleaned_data.pop("attached_image_upload")
@@ -295,7 +285,6 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
                 else:
                     comment = CommunityService.create_comment(form_instance.cleaned_data, request.user, image_file)
                     obj.pk = comment.pk # Make sure the obj is attached
-                #obj.save()
 
         formset.save_m2m()
 

@@ -60,11 +60,9 @@ function NavBar({ onLogin, onRegister }) {
             <ul className="navbar-nav ms-auto align-items-center">
                 <div className="d-flex align-items-center me-2">
                 <SearchBar />
-                {isAuthenticated && (
-                  <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Downloads" onClick={() => navigate('/downloads')}>
-                    <CloudDownloadIcon />
-                  </button>
-                )}
+                <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Downloads" onClick={() => navigate('/downloads')}>
+                  <CloudDownloadIcon />
+                </button>
                 <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Advanced search" onClick={() => navigate('/search/advanced')}>
                   <FilterListIcon />
                 </button>
