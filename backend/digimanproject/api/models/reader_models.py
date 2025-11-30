@@ -123,3 +123,22 @@ class ReadingProgress(models.Model):
 
     def get_manga_title(self) -> "MangaTitle":
         return self.chapter.get_manga_title()
+    
+class MangaReaderStatistics(models.Model):
+    id: uuid.UUID = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False)
+    reader: "Reader" = models.ForeignKey(
+        "Reader", related_name="manga_reader_statistics", on_delete=models.CASCADE)
+    manga_title: "MangaTitle" = models.ForeignKey(
+        "MangaTitle", related_name="manga_reader_statistics", on_delete=models.CASCADE)
+    is_reader_visited: bool = models.BooleanField(default=False)
+    is_reader_read: bool = models.BooleanField(default=False)
+    is_reader_followed: bool = models.BooleanField(default=False)
+    is_reader_commented: bool = models.BooleanField(default=False)
+
+    def update_statistics(self, **statistics_data: Any) -> None:
+        """Allowed fields: is_reader_visited, is_reader_read, 
+        is_reader_followed, is_reader_commented"""
+        allowed_fields = {"is_reader_visited", "is_reader_read", 
+            "is_reader_followed", "is_reader_commented"}
+        update_instance(self, allowed_fields, **statistics_data)
