@@ -175,139 +175,142 @@ export default function CommentsPage({ inline = false }){
         )}
       </div>
 
-      {/* comments list rendered below; posting UI moved to the bottom */}
-
-      {/* Posting area (placed above the comments list) */}
-      <div className="mb-4">
-        {fetchUserLoading ? (
-          <div className="text-center py-3">Loading authentication…</div>
-        ) : isAuthenticated ? (
-          <div className="comment-post-area mb-3">
-            <form onSubmit={addComment} className="post-box">
-              <div>
-                <textarea ref={postRef} className="form-control post-textarea" rows={4} value={text} onChange={e=>setText(e.target.value)} placeholder="Write a comment..."></textarea>
-                <div className="mt-2 d-flex align-items-center gap-2">
-                  <input ref={fileRef} type="file" accept="image/*" onChange={onFileChange} />
-                  <button type="button" className="btn btn-sm btn-outline-secondary" onClick={()=>{ setSelectedImage(null); setPreviewUrl(''); if(fileRef.current) fileRef.current.value=''; }}>Clear</button>
+      {/* Handle offline */}
+      {!navigator.onLine ? <div className="alert alert-danger">You are offline, comments section will not be displayed.</div> : 
+      <>
+        {/* Posting area */}
+        <div className="mb-4">
+          {fetchUserLoading ? (
+            <div className="text-center py-3">Loading authentication…</div>
+          ) : isAuthenticated ? (
+            <div className="comment-post-area mb-3">
+              <form onSubmit={addComment} className="post-box">
+                <div>
+                  <textarea ref={postRef} className="form-control post-textarea" rows={4} value={text} onChange={e=>setText(e.target.value)} placeholder="Write a comment..."></textarea>
+                  <div className="mt-2 d-flex align-items-center gap-2">
+                    <input ref={fileRef} type="file" accept="image/*" onChange={onFileChange} />
+                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={()=>{ setSelectedImage(null); setPreviewUrl(''); if(fileRef.current) fileRef.current.value=''; }}>Clear</button>
+                  </div>
+                  {previewUrl && (
+                    <div className="mt-2">
+                      <div className="small text-muted">Selected image preview:</div>
+                      <img src={previewUrl} alt="preview" style={{maxWidth:'100%', borderRadius:6, marginTop:6}} />
+                    </div>
+                  )}
                 </div>
-                {previewUrl && (
-                  <div className="mt-2">
-                    <div className="small text-muted">Selected image preview:</div>
-                    <img src={previewUrl} alt="preview" style={{maxWidth:'100%', borderRadius:6, marginTop:6}} />
+                <div className="toolbar">
+                  <div className="d-flex align-items-center gap-2">
+                    <button type="button" className="btn btn-sm btn-outline-secondary" title="Bold" onClick={()=>wrapSelection('b')}>
+                      <FormatBoldIcon fontSize="small" />
+                    </button>
+                    <button type="button" className="btn btn-sm btn-outline-secondary" title="Italic" onClick={()=>wrapSelection('i')}>
+                      <FormatItalicIcon fontSize="small" />
+                    </button>
+                    <button type="button" className="btn btn-sm btn-outline-secondary" title="Underline" onClick={()=>wrapSelection('u')}>
+                      <FormatUnderlinedIcon fontSize="small" />
+                    </button>
+                    <button type="button" className="btn btn-sm btn-outline-secondary" title="Strikethrough" onClick={()=>wrapSelection('s')}>
+                      <StrikethroughSIcon fontSize="small" />
+                    </button>
+                    <button type="button" className="btn btn-sm btn-outline-secondary" title="Insert image" onClick={onImgClick}>
+                      <ImageIcon fontSize="small" />
+                    </button>
+                  </div>
+                  <div className="ms-auto d-flex align-items-center gap-2">
+                    <label className="small text-muted"><input type="checkbox" className="me-1"/> Blur images in comments (Avoid spoilers)</label>
+                    {uploading && (
+                      <div style={{width:160}}>
+                        <div className="progress" style={{height:8}}>
+                          <div className="progress-bar" role="progressbar" style={{width: `${uploadProgress}%`}} aria-valuenow={uploadProgress} aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                      </div>
+                    )}
+                    <button className="post-submit btn btn-primary" type="submit" disabled={uploading}>{uploading ? 'Uploading...' : 'POST'}</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="card mb-3">
+              <div className="card-body">
+                <p className="mb-2">You must be logged in to post comments.</p>
+                <div>
+                  <button className="btn btn-primary me-2" onClick={()=>navigate('/login', { state: { background: location } })}>Log in</button>
+                  <button className="btn btn-outline-secondary" onClick={()=>navigate('/register', { state: { background: location } })}>Register</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="comment-list-controls">
+          <div className="small text-muted">{comments.length} Responses</div>
+          <div className="ms-auto d-flex gap-2">
+            <a href="#">Upvotes</a>
+            <a href="#">Newest</a>
+            <a href="#">Oldest</a>
+          </div>
+        </div>
+
+        {/* comments list */}
+        <div>
+          {isLoading && <Spinner/>}
+          {error ? <p className="text-center py-3 text-danger">Failed to load comments.</p> :
+          (comments && comments.length > 0 ? (
+            comments.map(c => (
+              <div key={c.id} className="mb-2">
+                {editId === c.id ? (
+                  <div className="card p-2 bg-transparent border-0">
+                    <textarea className="form-control mb-2" rows={3} value={editText} onChange={e=>setEditText(e.target.value)} />
+                    <div className="mt-2 d-flex align-items-center gap-2">
+                      <input type="file" accept="image/*" onChange={(e)=>{
+                        const f = e.target.files && e.target.files[0]
+                        if(!f) return
+                        const MAX = 5 * 1024 * 1024
+                        if(f.size > MAX){ try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Image too large (max 5MB)' } })); } catch(_){} e.target.value=''; return }
+                        setEditImage(f)
+                        const r = new FileReader()
+                        r.onload = ev => setEditPreview(ev.target.result)
+                        r.readAsDataURL(f)
+                      }} />
+                      <button type="button" className="btn btn-sm btn-outline-secondary" onClick={()=>{ setEditImage(null); setEditPreview('') }}>Remove image</button>
+                      {editPreview && <div style={{maxWidth:120}}><img src={editPreview} alt="preview" style={{maxWidth:'100%', borderRadius:6}} /></div>}
+                    </div>
+                    {editUploading && (
+                      <div className="mt-2" style={{width:200}}>
+                        <div className="progress" style={{height:8}}>
+                          <div className="progress-bar" role="progressbar" style={{width: `${editUploadProgress}%`}} aria-valuenow={editUploadProgress} aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="d-flex gap-2 justify-content-end mt-2">
+                      <button className="btn btn-sm btn-outline-secondary" onClick={cancelEdit} disabled={editUploading}>Cancel</button>
+                      <button className="btn btn-sm btn-primary" onClick={()=>saveEdit(c.id)} disabled={editUploading}>{editUploading ? 'Uploading...' : 'Save'}</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <Comment
+                      name={c.name}
+                      text={c.text}
+                      created_at={c.created_at}
+                      imageUrl={c.imageUrl}
+                      avatar={c.avatar}
+                      status={c.status}
+                      isEdited={c.isEdited}
+                      isOwner={isAuthenticated && user && user.id === c.ownerId}
+                      onEdit={() => startEdit(c)}
+                      onDelete={() => deleteComment(c.id)}
+                    />
                   </div>
                 )}
               </div>
-              <div className="toolbar">
-                <div className="d-flex align-items-center gap-2">
-                  <button type="button" className="btn btn-sm btn-outline-secondary" title="Bold" onClick={()=>wrapSelection('b')}>
-                    <FormatBoldIcon fontSize="small" />
-                  </button>
-                  <button type="button" className="btn btn-sm btn-outline-secondary" title="Italic" onClick={()=>wrapSelection('i')}>
-                    <FormatItalicIcon fontSize="small" />
-                  </button>
-                  <button type="button" className="btn btn-sm btn-outline-secondary" title="Underline" onClick={()=>wrapSelection('u')}>
-                    <FormatUnderlinedIcon fontSize="small" />
-                  </button>
-                  <button type="button" className="btn btn-sm btn-outline-secondary" title="Strikethrough" onClick={()=>wrapSelection('s')}>
-                    <StrikethroughSIcon fontSize="small" />
-                  </button>
-                  <button type="button" className="btn btn-sm btn-outline-secondary" title="Insert image" onClick={onImgClick}>
-                    <ImageIcon fontSize="small" />
-                  </button>
-                </div>
-                <div className="ms-auto d-flex align-items-center gap-2">
-                  <label className="small text-muted"><input type="checkbox" className="me-1"/> Blur images in comments (Avoid spoilers)</label>
-                  {uploading && (
-                    <div style={{width:160}}>
-                      <div className="progress" style={{height:8}}>
-                        <div className="progress-bar" role="progressbar" style={{width: `${uploadProgress}%`}} aria-valuenow={uploadProgress} aria-valuemin="0" aria-valuemax="100"></div>
-                      </div>
-                    </div>
-                  )}
-                  <button className="post-submit btn btn-primary" type="submit" disabled={uploading}>{uploading ? 'Uploading...' : 'POST'}</button>
-                </div>
-              </div>
-            </form>
-          </div>
-        ) : (
-          <div className="card mb-3">
-            <div className="card-body">
-              <p className="mb-2">You must be logged in to post comments.</p>
-              <div>
-                <button className="btn btn-primary me-2" onClick={()=>navigate('/login', { state: { background: location } })}>Log in</button>
-                <button className="btn btn-outline-secondary" onClick={()=>navigate('/register', { state: { background: location } })}>Register</button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="comment-list-controls">
-        <div className="small text-muted">{comments.length} Responses</div>
-        <div className="ms-auto d-flex gap-2">
-          <a href="#">Upvotes</a>
-          <a href="#">Newest</a>
-          <a href="#">Oldest</a>
+            ))
+          ) : (
+            <div className="text-muted">No comments yet. Be the first to comment!</div>
+          ))}
         </div>
-      </div>
-
-      <div>
-        {isLoading && <Spinner/>}
-        {error ? <p className="text-center py-3 text-danger">Failed to load comments.</p> :
-        (comments && comments.length > 0 ? (
-          comments.map(c => (
-            <div key={c.id} className="mb-2">
-              {editId === c.id ? (
-                <div className="card p-2 bg-transparent border-0">
-                  <textarea className="form-control mb-2" rows={3} value={editText} onChange={e=>setEditText(e.target.value)} />
-                  <div className="mt-2 d-flex align-items-center gap-2">
-                    <input type="file" accept="image/*" onChange={(e)=>{
-                      const f = e.target.files && e.target.files[0]
-                      if(!f) return
-                      const MAX = 5 * 1024 * 1024
-                      if(f.size > MAX){ try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Image too large (max 5MB)' } })); } catch(_){} e.target.value=''; return }
-                      setEditImage(f)
-                      const r = new FileReader()
-                      r.onload = ev => setEditPreview(ev.target.result)
-                      r.readAsDataURL(f)
-                    }} />
-                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={()=>{ setEditImage(null); setEditPreview('') }}>Remove image</button>
-                    {editPreview && <div style={{maxWidth:120}}><img src={editPreview} alt="preview" style={{maxWidth:'100%', borderRadius:6}} /></div>}
-                  </div>
-                  {editUploading && (
-                    <div className="mt-2" style={{width:200}}>
-                      <div className="progress" style={{height:8}}>
-                        <div className="progress-bar" role="progressbar" style={{width: `${editUploadProgress}%`}} aria-valuenow={editUploadProgress} aria-valuemin="0" aria-valuemax="100"></div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="d-flex gap-2 justify-content-end mt-2">
-                    <button className="btn btn-sm btn-outline-secondary" onClick={cancelEdit} disabled={editUploading}>Cancel</button>
-                    <button className="btn btn-sm btn-primary" onClick={()=>saveEdit(c.id)} disabled={editUploading}>{editUploading ? 'Uploading...' : 'Save'}</button>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <Comment
-                    name={c.name}
-                    text={c.text}
-                    created_at={c.created_at}
-                    imageUrl={c.imageUrl}
-                    avatar={c.avatar}
-                    status={c.status}
-                    isEdited={c.isEdited}
-                    isOwner={isAuthenticated && user && user.id === c.ownerId}
-                    onEdit={() => startEdit(c)}
-                    onDelete={() => deleteComment(c.id)}
-                  />
-                </div>
-              )}
-            </div>
-          ))
-        ) : (
-          <div className="text-muted">No comments yet. Be the first to comment!</div>
-        ))}
-      </div>
+      </>}
     </div>
   )
 }

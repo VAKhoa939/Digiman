@@ -14,6 +14,7 @@ import DownloadsPage from './components/pages/DownloadsPage'
 import PrivateRoute from './components/smallComponents/PrivateRoute'
 import Settings from './components/pages/Settings'
 import Profile from './components/pages/Profile'
+import Library from './components/pages/Library'
 import mangaData from './data/mangaData'
 import { AuthProvider } from './context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -68,6 +69,21 @@ function AppContent() {
     window.addEventListener('digiman:themeChanged', onThemeChange);
     return () => { window.removeEventListener('storage', onStorage); window.removeEventListener('digiman:themeChanged', onThemeChange); };
   }, []);
+  
+  // Auto navigate to DownloadsPage when going offline
+  useEffect(() => {
+    function handleOffline() {
+      if (!navigator.onLine) {
+        navigate('/downloads', { replace: true });
+        window.location.reload(); // Refresh the page
+      }
+    }
+
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [navigate]);
 
   // Small wrapper used by the Route to pass the :id param and load data from local fixture.
   const MangaRoute = () => {
@@ -115,6 +131,7 @@ function AppContent() {
           <Route path="/manga/:mangaId/chapter/:chapterId/comments" element={<CommentsPage />} />
           <Route path="/downloads" element={<DownloadsPage />} />
           <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+          <Route path="/library" element={<PrivateRoute><Library /></PrivateRoute>} />
           <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
           {/* Also allow the modal routes to render as full pages when visited directly */}
           <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />

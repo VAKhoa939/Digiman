@@ -61,7 +61,7 @@ export default function ChapterPage() {
       />
       <ChapterReader pages={chapter.pages || []} mode={readerMode} swipeAxis={swipeAxis} settings={readerSettings} />
       <div className="d-flex justify-content-between align-items-center mt-3">
-        <ChapterNav chapters={chaptersList} currentId={chapter.id} onNavigate={(id) => navigate(`/manga/${mangaId}/chapter/${id}`)} />
+        <ChapterNav  chapters={chaptersList} currentId={chapter.id} onNavigate={(id) => navigate(`/manga/${mangaId}/chapter/${id}`)} />
         <ChapterActions chapter={chapter} mangaId={mangaId} />
       </div>
 
