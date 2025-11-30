@@ -69,6 +69,21 @@ function AppContent() {
     window.addEventListener('digiman:themeChanged', onThemeChange);
     return () => { window.removeEventListener('storage', onStorage); window.removeEventListener('digiman:themeChanged', onThemeChange); };
   }, []);
+  
+  // Auto navigate to DownloadsPage when going offline
+  useEffect(() => {
+    function handleOffline() {
+      if (!navigator.onLine) {
+        navigate('/downloads', { replace: true });
+        window.location.reload(); // Refresh the page
+      }
+    }
+
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [navigate]);
 
   // Small wrapper used by the Route to pass the :id param and load data from local fixture.
   const MangaRoute = () => {
