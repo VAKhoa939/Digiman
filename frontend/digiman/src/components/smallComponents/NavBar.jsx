@@ -81,9 +81,15 @@ function NavBar({ onLogin, onRegister }) {
                     aria-expanded="false"
                   >
                     {/* Simple avatar placeholder using initials */}
-                    <div className={`rounded-circle bg-secondary ${avatarTextClass} d-inline-flex justify-content-center align-items-center me-2`} style={{ width: 32, height: 32 }}>
-                      <small>{(user && user.username && user.username[0]) || 'U'}</small>
-                    </div>
+                    {user && user.avatar ? (
+                    <img src={user.avatar} className="me-3" style={{width:48, height:48, objectFit:'cover', borderRadius:8}} />
+                    ) : (
+                      <div className={`rounded-circle bg-secondary ${avatarTextClass} d-inline-flex justify-content-center align-items-center me-2`} style={{ width: 32, height: 32 }}>
+                        <small>{(user && user.username && user.username[0]) || 'U'}</small>
+                      </div>
+
+                    )}
+                    
                     <span className="me-1">{(user && user.username) || 'User'}</span>
                   </a>
                   <ul

@@ -17,7 +17,7 @@ export default function Profile() {
 
   const avatarLetter = u.display_name ? u.display_name.charAt(0).toUpperCase() : (u.username ? u.username.charAt(0).toUpperCase() : 'U');
 
-  const avatar = {
+  const avatarStyle = {
     width: 96,
     height: 96,
     borderRadius: '50%',
@@ -39,8 +39,13 @@ export default function Profile() {
         ) : (
           <>
             <div className="profile-row" style={{ marginTop: -36, display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={avatar} aria-hidden>{avatarLetter}</div>
+              {user.avatar ? (
+                <img src={user.avatar} className="me-3" style={{width:48, height:48, objectFit:'cover', borderRadius:8}} />
+              ) : (
+                <div style={avatarStyle} aria-hidden>{avatarLetter}</div>
 
+              )}
+              
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ fontSize: 20, fontWeight: 700 }}>{u.display_name || u.username}</div>
                 <div style={{ color: 'var(--app-muted)' }}>@{u.username}</div>
