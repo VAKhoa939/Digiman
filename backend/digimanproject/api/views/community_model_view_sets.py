@@ -28,7 +28,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 
         # Add the action user to the validated data
         data = serializer.validated_data
-        data["_action_user"] = request.user
+        #data["_action_user"] = request.user
 
         comment = CommunityService.create_comment(
             data, request.user, attached_image_file

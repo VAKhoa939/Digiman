@@ -11,7 +11,6 @@ class CommentSerializer(serializers.ModelSerializer):
     """
     owner_name = serializers.SerializerMethodField()
     owner_avatar = serializers.SerializerMethodField()
-    attached_image_upload = serializers.ImageField(required=False, write_only=True)
     manga_title = serializers.PrimaryKeyRelatedField(
         queryset=MangaTitle.objects.all(),
         required=False,
@@ -32,7 +31,7 @@ class CommentSerializer(serializers.ModelSerializer):
             "parent_comment_id", "text", "attached_image_url",
             "created_at", "status", "hidden_reasons", "is_edited", 
             "owner_name", "owner_avatar",
-            "manga_title", "chapter", "attached_image_upload",
+            "manga_title", "chapter",
         ]
     
     def get_owner_name(self, obj: Comment) -> str:

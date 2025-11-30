@@ -32,8 +32,7 @@ function Catalog() {
             items={latest}
             loading={latestIsLoading}
             error={latestError}
-            viewAllPath="/search/advanced"
-            limit={8}
+            viewAllPath="/search/advanced?ordering=-updated_at"
             cardComponent={MangaCard}
           />
         </Container>
