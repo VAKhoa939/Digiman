@@ -2,10 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useLocation } from 'react-router-dom';
+import { fetchAllMangaTitles } from '../../services/mangaService';
+import { mapMangaTitle } from '../../utils/transform';
 
 export default function SearchBar() {
   const [q, setQ] = useState('');
   const [results, setResults] = useState([]);
+  const [hoveredId, setHoveredId] = useState(null);
   const [open, setOpen] = useState(false);
   const timer = useRef(null);
   const navigate = useNavigate();
@@ -25,11 +28,11 @@ export default function SearchBar() {
   const searchBackend = async (term, params = {}) => {
     try {
       const backendParams = { search: term, ...params };
-      const res = await api.get('manga/', { params: backendParams });
-      // assume API returns array of objects with id, title, image, latest_chapter, status
-      if (Array.isArray(res.data)) return res.data;
+      const res = await fetchAllMangaTitles(backendParams, 1);
+      // assume API returns array of objects; normalize with mapMangaTitle
+      if (Array.isArray(res)) return res.map(mapMangaTitle);
       // handle DRF paginated response
-      if (res.data && Array.isArray(res.data.results)) return res.data.results;
+      if (res && Array.isArray(res.results)) return res.results.map(mapMangaTitle);
       return [];
     } catch (err) {
       // fallback: return empty results when backend is unavailable
@@ -54,6 +57,8 @@ export default function SearchBar() {
     if (results.length > 0) {
       navigate(`/manga/${results[0].id}`);
       setOpen(false);
+      setQ('');
+      setResults([]);
     }
   };
 
@@ -65,11 +70,23 @@ export default function SearchBar() {
       </form>
 
       {open && results && results.length > 0 && (
-        <div className="card position-absolute mt-1 w-100" style={{ zIndex: 2000 }}>
+        <div className="card position-absolute mt-1 w-100" style={{ zIndex: 2000, backgroundColor: 'var(--app-bg)', color: 'var(--app-fg)' }}>
           <ul className="list-group list-group-flush">
             {results.map((r) => (
-              <li key={r.id} className="list-group-item list-group-item-action d-flex align-items-center" style={{ cursor: 'pointer' }} onClick={() => { navigate(`/manga/${r.id}`); setOpen(false); }}>
-                <img src={r.image || '/assets/placeholder-image.png'} alt={r.title} style={{ width: 48, height: 64, objectFit: 'cover', marginRight: 12 }} />
+              <li
+                key={r.id}
+                className="list-group-item list-group-item-action d-flex align-items-center"
+                style={{
+                  cursor: 'pointer',
+                  backgroundColor: hoveredId === r.id ? 'rgba(128,128,128,0.15)' : 'var(--app-bg)',
+                  color: 'var(--app-fg)',
+                  transition: 'background-color 120ms ease'
+                }}
+                onMouseEnter={() => setHoveredId(r.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                onClick={() => { navigate(`/manga/${r.id}`); setOpen(false); setQ(''); setResults([]); }}
+              >
+                <img src={r.coverUrl || '/assets/placeholder-image.png'} alt={r.title} style={{ width: 48, height: 64, objectFit: 'cover', marginRight: 12 }} />
                 <div className="flex-grow-1">
                   <div className="fw-bold">{r.title}</div>
                   <div className="small text-muted">{r.latest_chapter || ''} • {r.status || ''}</div>
@@ -81,7 +98,7 @@ export default function SearchBar() {
       )}
 
       {open && results && results.length === 0 && (
-        <div className="card position-absolute mt-1 w-100 p-2 text-muted">No results</div>
+        <div className="card position-absolute mt-1 w-100 p-2 text-muted" style={{ backgroundColor: 'var(--app-bg)', color: 'var(--app-fg)', zIndex: 2000 }}>No results</div>
       )}
 
       {/* advanced search is a full page now at /search/advanced */}
