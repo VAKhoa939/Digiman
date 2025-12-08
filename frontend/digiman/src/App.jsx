@@ -67,7 +67,10 @@ function AppContent() {
 
     window.addEventListener('storage', onStorage);
     window.addEventListener('digiman:themeChanged', onThemeChange);
-    return () => { window.removeEventListener('storage', onStorage); window.removeEventListener('digiman:themeChanged', onThemeChange); };
+    return () => { 
+      window.removeEventListener('storage', onStorage); 
+      window.removeEventListener('digiman:themeChanged', onThemeChange); 
+    };
   }, []);
   
   // Auto navigate to DownloadsPage when going offline
@@ -75,7 +78,6 @@ function AppContent() {
     function handleOffline() {
       if (!navigator.onLine) {
         navigate('/downloads', { replace: true });
-        window.location.reload(); // Refresh the page
       }
     }
 
@@ -84,6 +86,10 @@ function AppContent() {
       window.removeEventListener('offline', handleOffline);
     };
   }, [navigate]);
+
+  const onCloseModal = () => {
+    if (background) navigate(background); else navigate('/');
+  }
 
   // Small wrapper used by the Route to pass the :id param and load data from local fixture.
   const MangaRoute = () => {
@@ -133,19 +139,16 @@ function AppContent() {
           <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
           <Route path="/library" element={<PrivateRoute><Library /></PrivateRoute>} />
           <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
-          {/* Also allow the modal routes to render as full pages when visited directly */}
-          <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
-          <Route path="/register" element={<RegisterModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
         </Routes>
-
-        {/* If we have a background location, also render the modal routes on top */}
-        {background && (
-          <Routes>
-            <Route path="/login" element={<LoginModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
-            <Route path="/register" element={<RegisterModal show={true} onClose={() => { if (background) navigate(background); else navigate('/'); }} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
-          </Routes>
-        )}
       </Container>
+
+      {/* If we have a background location, also render the modal routes on top */}
+      {background && (
+        <Routes>
+          <Route path="/login" element={<LoginModal onClose={onCloseModal} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
+          <Route path="/register" element={<RegisterModal onClose={onCloseModal} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
+        </Routes>
+      )}
     </>
   );
 }

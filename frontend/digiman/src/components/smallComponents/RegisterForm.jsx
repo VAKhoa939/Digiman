@@ -1,47 +1,36 @@
 import React, { useRef, useEffect, useState } from 'react';
 import Modal from 'bootstrap/js/dist/modal';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
-const RegisterModal = ({ show, onClose, onSwitchToLogin }) => {
+const RegisterModal = ({ onClose, onSwitchToLogin }) => {
   const modalRef = useRef(null);
-  const [bsModal, setBsModal] = useState(null);
+  const bsRef = useRef(null);
   const [passwordMatch, setPasswordMatch] = useState(true);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const { register } = useAuth();
+  const { theme } = useTheme();
 
   useEffect(() => {
-    if (!modalRef.current) return;
+    if (!modalRef.current || bsRef.current) return;
     const el = modalRef.current;
     // allow closing by clicking backdrop and by Esc key
-    const instance = new Modal(el, { backdrop: true, keyboard: true });
-    setBsModal(instance);
+    bsRef.current = new Modal(el, { backdrop: true, keyboard: true });
+    bsRef.current.show();
 
-    const onHidden = () => {
-      // Only notify parent to navigate back when the URL still points to this modal's route.
-      // This prevents navigating back when we intentionally route to /login while hiding this modal.
-      try {
-        if (window && window.location && window.location.pathname === '/register') {
-          onClose && onClose();
-        }
-      } catch (e) {
-        onClose && onClose();
-      }
-    };
+    const onHidden = () => { onClose?.(); };
     el.addEventListener('hidden.bs.modal', onHidden);
 
     return () => {
       el.removeEventListener('hidden.bs.modal', onHidden);
-      instance.dispose();
+
+      if (bsRef.current) {
+        bsRef.current.dispose();
+        bsRef.current = null;
+      }
     };
   }, []);
-
-  useEffect(() => {
-    if (bsModal) {
-      console.log('Modal instance active:', bsModal);
-      show ? bsModal.show() : bsModal.hide();
-    }
-  }, [show, bsModal]);
 
   // Check if passwords match on input change
   const validatePasswords = (pass, confirmPass) => {
@@ -62,7 +51,7 @@ const RegisterModal = ({ show, onClose, onSwitchToLogin }) => {
     validatePasswords(password, newConfirmPassword);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const email = e.target.email.value;
     const username = e.target.username.value;
@@ -73,8 +62,8 @@ const RegisterModal = ({ show, onClose, onSwitchToLogin }) => {
       return; // Don't submit if passwords don't match
     }
     
-    const result = register(username, email, password, rememberMe);
-    if (result) onClose();
+    const result = await register(username, email, password, rememberMe);
+    if (result) bsRef.current.hide();
   };
 
   return (
@@ -82,21 +71,28 @@ const RegisterModal = ({ show, onClose, onSwitchToLogin }) => {
       className="modal fade"
       ref={modalRef}
       tabIndex="-1"
-      aria-labelledby="loginModalLabel"
+      aria-labelledby="registerModalLabel"
       aria-hidden="true"
     >
       <div className="modal-dialog modal-dialog-centered">
-        <div className="modal-content bg-dark text-white">
+        <div className={`modal-content ${theme === 'dark' ? 'bg-dark text-white' : 'bg-light text-dark'}`}>
           <div className="modal-header justify-content-center position-relative">
-            <h5 className="modal-title mb-0" id="loginModalLabel">Register your new account</h5>
-            <button type="button" className="btn-close position-absolute end-0 top-50 translate-middle-y" onClick={onClose} aria-label="Close" />
+            <h5 className="modal-title mb-0" id="registerModalLabel">Register your new account</h5>
+            <button 
+              type="button" 
+              className={`btn-close position-absolute end-0 top-50 translate-middle-y ${theme === 'dark' ? 'btn-close-white' : ''}`}
+              onClick={() => bsRef.current.hide()} aria-label="Close" 
+            />
           </div>
           <div className="modal-body">
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
                 <label htmlFor="email" className="form-label">Email address</label>
                 <input type="email" className="form-control" id="email" aria-describedby="emailHelp" name="email" required />
-                <small id="emailHelp" className="form-text text-secondary">We'll never share your email with anyone else.</small>
+                <small 
+                  id="emailHelp" 
+                  className={`form-text ${theme === 'dark' ? 'text-secondary' : 'text-muted'}`}
+                >We'll never share your email with anyone else.</small>
               </div>
               <div className="mb-3">
                 <label htmlFor="username" className="form-label">Username</label>
@@ -142,6 +138,8 @@ const RegisterModal = ({ show, onClose, onSwitchToLogin }) => {
               <div>
                 <button type="submit" className="btn btn-primary w-100">Register</button>
               </div>
+
+              <hr className={`my-3 ${theme === 'dark' ? 'border-top border-secondary' : ''}`} />
               
               <div className="text-center mt-3">
                 <a

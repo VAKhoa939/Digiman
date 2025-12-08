@@ -18,7 +18,7 @@ export default function MangaList({
     <div className={`manga-list my-4 ${className}`}>
       <div className="d-flex align-items-center mb-2">
         <h5 className="mb-0">{title}</h5>
-        {viewAllPath && (
+        {viewAllPath && !loading && !error && (
           <div className="ms-auto">
             <button className="btn btn-sm catalog-btn outline" onClick={() => navigate(viewAllPath)}>View All</button>
           </div>
