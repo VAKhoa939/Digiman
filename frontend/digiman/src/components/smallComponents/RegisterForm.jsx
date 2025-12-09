@@ -3,6 +3,8 @@ import Modal from 'bootstrap/js/dist/modal';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
+let closingByUser = false;
+
 const RegisterModal = ({ onClose, onSwitchToLogin }) => {
   const modalRef = useRef(null);
   const bsRef = useRef(null);
@@ -12,6 +14,7 @@ const RegisterModal = ({ onClose, onSwitchToLogin }) => {
   const { register } = useAuth();
   const { theme } = useTheme();
 
+
   useEffect(() => {
     if (!modalRef.current || bsRef.current) return;
     const el = modalRef.current;
@@ -19,18 +22,53 @@ const RegisterModal = ({ onClose, onSwitchToLogin }) => {
     bsRef.current = new Modal(el, { backdrop: true, keyboard: true });
     bsRef.current.show();
 
-    const onHidden = () => { onClose?.(); };
+    const onHidden = () => {
+      try {
+        bsRef.current?.dispose();
+      } catch (e) {
+        // ignore dispose errors
+      } finally {
+        bsRef.current = null;
+      }
+
+      // If this modal was explicitly closed by user or submit,
+      // navigate back by history, fallback to onClose.
+      if (closingByUser) {
+        closingByUser = false;
+        try {
+          if (window.history && window.history.length > 1) {
+            window.history.back();
+            return;
+          }
+        } catch (e) {
+          // ignore
+        }
+        // fallback to parent onClose if provided (parent will navigate appropriately)
+        onClose?.();
+        return;
+      }
+
+      // This covers cases where modal was closed by backdrop or ESC without explicit requestNavigate call.
+      onClose?.();
+    };
+
     el.addEventListener('hidden.bs.modal', onHidden);
 
     return () => {
       el.removeEventListener('hidden.bs.modal', onHidden);
-
       if (bsRef.current) {
-        bsRef.current.dispose();
+        try {
+          bsRef.current.dispose();
+        } catch (e) {}
         bsRef.current = null;
       }
     };
   }, []);
+
+  const requestNavigate = () => {
+    closingByUser = true;
+    bsRef.current.hide();
+  };
 
   // Check if passwords match on input change
   const validatePasswords = (pass, confirmPass) => {
@@ -63,7 +101,7 @@ const RegisterModal = ({ onClose, onSwitchToLogin }) => {
     }
     
     const result = await register(username, email, password, rememberMe);
-    if (result) bsRef.current.hide();
+    if (result) requestNavigate();
   };
 
   return (
@@ -81,7 +119,7 @@ const RegisterModal = ({ onClose, onSwitchToLogin }) => {
             <button 
               type="button" 
               className={`btn-close position-absolute end-0 top-50 translate-middle-y ${theme === 'dark' ? 'btn-close-white' : ''}`}
-              onClick={() => bsRef.current.hide()} aria-label="Close" 
+              onClick={requestNavigate} aria-label="Close" 
             />
           </div>
           <div className="modal-body">
