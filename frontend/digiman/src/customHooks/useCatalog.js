@@ -37,13 +37,12 @@ export default function useCatalog() {
 	} = useQuery({
     queryKey: ["latestMangaTitles"],
     queryFn: fetchLatestUpdatedMangaTitle,
-    staleTime: 1000 * 60 * 5, // Cache result for 5 minutes
-    retry: 1,
   });
   
   // Helper: Fisher-Yates shuffle (returns new array)
   const shuffle = (arr) => {
-    const a = Array.isArray(arr) ? arr.slice() : [];
+    if (!Array.isArray(arr)) return [];
+    const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       const tmp = a[i];
@@ -62,7 +61,7 @@ export default function useCatalog() {
     latestIsLoading: latestIsLoading,
     latestError: latestError,
     popular: randomizedPopular,
-    popularIsLoading: false,
-    popularError: null,
+    popularIsLoading: latestIsLoading,
+    popularError: latestError && 'Failed to fetch popular manga',
   };
 }

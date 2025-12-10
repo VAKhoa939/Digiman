@@ -1,21 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Container } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
 import MangaCard from '../../components/smallComponents/MangaCard';
 import Banner from '../../components/smallComponents/Banner';
 import MangaList from '../common/MangaList';
 import useCatalog from '../../customHooks/useCatalog';
-import Spinner from '../smallComponents/Spinner';
 
 function Catalog() {
-  const navigate = useNavigate();
   const {
     latest, latestIsLoading, latestError,
     popular, popularIsLoading, popularError
   } = useCatalog();
 
-  if (popularError) console.log(popularError);
-  if (latestError) console.log(latestError);
+  console.log('Popular:', popular, popularIsLoading, popularError);
+  console.log('Latest:', latest, latestIsLoading, latestError);
 
   return (
     <>
@@ -23,9 +20,13 @@ function Catalog() {
         <Container fluid className="py-5">
 
           {/* Hot updates banner (multi-card scroller) */}
-          {popularIsLoading && <Spinner />}
-          {popularError ? <p className="text-danger">Failed to load popular banner.</p>
-          : <Banner slides={popular} visible={6} title="Popular" />}
+          <Banner 
+            isLoading={popularIsLoading} 
+            error={popularError} 
+            slides={popular} 
+            visible={6} 
+            title="Popular" 
+          />
 
           <MangaList
             title="Latest Updated"

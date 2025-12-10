@@ -10,12 +10,9 @@ import Brightness7Icon from '@mui/icons-material/Brightness7';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import { useTheme } from '../../context/ThemeContext';
 
-function NavBar({ onLogin, onRegister }) {
-  const handleLogin = onLogin || ((data) => { console.log('Login submitted:', data); });
-  const handleRegister = onRegister || ((data) => { console.log('Register submitted:', data); });
+function NavBar() {
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const handleLogout = async () => {
     try {
@@ -87,7 +84,6 @@ function NavBar({ onLogin, onRegister }) {
                       <div className={`rounded-circle bg-secondary ${avatarTextClass} d-inline-flex justify-content-center align-items-center me-2`} style={{ width: 32, height: 32 }}>
                         <small>{(user && user.username && user.username[0]) || 'U'}</small>
                       </div>
-
                     )}
                     
                     <span className="me-1">{(user && user.username) || 'User'}</span>
@@ -115,7 +111,11 @@ function NavBar({ onLogin, onRegister }) {
                       ));
                       return isAdmin ? (
                         <li>
-                          <button className="dropdown-item" onClick={() => window.open('/admin/', '_blank', 'noopener')}>Admin</button>
+                          <button className="dropdown-item" onClick={() => {
+                            // Open admin dashboard in a new tab
+                            const adminUrl = import.meta.env.VITE_ADMIN_URL;
+                            window.open(adminUrl, '_blank', 'noopener');
+                          }}>Admin Dashboard</button>
                         </li>
                       ) : null;
                     })()}
