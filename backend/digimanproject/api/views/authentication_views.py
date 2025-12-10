@@ -144,8 +144,7 @@ class CookieTokenRefreshView(TokenRefreshView):
     
     
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
+    permission_classes = [AllowAny]
     
     def post(self, request: Request) -> Response:
         """Logs out the user by deleting the refresh token cookie.
@@ -161,11 +160,39 @@ class LogoutView(APIView):
         Response data:
         - body: "detail"
         """
+        # Try to blacklist the refresh token from cookie (if present)
+        refresh = request.COOKIES.get("refresh_token")
+        if refresh:
+            try:
+                # If token blacklisting app is enabled, blacklist this refresh token
+                RefreshToken(refresh).blacklist()
+            except Exception:
+                # If blacklist not enabled or token invalid, ignore but proceed to clear cookie
+                pass
+        
         response = Response({"detail": "Logged out."}, status=200)
-        response.delete_cookie("refresh_token")
+        
+        # Overwrite and expire cookie with same attributes used when set_refresh_cookie
+        response.set_cookie(
+            key="refresh_token",
+            value="",
+            httponly=True,
+            secure=True,
+            samesite="None",
+            max_age=0,
+            expires="Thu, 01 Jan 1970 00:00:00 GMT",
+            path="/",
+        )
+        try:
+            # newer Django may accept samesite/secure kwargs
+            response.delete_cookie("refresh_token", path="/", secure=True, samesite="None")
+        except TypeError:
+            # older Django
+            response.delete_cookie("refresh_token", path="/")
 
         # Log logout
-        SystemService.log_logout(request.user)
+        if getattr(request, "user", None) and request.user.is_authenticated:
+            SystemService.log_logout(request.user)
         
         return response
     
