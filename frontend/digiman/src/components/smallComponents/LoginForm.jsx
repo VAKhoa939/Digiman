@@ -28,18 +28,9 @@ const LoginModal = ({ onClose, onSwitchToRegister }) => {
       }
 
       // If this modal was explicitly closed by user or submit,
-      // navigate back by history, fallback to onClose.
+      // navigate back by history.
       if (closingByUser) {
         closingByUser = false;
-        try {
-          if (window.history && window.history.length > 1) {
-            window.history.back();
-            return;
-          }
-        } catch (e) {
-          // ignore
-        }
-        // fallback to parent onClose if provided (parent will navigate appropriately)
         onClose?.();
         return;
       }

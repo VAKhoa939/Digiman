@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, useParams, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-router-dom';
 import { Container } from 'react-bootstrap'
 import NavBar from './components/smallComponents/NavBar'
 import Toaster from './components/smallComponents/Toaster'
@@ -15,19 +15,15 @@ import PrivateRoute from './components/smallComponents/PrivateRoute'
 import Settings from './components/pages/Settings'
 import Profile from './components/pages/Profile'
 import Library from './components/pages/Library'
-import mangaData from './data/mangaData'
 import { AuthProvider } from './context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import useMangaPage from './customHooks/useMangaPage';
 import Spinner from './components/smallComponents/Spinner';
+import useModalBackground from './customHooks/useModalBackground';
 
 function AppContent() {
-  const location = useLocation();
+  const { location, background } = useModalBackground();
   const navigate = useNavigate();
-
-  // If this location has a background state, keep it here so we can render
-  // the background UI while showing the modal on top.
-  const background = location.state && location.state.background;
 
   // Apply theme from localStorage (profile_display.theme) at app start so the
   // entire site reflects user's choice immediately.
@@ -87,9 +83,7 @@ function AppContent() {
     };
   }, [navigate]);
 
-  const onCloseModal = () => {
-    if (background) navigate(background); else navigate('/');
-  }
+  const onCloseModal = () => {navigate(-1);}
 
   // Small wrapper used by the Route to pass the :id param and load data from local fixture.
   const MangaRoute = () => {
@@ -128,7 +122,7 @@ function AppContent() {
             state.background, `background` will be set and we render the
             background UI using that location. */}
         <Routes location={background || location}>
-          <Route path="/" element={<Catalog />} />
+          <Route index element={<Catalog />} />
           <Route path="/search/advanced" element={<AdvancedSearchPage />} />
           <Route path="/manga/:mangaId" element={<MangaRoute />} />
           <Route path="/manga/:mangaId/comments" element={<CommentsPage />} />
@@ -139,6 +133,8 @@ function AppContent() {
           <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
           <Route path="/library" element={<PrivateRoute><Library /></PrivateRoute>} />
           <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+          <Route path="/login" element={<LoginModal onClose={onCloseModal} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />
+          <Route path="/register" element={<RegisterModal onClose={onCloseModal} onSwitchToLogin={() => navigate('/login', { state: { background } })} />} />
         </Routes>
       </Container>
 
@@ -154,7 +150,18 @@ function AppContent() {
 }
 
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchOnMount: "never",
+      staleTime: 1000 * 60 * 5,
+      retry: navigator.onLine ? 1 : 0,
+      enabled: navigator.onLine
+    }
+  }
+});
 
 export default function App() {
   return (

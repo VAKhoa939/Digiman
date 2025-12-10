@@ -37,8 +37,6 @@ export default function useCatalog() {
 	} = useQuery({
     queryKey: ["latestMangaTitles"],
     queryFn: fetchLatestUpdatedMangaTitle,
-    staleTime: 1000 * 60 * 5, // Cache result for 5 minutes
-    retry: 1,
   });
   
   // Helper: Fisher-Yates shuffle (returns new array)
