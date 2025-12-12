@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 
 // Simple presentational Comment component. Accepts props to render a comment.
 export default function Comment({
@@ -7,6 +7,7 @@ export default function Comment({
 	status = 'active', hiddenReasons = '', isEdited = false, isAdminView = false, 
 	onEdit = () => {}, onDelete = () => {}, onToggleHidden = () => {},
 }){
+	const [revealed, setRevealed] = useState(false);
 	// helper to derive avatar color from name
 	function avatarColor(n){
 		if(!n) return 'var(--accent)'
@@ -65,9 +66,14 @@ export default function Comment({
 							<div dangerouslySetInnerHTML={{ __html: sanitizeHTML(text) }} />
 						) ) }
 					</div>
-					{!isDeleted && !isHidden && imageUrl && (
+					{ !isDeleted && !isHidden && imageUrl && (
 						<div className="mt-2">
-							<img src={imageUrl} alt="comment" style={{maxWidth:'100%', borderRadius:8}} />
+							<img
+							  src={imageUrl}
+							  alt="comment"
+							  className={`comment-image ${revealed ? 'revealed' : ''}`}
+							  onClick={() => setRevealed(r => !r)}
+							/>
 						</div>
 					)}
 				</div>

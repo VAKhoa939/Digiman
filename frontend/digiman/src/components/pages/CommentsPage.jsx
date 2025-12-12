@@ -194,7 +194,7 @@ export default function CommentsPage({ inline = false }){
                   {previewUrl && (
                     <div className="mt-2">
                       <div className="small text-muted">Selected image preview:</div>
-                      <img src={previewUrl} alt="preview" style={{maxWidth:'100%', borderRadius:6, marginTop:6}} />
+                      <img src={previewUrl} alt="preview" className="comment-image" style={{marginTop:6, borderRadius:6}} />
                     </div>
                   )}
                 </div>
@@ -217,7 +217,6 @@ export default function CommentsPage({ inline = false }){
                     </button>
                   </div>
                   <div className="ms-auto d-flex align-items-center gap-2">
-                    <label className="small text-muted"><input type="checkbox" className="me-1"/> Blur images in comments (Avoid spoilers)</label>
                     {uploading && (
                       <div style={{width:160}}>
                         <div className="progress" style={{height:8}}>

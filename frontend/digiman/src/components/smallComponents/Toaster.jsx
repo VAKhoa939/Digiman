@@ -17,7 +17,6 @@ export default function Toaster(){
     return ()=> window.removeEventListener('digiman:toast', onToast)
   }, [])
 
-  if (toasts.length === 0) return null
 
   return (
     <div style={{ position: 'fixed', left: 16, top: 16, zIndex: 2000 }}>
