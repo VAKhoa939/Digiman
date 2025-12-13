@@ -1,10 +1,15 @@
 {% extends "admin/change_form.html" %}
 
 {% block submit_buttons_bottom %}
-  <div class="submit-row">
-      <a class="button" href="{% url 'admin:flaggedcontent_resolve' original.pk %}">
-          Resolve This Flag
-      </a>
-  </div>
-  {{ block.super }}
+	<div class="submit-row">
+		<input
+			type="submit"
+			name="_resolve_flag"
+			value="Resolve This Flag"
+			class="button"
+			onclick="return confirm('Are you sure you want to resolve this flag?');"
+		>
+	</div>
+
+	{{ block.super }}
 {% endblock %}

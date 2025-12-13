@@ -54,10 +54,10 @@ export default function useCatalog() {
 
   // If API returned latest results, derive a randomized popular list from it.
   const popularFromApi = latest?.results?.map(mapMangaTitle) || [];
-  const randomizedPopular = shuffle(popularFromApi).slice(0, Math.min(popularFromApi.length, 12));
+  const randomizedPopular = shuffle(popularFromApi).slice(0, 12);
 
   return {
-    latest: latest?.results?.map(mapMangaTitle) || [],
+    latest: latest?.results?.map(mapMangaTitle).slice(0, 12) || [],
     latestIsLoading: latestIsLoading,
     latestError: latestError,
     popular: randomizedPopular,

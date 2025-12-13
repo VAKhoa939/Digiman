@@ -1,40 +1,46 @@
 import uuid
 from django.db import transaction
 
-from ..models.user_models import User, Reader
+from ..models.user_models import User, Reader, Administrator
 from ..models.manga_models import MangaTitle, Chapter, Page
 from ..models.community_models import Comment
 from ..models.system_models import Announcement, LogEntry, FlaggedContent, LogEntryTargetObjectType
 
-from typing import Any, Dict
+from ..utils.helper_functions import cast_user_to_subclass
 
-TypesInModeration = (User, Reader, MangaTitle, Chapter, Page, Comment)
+from typing import Any, Dict, Optional
+
+TypesInModeration = (
+    User, Reader, Administrator, MangaTitle, Chapter, Page, Comment, FlaggedContent
+)
 
 class LogEntryDetailFactory:
     @staticmethod
-    def get_moderation_detail(target_object) -> dict[str, Any]:
-        if isinstance(target_object, Reader):
+    def get_moderation_detail(target_object) -> Dict[str, Any]:
+        if isinstance(target_object, User):
+            casted_user = cast_user_to_subclass(target_object)
+            if isinstance(casted_user, (Reader, Administrator)):
+                return {
+                    'targetType': FlaggedContent.TargetObjectTypeChoices.USER.value, 
+                    'attributes' : [
+                        {"attributeName": "username",
+                            "isImage": "False",
+                            "content": casted_user.username},
+                        {"attributeName": "displayName",
+                            "isImage": "False",
+                            "content": casted_user.display_name},
+                        {"attributeName": "avatar",
+                            "isImage": "True",
+                            "content": casted_user.avatar},
+                    ],
+                }
+            # If the target object is not a Reader or Administrator, make a generic User detail
             return {
                 'targetType': FlaggedContent.TargetObjectTypeChoices.USER.value, 
                 'attributes' : [
                     {"attributeName": "username",
                         "isImage": "False",
-                        "content": target_object.username},
-                    {"attributeName": "displayName",
-                        "isImage": "False",
-                        "content": target_object.display_name},
-                    {"attributeName": "avatar",
-                        "isImage": "True",
-                        "content": target_object.avatar},
-                ],
-            }
-        elif isinstance(target_object, User):
-            return {
-                'targetType': FlaggedContent.TargetObjectTypeChoices.USER.value, 
-                'attributes' : [
-                    {"attributeName": "username",
-                        "isImage": "False",
-                        "content": target_object.username},
+                        "content": casted_user.username},
                 ],
             }
         elif isinstance(target_object, MangaTitle):
@@ -92,6 +98,11 @@ class LogEntryDetailFactory:
                     "content": target_object.attached_image_url,
                 })
             return details
+        elif isinstance(target_object, FlaggedContent):
+            old_target_object = target_object.get_target_object()
+            if not old_target_object:
+                return {}
+            return LogEntryDetailFactory.get_moderation_detail(old_target_object)
         else:
             return {}
         
@@ -103,16 +114,20 @@ class SystemService:
     @staticmethod
     @transaction.atomic
     def create_log_entry(
-        user: User, action_type: str, target_object: LogEntryTargetObjectType
+        user: Optional[User], action_type: str, target_object: LogEntryTargetObjectType
     ) -> LogEntry:
         """
         Creates a new log entry for a specific action (including: create, update, delete, login, logout).
 
         If the target object's type is in moderation, the details will be updated.
         """
-        details: dict[str, Any] = {}
+        details: Dict[str, Any] = {}
         if (
-            action_type in {LogEntry.ActionTypeChoices.CREATE, LogEntry.ActionTypeChoices.UPDATE}
+            action_type in {
+                LogEntry.ActionTypeChoices.CREATE, 
+                LogEntry.ActionTypeChoices.UPDATE,
+                LogEntry.ActionTypeChoices.RESOLVE_FLAG,
+            }
             and isinstance(target_object, TypesInModeration)
         ):
             details = LogEntryDetailFactory.get_moderation_detail(target_object)
@@ -154,7 +169,7 @@ class SystemService:
     @transaction.atomic
     def create_flag(
         log_entry: LogEntry, content_name: str, content: str, 
-        is_image: bool, result: dict[str, float], reason: str,
+        is_image: bool, result: Dict[str, float], reason: str,
         dominant_attribute: str, severity_score: float
     ):
         """

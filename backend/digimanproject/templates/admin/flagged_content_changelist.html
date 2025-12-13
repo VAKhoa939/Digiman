@@ -4,11 +4,50 @@
     <div class="object-tools">
         <ul>
             <li>
-                <a href="{% url 'admin:run_moderation' %}" class="button">
+                <button id="run-moderation-btn" class="button">
                     🔄 Run Moderation Pipeline
-                </a>
+                </button>
+            </li>
+            <li>
+                <span id="moderation-status" style="margin-left:10px; font-weight:bold;">
+                    Checking moderation status…
+                </span>
             </li>
         </ul>
     </div>
     {{ block.super }}
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+async function fetchStatus() {
+    const response = await fetch("{% url 'admin:moderation_status' %}");
+    const data = await response.json();
+
+    const statusEl = document.getElementById("moderation-status");
+    const btn = document.getElementById("run-moderation-btn");
+
+    if (data.running) {
+        statusEl.textContent = "Moderation is running…";
+        btn.disabled = true;
+    } else {
+        statusEl.textContent = "Moderation is idle";
+        btn.disabled = false;
+    }
+    
+    if (data.completed) {
+        window.location.reload();
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    fetchStatus();
+    setInterval(fetchStatus, 3000); // For 3 seconds
+
+    document.getElementById("run-moderation-btn").onclick = () => {
+        window.location.href = "{% url 'admin:run_moderation' %}";
+    };
+});
+</script>
 {% endblock %}

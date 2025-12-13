@@ -1,17 +1,21 @@
 import { useLocation } from "react-router-dom";
-import { useRef } from "react";
+import { useEffect, useState } from "react";
 
 export default function useModalBackground() {
   const location = useLocation();
-  const backgroundRef = useRef(null);
+  const [background, setBackground] = useState(null);
 
-  // Save background when opening modal
-  if (location.state?.background) {
-    backgroundRef.current = location.state.background;
-  }
+  useEffect(() => {
+    // If this navigation carries a background, store it (opening a modal)
+    if (location.state?.background) {
+      setBackground(location.state.background);
+      return;
+    }
 
-  return {
-    location,
-    background: backgroundRef.current,
-  };
+    // Otherwise clear any stored background so consumers re-render and use the
+    // real current location instead of a stale background.
+    if (background !== null) setBackground(null);
+  }, [location]);
+
+  return { location, background, };
 }
