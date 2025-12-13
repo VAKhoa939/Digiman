@@ -11,9 +11,6 @@ function Catalog() {
     popular, popularIsLoading, popularError
   } = useCatalog();
 
-  console.log('Popular:', popular, popularIsLoading, popularError);
-  console.log('Latest:', latest, latestIsLoading, latestError);
-
   return (
     <>
       <div style={{ backgroundColor: 'var(--app-bg)', color: 'var(--app-fg)' }}>

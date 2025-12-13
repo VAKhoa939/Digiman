@@ -122,7 +122,7 @@ function AppContent() {
             state.background, `background` will be set and we render the
             background UI using that location. */}
         <Routes location={background || location}>
-          <Route index element={<Catalog />} />
+          <Route path="/" element={<Catalog />} />
           <Route path="/search/advanced" element={<AdvancedSearchPage />} />
           <Route path="/manga/:mangaId" element={<MangaRoute />} />
           <Route path="/manga/:mangaId/comments" element={<CommentsPage />} />
