@@ -6,13 +6,17 @@ from ..services.system_service import SystemService
 
 @receiver(post_save, sender=User)
 def log_user_save(sender, instance: User, created: bool, **kwargs):
+    if getattr(instance, "_skip_logging", True):
+        return
+    if getattr(instance, "_action_user", None) is None:
+        instance._action_user = instance
     SystemService.log_object_save(instance, created)
 
 
 @receiver(post_delete, sender=User)
 def log_user_delete(sender, instance: User, **kwargs):
-    if getattr(instance, "_skip_logging", False):
-        return
+    if getattr(instance, "_action_user", None) is None:
+        instance._action_user = instance
     SystemService.log_object_delete(instance)
 
 

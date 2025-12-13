@@ -89,7 +89,7 @@ export default function SearchBar() {
                 <img src={r.coverUrl || '/assets/placeholder-image.png'} alt={r.title} style={{ width: 48, height: 64, objectFit: 'cover', marginRight: 12 }} />
                 <div className="flex-grow-1">
                   <div className="fw-bold">{r.title}</div>
-                  <div className="small text-muted">{r.latest_chapter || ''} • {r.status || ''}</div>
+                  <div className="small text-muted">{r.author || ''} • {r.status || ''}</div>
                 </div>
               </li>
             ))}

@@ -14,6 +14,8 @@ from pathlib import Path
 import os
 import environ
 import dj_database_url
+import ssl
+from urllib.parse import urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -202,6 +204,31 @@ CELERY_RESULT_BACKEND = env("REDIS_URL")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
+
+
+# Django Redis Settings
+
+DJANGO_REDIS_URL = env("DJANGO_REDIS_URL")
+
+parsed = urlparse(DJANGO_REDIS_URL)
+USE_SSL = parsed.scheme == "rediss"
+
+CACHE_OPTIONS = {
+    "CLIENT_CLASS": "django_redis.client.DefaultClient",
+}
+
+if USE_SSL:
+    CACHE_OPTIONS["CONNECTION_POOL_KWARGS"] = {
+        "ssl_cert_reqs": ssl.CERT_NONE,
+    }
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": DJANGO_REDIS_URL,
+        "OPTIONS": CACHE_OPTIONS,
+    }
+}
 
 
 # Default primary key field type
