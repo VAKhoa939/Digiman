@@ -6,8 +6,12 @@ from ..services.system_service import SystemService
 
 @receiver(post_save, sender=Comment)
 def log_comment_save(sender, instance: Comment, created: bool, **kwargs):
+    if getattr(instance, "_action_user", None) is None:
+        instance._action_user = instance.owner
     SystemService.log_object_save(instance, created)
 
 @receiver(post_delete, sender=Comment)
 def log_comment_delete(sender, instance: Comment, **kwargs):
+    if getattr(instance, "_action_user", None) is None:
+        instance._action_user = instance.owner
     SystemService.log_object_delete(instance)

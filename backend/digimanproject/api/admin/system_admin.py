@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.http import HttpRequest
+from django.http import HttpRequest, JsonResponse
 from django import forms
 from django.urls import path
 from django.shortcuts import redirect
@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.core.cache import cache
 
 from ..models.system_models import LogEntry, FlaggedContent
+from ..services.system_service import SystemService
 from ..tasks import run_moderation_pipeline_task
 
 
@@ -42,8 +43,10 @@ class FlaggedContentAdmin(admin.ModelAdmin):
     fields = (
         "dominant_attribute", "severity_score", "reason", "details", 
         "flagged_at", "is_content_image", "content_name", "content", 
-        "target_object_type", "target_object_id"
+        "target_object_type", "target_object_id",
     )
+
+    readonly_fields = (*fields,)
 
     change_list_template = "admin/flagged_content_changelist.html"
     change_form_template = "admin/flagged_content_change_form.html"
@@ -64,9 +67,9 @@ class FlaggedContentAdmin(admin.ModelAdmin):
                 name="run_moderation"
             ),
             path(
-                "<uuid:pk>/resolve/",
-                self.admin_site.admin_view(self.resolve_flag),
-                name="flaggedcontent_resolve",
+                "moderation-status/", 
+                self.admin_site.admin_view(self.moderation_status), 
+                name="moderation_status"
             ),
         ]
         return custom_urls + urls
@@ -76,6 +79,9 @@ class FlaggedContentAdmin(admin.ModelAdmin):
         Runs the moderation pipeline.
         Sets a cache entry to prevent multiple runs.
         """
+        if cache.get("moderation:running"):
+            messages.warning(request, "Moderation pipeline is already running.")
+            return redirect("admin:api_flaggedcontent_changelist")
         run_moderation_pipeline_task.delay()
 
         messages.success(
@@ -84,35 +90,53 @@ class FlaggedContentAdmin(admin.ModelAdmin):
             "You can continue using the admin normally.",
         )
         return redirect("admin:api_flaggedcontent_changelist")
+    
+    def moderation_status(self, request):
+        return JsonResponse({
+            "running": bool(cache.get("moderation:running")),
+            "completed": bool(cache.get("moderation:completed")),
+        })
 
     def changelist_view(self, request: HttpRequest, extra_context=None):
         # Check if Celery task finished
-        if cache.get("moderation_completed"):
+        if cache.get("moderation:completed"):
             messages.success(request, "Moderation pipeline completed successfully.")
-            cache.delete("moderation_completed")
+            cache.delete("moderation:completed")
 
         return super().changelist_view(request, extra_context)
 
-    def resolve_flag(self, request: HttpRequest, pk: str):
-        obj = self.get_object(request, pk)
-        if not obj:
-            self.message_user(request, "Object not found.", level=messages.ERROR)
+    def response_change(self, request, obj):
+        if "_resolve_flag" in request.POST:
+            if isinstance(obj, FlaggedContent):
+                obj.resolve()
+
+                self.message_user(
+                    request,
+                    "Flag resolved successfully.",
+                    level=messages.SUCCESS,
+                )
+                SystemService.create_log_entry(None, LogEntry.ActionTypeChoices.RESOLVE_FLAG, obj)
+            else:
+                self.message_user(
+                    request,
+                    "Object is not a FlaggedContent.",
+                    level=messages.ERROR,
+                )
+
             return redirect("admin:api_flaggedcontent_changelist")
 
-        if isinstance(obj, FlaggedContent):
-            obj.resolve()
-            self.message_user(request, "Flag resolved successfully.", level=messages.SUCCESS)
-        else:
-            self.message_user(request, "Invalid object type.", level=messages.ERROR)
+        return super().response_change(request, obj)
 
-        return redirect("admin:api_flaggedcontent_changelist")
-
+    def save_model(self, request, obj, form, change):
+        if change:
+            return  # block manual save
+        super().save_model(request, obj, form, change)
 
     def has_add_permission(self, request):
         return False
     
     def has_change_permission(self, request, obj=None):
-        return False
+        return True
     
     def has_delete_permission(self, request, obj=None):
         return False

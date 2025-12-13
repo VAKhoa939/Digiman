@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import api from '../../services/api';
 import { fetchAllMangaTitles, fetchGenres } from '../../services/mangaService';
 import { mapMangaTitle } from '../../utils/transform';
 import MangaList from '../common/MangaList';
-import SearchMangaCard from '../smallComponents/SearchMangaCard';
 
 export default function AdvancedSearchPage() {
   const navigate = useNavigate();
@@ -244,7 +242,6 @@ export default function AdvancedSearchPage() {
         error={null}
         viewAllPath={null}
         limit={1000}
-        cardComponent={SearchMangaCard}
         className="search-results"
       />
     </div>

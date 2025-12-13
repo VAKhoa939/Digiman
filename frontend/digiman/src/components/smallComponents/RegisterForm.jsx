@@ -3,11 +3,10 @@ import Modal from 'bootstrap/js/dist/modal';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
-let closingByUser = false;
-
 const RegisterModal = ({ onClose, onSwitchToLogin }) => {
   const modalRef = useRef(null);
   const bsRef = useRef(null);
+  const closingByUserRef = useRef(false);
   const [passwordMatch, setPasswordMatch] = useState(true);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,7 +19,18 @@ const RegisterModal = ({ onClose, onSwitchToLogin }) => {
     const el = modalRef.current;
     // allow closing by clicking backdrop and by Esc key
     bsRef.current = new Modal(el, { backdrop: true, keyboard: true });
-    bsRef.current.show();
+    // Delay showing so the element is attached and layout finished.
+    setTimeout(() => {
+      try {
+        if (modalRef.current && bsRef.current) bsRef.current.show();
+      } catch (err) {
+        // Log helpful info and clean up the bootstrap instance.
+        // eslint-disable-next-line no-console
+        console.error('RegisterModal: failed to show modal', err, { modalRef: modalRef.current });
+        try { bsRef.current?.dispose(); } catch (_) {}
+        bsRef.current = null;
+      }
+    }, 0);
 
     const onHidden = () => {
       try {
@@ -33,8 +43,8 @@ const RegisterModal = ({ onClose, onSwitchToLogin }) => {
 
       // If this modal was explicitly closed by user or submit,
       // navigate back by history.
-      if (closingByUser) {
-        closingByUser = false;
+      if (closingByUserRef.current) {
+        closingByUserRef.current = false;
         onClose?.();
         return;
       }
@@ -47,18 +57,32 @@ const RegisterModal = ({ onClose, onSwitchToLogin }) => {
 
     return () => {
       el.removeEventListener('hidden.bs.modal', onHidden);
-      if (bsRef.current) {
-        try {
-          bsRef.current.dispose();
-        } catch (e) {}
-        bsRef.current = null;
-      }
+      try {
+        if (bsRef.current) {
+          try { bsRef.current.hide(); } catch (e) {}
+          try { bsRef.current.dispose(); } catch (e) {}
+          bsRef.current = null;
+        }
+      } catch (e) { /* ignore */ }
+
+      try {
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+      } catch (e) { /* ignore */ }
+      try {
+        // Defensive: remove stray text nodes that may have been appended as the string 'null'
+        document.body.childNodes.forEach(n => {
+          if (n && n.nodeType === Node.TEXT_NODE && n.nodeValue && n.nodeValue.trim() === 'null') n.remove();
+        });
+      } catch (e) { /* ignore */ }
     };
   }, []);
 
   const requestNavigate = () => {
-    closingByUser = true;
-    bsRef.current.hide();
+    closingByUserRef.current = true;
+    if (bsRef.current) bsRef.current.hide();
   };
 
   // Check if passwords match on input change
@@ -84,7 +108,7 @@ const RegisterModal = ({ onClose, onSwitchToLogin }) => {
     e.preventDefault();
     const email = e.target.email.value;
     const username = e.target.username.value;
-    const rememberMe = e.target.rememberMe.checked;
+    const rememberMe = e.target.rememberMe?.checked || false;
     
     // Validate passwords match before submitting
     if (!validatePasswords(password, confirmPassword)) {
@@ -158,7 +182,7 @@ const RegisterModal = ({ onClose, onSwitchToLogin }) => {
               </div>
               <fieldset>
                 <div className="form-check">
-                  <input className="form-check-input" type="checkbox" value="" id="rememberMe"/>
+                  <input className="form-check-input" type="checkbox" value="" id="rememberMe" name="rememberMe"/>
                   <label className="form-check-label" htmlFor="rememberMe">
                     Remember me
                   </label>

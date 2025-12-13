@@ -4,7 +4,7 @@ from datetime import datetime
 from django.db import models
 from django.utils import timezone
 import uuid
-from ..utils.helper_functions import get_target_object, update_instance
+from ..utils.helper_functions import get_target_object, update_instance, cast_user_to_subclass
 from django.contrib import admin
 
 from typing import TYPE_CHECKING
@@ -12,15 +12,18 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .manga_models import MangaTitle, Chapter, Genre, Author, Page
-    from .user_models import User
+    from .user_models import User, Reader, Administrator
     from .community_models import Comment, Report, Penalty
 
-FlaggedContentTargetObjectType = Union["MangaTitle", "Chapter", 
-                                        "Page", "Comment", "User"]
+FlaggedContentTargetObjectType = Union[
+    "MangaTitle", "Chapter", "Page", "Comment", "User", "Reader", "Administrator",
+]
 
-LogEntryTargetObjectType = Union["MangaTitle", "Chapter", "Page", "Genre", 
-                                 "Author", "Comment", "User", "Report", 
-                                 "FlaggedContent", "Announcement", "Penalty"]
+LogEntryTargetObjectType = Union[
+    "MangaTitle", "Chapter", "Page", "Genre", "Author", "Comment", 
+    "User", "Reader", "Administrator", "Report", "FlaggedContent", "Announcement", 
+    "Penalty"
+]
 
 
 class FlaggedContent(models.Model):
@@ -30,6 +33,8 @@ class FlaggedContent(models.Model):
         PAGE = "page", "Page"
         COMMENT = "comment", "Comment"
         USER = "user", "User"
+        READER = "reader", "Reader"
+        ADMINISTRATOR = "administrator", "Administrator"
     
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
@@ -56,7 +61,7 @@ class FlaggedContent(models.Model):
     
     def get_target_object(self) -> Optional[FlaggedContentTargetObjectType]:
         from .manga_models import MangaTitle, Chapter, Page
-        from .user_models import User
+        from .user_models import User, Reader, Administrator
         from .community_models import Comment
         
         mapping: Dict[str, FlaggedContentTargetObjectType] = {
@@ -65,6 +70,8 @@ class FlaggedContent(models.Model):
             self.TargetObjectTypeChoices.PAGE.value: Page,
             self.TargetObjectTypeChoices.COMMENT.value: Comment,
             self.TargetObjectTypeChoices.USER.value: User,
+            self.TargetObjectTypeChoices.READER.value: Reader,
+            self.TargetObjectTypeChoices.ADMINISTRATOR.value: Administrator,
         }
         return get_target_object(self.target_object_id,
                     self.target_object_type, mapping)
@@ -141,6 +148,8 @@ class LogEntry(models.Model):
         AUTHOR = "author", "Author"
         COMMENT = "comment", "Comment"
         USER = "user", "User"
+        READER = "reader", "Reader"
+        ADMINISTRATOR = "administrator", "Administrator"
         REPORT = "report", "Report"
         FLAGGED_CONTENT = "flaggedcontent", "FlaggedContent"
         ANNOUNCEMENT = "announcement", "Announcement"
@@ -164,16 +173,19 @@ class LogEntry(models.Model):
 
     def __str__(self) -> str:
         if self.action_type in {self.ActionTypeChoices.LOGIN, self.ActionTypeChoices.LOGOUT}:
-            return f"{self.user.get_display_name()} {self.action_type}"
+            return f"{self.get_user_display_name()} {self.action_type}"
         return f"{self.action_type} {self.target_object_type} by {self.get_user_display_name()}"
     
     @admin.display(description="User")
     def get_user_display_name(self) -> str:
-        return self.user.get_display_name() if self.user else "N/A"
+        if not self.user:
+            return "N/A"
+        user = cast_user_to_subclass(self.user)
+        return user.get_display_name()
     
     def get_target_object(self) -> Optional[LogEntryTargetObjectType]:
         from .manga_models import MangaTitle, Chapter, Genre, Author, Page
-        from .user_models import User
+        from .user_models import User, Reader, Administrator
         from .community_models import Comment, Report, Penalty
         
         mapping: Dict[str, LogEntryTargetObjectType] = {
@@ -184,6 +196,8 @@ class LogEntry(models.Model):
             self.TargetObjectTypeChoices.AUTHOR.value: Author,
             self.TargetObjectTypeChoices.COMMENT.value: Comment,
             self.TargetObjectTypeChoices.USER.value: User,
+            self.TargetObjectTypeChoices.READER.value: Reader,
+            self.TargetObjectTypeChoices.ADMINISTRATOR.value: Administrator,
             self.TargetObjectTypeChoices.REPORT.value: Report,
             self.TargetObjectTypeChoices.FLAGGED_CONTENT.value: FlaggedContent,
             self.TargetObjectTypeChoices.ANNOUNCEMENT.value: Announcement,
