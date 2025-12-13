@@ -9,8 +9,8 @@ DIGIMAN/
 ├── backend/
 │   └── digimanproject/
 │       ├── manage.py
-│       ├── digimanproject/       ← Django project folder (settings, etc.)
-│       ├── api/                  ← Main app with models, serializers, views, urls, services, permissions, admins, and utils
+│       ├── digimanproject/       ← Django project folder (settings, celery, etc.)
+│       ├── api/                  ← Main app with folders (models, serializers, views, urls, services, permissions, admins, signals, tasks, and utils)
 │       ├── collected_static/     ← Static files (after collectstatic)
 │       └── requirements.txt      ← Dependencies list
 │
@@ -19,9 +19,9 @@ DIGIMAN/
 ├── src/
 │   ├── components/             ← Reusable React components
 │   │   ├── pages/              ← Page-level components
-│   │   └── smallComponents/    ← Smaller UI components (e.g., NavBar, Toaster)
+│   │   └── smallComponents/    ← Smaller UI components (e.g., NavBar, Modal, Toaster)
 │   ├── context/                ← React Context for global state (e.g., Auth, Theme)
-│   ├── customHooks/            ← Custom React hooks (e.g., useMangaPage)
+│   ├── customHooks/            ← Custom React hooks (e.g., useMangaPage, useModalBackground)
 │   ├── data/                   ← Static data (e.g., mangaData)
 │   ├── styles/                 ← CSS files for themes and custom styles
 │   └── App.jsx                 ← Main app component
@@ -134,6 +134,7 @@ SIGHTENGINE_SECRET=<your-sightengine-api-secret>
 # --- Redis ---
 # Note that this project's redis uses Render's Key Value service for hosting
 REDIS_URL=rediss://red-xxxxx:PASSWORD@singapore-keyvalue.render.com:6379?ssl_cert_reqs=CERT_NONE
+DJANGO_REDIS_URL=rediss://red-xxxxx:PASSWORD@singapore-keyvalue.render.com:6379/0
 ```
 
 > **Note:** Do **not** commit `backend.env` — keep it local.
