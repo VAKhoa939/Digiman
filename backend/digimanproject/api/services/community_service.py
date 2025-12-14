@@ -15,7 +15,7 @@ class CommunityService:
             raise ValueError("Owner is required.")
         if (not data.get("text")
             and not data.get("attached_image_url") 
-            and not data.get("attached_image_upload")
+            and not image_file
         ):
             raise ValueError("Either 'text' or 'attached_image' must be provided.")
         if not data.get("manga_title") and not data.get("chapter"):
@@ -54,7 +54,7 @@ class CommunityService:
         # Validate data
         if (not data.get("text")
             and not data.get("attached_image_url") 
-            and not data.get("attached_image_upload")
+            and not image_file
         ):
             raise ValueError("Either 'text' or 'attached_image' must be provided.")
         if not data.get("manga_title") and not data.get("chapter"):
