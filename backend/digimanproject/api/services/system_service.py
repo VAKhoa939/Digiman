@@ -11,7 +11,7 @@ from ..utils.helper_functions import cast_user_to_subclass
 from typing import Any, Dict, Optional
 
 TypesInModeration = (
-    User, Reader, Administrator, MangaTitle, Chapter, Page, Comment, FlaggedContent
+    User, Reader, Administrator, MangaTitle, Chapter, Page, Comment
 )
 
 class LogEntryDetailFactory:
@@ -98,11 +98,6 @@ class LogEntryDetailFactory:
                     "content": target_object.attached_image_url,
                 })
             return details
-        elif isinstance(target_object, FlaggedContent):
-            old_target_object = target_object.get_target_object()
-            if not old_target_object:
-                return {}
-            return LogEntryDetailFactory.get_moderation_detail(old_target_object)
         else:
             return {}
         
@@ -120,8 +115,17 @@ class SystemService:
         Creates a new log entry for a specific action (including: create, update, delete, login, logout).
 
         If the target object's type is in moderation, the details will be updated.
+
+        For moderating FlaggedContent objects after resolving, the old target object will be used.
         """
         details: Dict[str, Any] = {}
+        
+        if (
+            isinstance(target_object, FlaggedContent) 
+            and action_type == LogEntry.ActionTypeChoices.RESOLVE_FLAG
+        ):
+            target_object = target_object.get_target_object()
+
         if (
             action_type in {
                 LogEntry.ActionTypeChoices.CREATE, 
@@ -131,6 +135,7 @@ class SystemService:
             and isinstance(target_object, TypesInModeration)
         ):
             details = LogEntryDetailFactory.get_moderation_detail(target_object)
+
             
         return LogEntry.objects.create(
             user=user,
