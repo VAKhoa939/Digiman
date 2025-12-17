@@ -135,6 +135,10 @@ SIGHTENGINE_SECRET=<your-sightengine-api-secret>
 # Note that this project's redis uses Render's Key Value service for hosting
 REDIS_URL=rediss://red-xxxxx:PASSWORD@singapore-keyvalue.render.com:6379?ssl_cert_reqs=CERT_NONE
 DJANGO_REDIS_URL=rediss://red-xxxxx:PASSWORD@singapore-keyvalue.render.com:6379/0
+
+# --- Celery Wake ---
+IS_RENDER=False
+CELERY_WAKE_URL=https://digiman-celery-worker.onrender.com/wake
 ```
 
 > **Note:** Do **not** commit `backend.env` — keep it local.
