@@ -8,7 +8,8 @@ from django.core.cache import cache
 
 from ..models.system_models import LogEntry, FlaggedContent
 from ..services.system_service import SystemService
-from ..tasks import run_moderation_pipeline_task
+from ..tasks import run_moderation_pipeline_task, STATUS_KEY
+from ..utils.celery_wake import wake_celery_worker
 
 
 @admin.register(LogEntry)
@@ -75,14 +76,27 @@ class FlaggedContentAdmin(admin.ModelAdmin):
         return custom_urls + urls
 
     def run_moderation(self, request: HttpRequest):
-        """
-        Runs the moderation pipeline.
-        Sets a cache entry to prevent multiple runs.
-        """
-        if cache.get("moderation:running"):
+        status = cache.get(STATUS_KEY, "idle")
+
+        if status in ("starting", "queued", "running"):
             messages.warning(request, "Moderation pipeline is already running.")
             return redirect("admin:api_flaggedcontent_changelist")
+        
+        
+        # Step 1: mark starting
+        cache.set(STATUS_KEY, "starting", timeout=300)
+
+        # Step 2: wake celery
+        awake = wake_celery_worker()
+
+        if not awake:
+            cache.set(STATUS_KEY, "failed", timeout=300)
+            messages.error(request, "Celery worker is unavailable.")
+            return redirect("admin:api_flaggedcontent_changelist")
+        
+        # Step 3: enqueue
         run_moderation_pipeline_task.delay()
+        cache.set(STATUS_KEY, "queued", timeout=300)
 
         messages.success(
             request,
@@ -93,15 +107,19 @@ class FlaggedContentAdmin(admin.ModelAdmin):
     
     def moderation_status(self, request):
         return JsonResponse({
-            "running": bool(cache.get("moderation:running")),
-            "completed": bool(cache.get("moderation:completed")),
+            "status": cache.get(STATUS_KEY, "idle")
         })
 
     def changelist_view(self, request: HttpRequest, extra_context=None):
-        # Check if Celery task finished
-        if cache.get("moderation:completed"):
+        status = cache.get(STATUS_KEY, "idle")
+
+        if status == "completed":
             messages.success(request, "Moderation pipeline completed successfully.")
-            cache.delete("moderation:completed")
+            cache.set(STATUS_KEY, "idle", timeout=300)
+
+        if status == "failed":
+            messages.error(request, "Moderation pipeline failed.")
+            cache.set(STATUS_KEY, "idle", timeout=300)
 
         return super().changelist_view(request, extra_context)
 
