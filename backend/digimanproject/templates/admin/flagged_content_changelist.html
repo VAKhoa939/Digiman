@@ -25,19 +25,24 @@ async function fetchStatus() {
     const response = await fetch("{% url 'admin:moderation_status' %}");
     const data = await response.json();
 
+    const status = data.status;
     const statusEl = document.getElementById("moderation-status");
     const btn = document.getElementById("run-moderation-btn");
 
-    if (data.running) {
-        statusEl.textContent = "Moderation is running…";
-        btn.disabled = true;
-    } else {
-        statusEl.textContent = "Moderation is idle";
-        btn.disabled = false;
-    }
+    const map = {
+        idle: "Moderation is idle",
+        starting: "Waking moderation engine…",
+        queued: "Task queued…",
+        running: "Moderation is running…",
+        completed: "Moderation completed",
+        failed: "Moderation failed"
+    };
     
-    if (data.completed) {
-        window.location.reload();
+    statusEl.textContent = map[status] || "Unknown status";
+    btn.disabled = ["starting", "queued", "running"].includes(status);
+    
+    if (status === "completed" || status === "failed") {
+        setTimeout(() => window.location.reload(), 1000);
     }
 }
 

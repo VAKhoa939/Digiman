@@ -10,6 +10,7 @@ const RegisterModal = ({ onClose, onSwitchToLogin }) => {
   const [passwordMatch, setPasswordMatch] = useState(true);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const { register } = useAuth();
   const { theme } = useTheme();
 
@@ -114,9 +115,13 @@ const RegisterModal = ({ onClose, onSwitchToLogin }) => {
     if (!validatePasswords(password, confirmPassword)) {
       return; // Don't submit if passwords don't match
     }
-    
-    const result = await register(username, email, password, rememberMe);
-    if (result) requestNavigate();
+    setSubmitting(true);
+    let result = null; 
+    result = await register(username, email, password, rememberMe);
+    if (result !== null) {
+      setSubmitting(false);
+      if (result === true) requestNavigate();
+    }
   };
 
   return (
@@ -189,7 +194,10 @@ const RegisterModal = ({ onClose, onSwitchToLogin }) => {
                 </div>
               </fieldset>
               <div>
-                <button type="submit" className="btn btn-primary w-100">Register</button>
+                <button 
+                  type="submit" disabled={submitting}
+                  className="btn btn-primary w-100"
+                >Register</button>
               </div>
 
               <hr className={`my-3 ${theme === 'dark' ? 'border-top border-secondary' : ''}`} />

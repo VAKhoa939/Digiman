@@ -83,7 +83,7 @@ function AppContent() {
     };
   }, [navigate]);
 
-  const onCloseModal = () => {navigate(-1);}
+  const onCloseModal = () => {if (background) navigate(background); else navigate(-1);};
 
   // Small wrapper used by the Route to pass the :id param and load data from local fixture.
   const MangaRoute = () => {

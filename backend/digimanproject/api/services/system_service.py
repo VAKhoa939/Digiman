@@ -17,7 +17,9 @@ TypesInModeration = (
 class LogEntryDetailFactory:
     @staticmethod
     def get_moderation_detail(target_object) -> Dict[str, Any]:
-        if isinstance(target_object, User):
+        if (isinstance(target_object, User)
+            and target_object.status == User.StatusChoices.ACTIVE
+        ):
             casted_user = cast_user_to_subclass(target_object)
             if isinstance(casted_user, (Reader, Administrator)):
                 return {
@@ -80,7 +82,7 @@ class LogEntryDetailFactory:
                 ],
             }
         elif (isinstance(target_object, Comment) 
-              and target_object.status != Comment.StatusChoices.DELETED):
+              and target_object.status == Comment.StatusChoices.ACTIVE):
             details = {
                 'targetType': FlaggedContent.TargetObjectTypeChoices.COMMENT.value, 
                 'attributes': [],

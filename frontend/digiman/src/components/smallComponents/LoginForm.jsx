@@ -1,10 +1,11 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import Modal from 'bootstrap/js/dist/modal';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
 const LoginModal = ({ onClose, onSwitchToRegister }) => {
+  const [submitting, setSubmitting] = useState(false);
   const modalRef = useRef(null);
   const bsRef = useRef(null);
   const closingByUserRef = useRef(false);
@@ -71,8 +72,14 @@ const LoginModal = ({ onClose, onSwitchToRegister }) => {
     const identifier = e.target.identifier.value.trim();
     const password = e.target.password.value;
     const rememberMe = e.target.rememberMe?.checked || false;
-    const result = await login(identifier, password, rememberMe);
-    if (result) requestNavigate();
+    
+    setSubmitting(true);
+    let result = null; 
+    result = await login(identifier, password, rememberMe);
+    if (result !== null) {
+      setSubmitting(false);
+      if (result === true) requestNavigate();
+    }
   };
 
   return (
@@ -102,7 +109,10 @@ const LoginModal = ({ onClose, onSwitchToRegister }) => {
                 <a href="#" className={`text-decoration-none ${theme === 'dark' ? 'text-secondary' : 'text-muted'}`}>Forgot password?</a>
               </div>
               <div className="d-grid">
-                <button type="submit" className="btn btn-primary btn-lg">Login</button>
+                <button 
+                  disabled={submitting} type="submit" 
+                  className="btn btn-primary btn-lg"
+                >Login</button>
               </div>
               <hr className={`my-3 ${theme === 'dark' ? 'border-top border-secondary' : ''}`} />
               <div className="text-center">
