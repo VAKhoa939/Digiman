@@ -206,6 +206,12 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 
 
+# Celery Wakeup
+
+IS_RENDER = env.bool("IS_RENDER", False)
+CELERY_WAKE_URL = env("CELERY_WAKE_URL", default="")
+
+
 # Django Redis Settings
 
 DJANGO_REDIS_URL = env("DJANGO_REDIS_URL")
