@@ -2,19 +2,18 @@ import uuid
 from django.db import transaction
 
 from ..models.user_models import User, Reader, Administrator
-from ..models.manga_models import MangaTitle, Chapter, Page
-from ..models.community_models import Comment
-from ..models.system_models import Announcement, LogEntry, FlaggedContent, LogEntryTargetObjectType
+from ..models.manga_models import MangaTitle, Chapter, Page, Comment
+from ..models.system_models import LogEntry, FlaggedContent, LogEntryTargetObjectType
 
 from ..utils.helper_functions import cast_user_to_subclass
 
 from typing import Any, Dict, Optional
 
-TypesInModeration = (
-    User, Reader, Administrator, MangaTitle, Chapter, Page, Comment
-)
-
 class LogEntryDetailFactory:
+    TypesInModeration = (
+        User, Reader, Administrator, MangaTitle, Chapter, Page, Comment
+    )
+
     @staticmethod
     def get_moderation_detail(target_object) -> Dict[str, Any]:
         if (isinstance(target_object, User)
@@ -102,12 +101,9 @@ class LogEntryDetailFactory:
             return details
         else:
             return {}
-        
 
-class SystemService:
 
-    # ------------------------------ Log Entry ------------------------------
-    
+class LogEntryService:
     @staticmethod
     @transaction.atomic
     def create_log_entry(
@@ -134,7 +130,7 @@ class SystemService:
                 LogEntry.ActionTypeChoices.UPDATE,
                 LogEntry.ActionTypeChoices.RESOLVE_FLAG,
             }
-            and isinstance(target_object, TypesInModeration)
+            and isinstance(target_object, LogEntryDetailFactory.TypesInModeration)
         ):
             details = LogEntryDetailFactory.get_moderation_detail(target_object)
 
@@ -152,26 +148,25 @@ class SystemService:
     def log_object_save(instance: LogEntryTargetObjectType, created: bool):
         user = getattr(instance, "_action_user", None)
         if created:
-            SystemService.create_log_entry(user, LogEntry.ActionTypeChoices.CREATE, instance)
+            LogEntryService.create_log_entry(user, LogEntry.ActionTypeChoices.CREATE, instance)
         else:
-            SystemService.create_log_entry(user, LogEntry.ActionTypeChoices.UPDATE, instance)
+            LogEntryService.create_log_entry(user, LogEntry.ActionTypeChoices.UPDATE, instance)
     
     @staticmethod
     def log_object_delete(instance: LogEntryTargetObjectType):
         user = getattr(instance, "_action_user", None)
-        SystemService.create_log_entry(user, LogEntry.ActionTypeChoices.DELETE, instance)
+        LogEntryService.create_log_entry(user, LogEntry.ActionTypeChoices.DELETE, instance)
 
     @staticmethod
     def log_login(user: User):
-        SystemService.create_log_entry(user, LogEntry.ActionTypeChoices.LOGIN, user)
+        LogEntryService.create_log_entry(user, LogEntry.ActionTypeChoices.LOGIN, user)
     
     @staticmethod
     def log_logout(user: User):
-        SystemService.create_log_entry(user, LogEntry.ActionTypeChoices.LOGOUT, user)
+        LogEntryService.create_log_entry(user, LogEntry.ActionTypeChoices.LOGOUT, user)
 
 
-    # ------------------------------ Flagged Content ------------------------------
-
+class FlaggedContentService:
     @staticmethod
     @transaction.atomic
     def create_flag(
@@ -194,7 +189,7 @@ class SystemService:
             target_object_id=log_entry.target_object_id,
         )
 
-        SystemService.create_log_entry(
+        LogEntryService.create_log_entry(
             None,
             LogEntry.ActionTypeChoices.CREATE,
             obj
@@ -206,7 +201,7 @@ class SystemService:
     @transaction.atomic
     def resolve_flag(flag: FlaggedContent, action_type: LogEntry.ActionTypeChoices):
         flag.resolve()
-        SystemService.create_log_entry(None, action_type, flag)
+        LogEntryService.create_log_entry(None, action_type, flag)
 
     @staticmethod
     def resolve_old_flags(
@@ -226,7 +221,7 @@ class SystemService:
         if not old_flags.exists():
             return
         for flag in old_flags:
-            SystemService.resolve_flag(flag, LogEntry.ActionTypeChoices.AUTO_RESOLVE_FLAG)
+            FlaggedContentService.resolve_flag(flag, LogEntry.ActionTypeChoices.AUTO_RESOLVE_FLAG)
     
     @staticmethod
     def get_flagged_content_index(flagged_content: FlaggedContent) -> int:

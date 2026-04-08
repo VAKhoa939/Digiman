@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from ..models.user_models import User
-from ..services.system_service import SystemService
+from ..services.system_service import LogEntryService
 
 
 @receiver(post_save, sender=User)
@@ -10,14 +10,14 @@ def log_user_save(sender, instance: User, created: bool, **kwargs):
         return
     if getattr(instance, "_action_user", None) is None:
         instance._action_user = instance
-    SystemService.log_object_save(instance, created)
+    LogEntryService.log_object_save(instance, created)
 
 
 @receiver(post_delete, sender=User)
 def log_user_delete(sender, instance: User, **kwargs):
     if getattr(instance, "_action_user", None) is None:
         instance._action_user = instance
-    SystemService.log_object_delete(instance)
+    LogEntryService.log_object_delete(instance)
 
 
 @receiver(pre_save, sender=User)

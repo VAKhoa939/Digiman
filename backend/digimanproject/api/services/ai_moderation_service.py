@@ -2,7 +2,7 @@ from django.db import transaction
 from ..models.system_models import LogEntry
 from .perspective_api_service import PerspectiveAPIService
 from .sightengine_service import SightengineService
-from .system_service import SystemService
+from .system_service import FlaggedContentService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -75,12 +75,12 @@ class AIModerationService:
                 continue
 
             # Resolve old flags for this content
-            SystemService.resolve_old_flags(entry.target_object_type, entry.target_object_id, content_name)
+            FlaggedContentService.resolve_old_flags(entry.target_object_type, entry.target_object_id, content_name)
 
             # Decide if unsafe to start creating flagged content
             if not is_unsafe:
                 continue
-            SystemService.create_flag(
+            FlaggedContentService.create_flag(
                 log_entry=entry,
                 content_name=content_name,
                 content=content,

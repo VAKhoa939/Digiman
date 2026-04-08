@@ -11,9 +11,10 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from .manga_models import MangaTitle, Chapter, Genre, Author, Page
+    from .manga_models import MangaTitle, Chapter, Genre, Author, Page, Comment
     from .user_models import User, Reader, Administrator
-    from .community_models import Comment, Report, Penalty
+
+ReportTargetContentType = Union["MangaTitle", "Chapter", "Comment", "User"]
 
 FlaggedContentTargetObjectType = Union[
     "MangaTitle", "Chapter", "Page", "Comment", "User", "Reader", "Administrator",
@@ -21,9 +22,71 @@ FlaggedContentTargetObjectType = Union[
 
 LogEntryTargetObjectType = Union[
     "MangaTitle", "Chapter", "Page", "Genre", "Author", "Comment", 
-    "User", "Reader", "Administrator", "Report", "FlaggedContent", "Announcement", 
-    "Penalty"
+    "User", "Reader", "Administrator", "Report", "FlaggedContent", "Penalty"
 ]
+
+class Report(models.Model):
+    class StatusChoices(models.TextChoices):
+        PENDING = "pending", "Pending"
+        RESOLVED = "resolved", "Resolved"
+        DISMISSED = "dismissed", "Dismissed"
+
+    class TargetContentTypeChoices(models.TextChoices):
+        MANGA_TITLE = "manga_title", "MangaTitle"
+        CHAPTER = "chapter", "Chapter"
+        COMMENT = "comment", "Comment"
+        USER = "user", "User"
+
+    id: uuid.UUID = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False)
+    reporter: "User" = models.ForeignKey(
+        "User", related_name="reports", on_delete=models.CASCADE)
+    category: str = models.CharField(max_length=100)
+    description: str = models.TextField(blank=True)
+    status: str = models.CharField(
+        choices=StatusChoices.choices,
+        default=StatusChoices.PENDING
+    )
+    created_at: datetime = models.DateTimeField(default=timezone.now)
+    target_content_type: str = models.CharField(
+        max_length=50,
+        choices=TargetContentTypeChoices.choices)
+    target_content_id: uuid.UUID = models.UUIDField()
+
+    def __str__(self) -> str:
+        return f"Report {self.id} - by {self.reporter.get_display_name()}\
+            - category {self.category}"
+    
+    def get_target_object(self) -> Optional[ReportTargetContentType]:
+        from .manga_models import MangaTitle, Chapter, Comment
+        from .user_models import User
+        
+        mapping: Dict[str, ReportTargetContentType] = {
+            self.TargetContentTypeChoices.MANGA_TITLE.value: MangaTitle,
+            self.TargetContentTypeChoices.CHAPTER.value: Chapter,
+            self.TargetContentTypeChoices.COMMENT.value: Comment,
+            self.TargetContentTypeChoices.USER.value: User,
+        }
+        return get_target_object(self.target_content_id,
+                    self.target_content_type, mapping)
+        
+    
+    def update_status(self, status: str) -> None:
+        self.status = status
+        self.save(update_fields=["status"])
+
+
+class Penalty(models.Model):
+    id: uuid.UUID = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False)
+    user: "User" = models.OneToOneField(
+        "User", on_delete=models.CASCADE, related_name="penalties")
+    reason: str = models.TextField()
+    duration_days: int = models.IntegerField(default=0)
+    timestamp: datetime = models.DateTimeField(default=timezone.now)
+
+    def __str__(self) -> str:
+        return f"Penalty for {self.user.get_display_name()} - at {self.timestamp}"
 
 
 class FlaggedContent(models.Model):
@@ -60,9 +123,8 @@ class FlaggedContent(models.Model):
         return f"Flagged Content #{index} on {self.target_object_type}'s {self.content_name}"
     
     def get_target_object(self) -> Optional[FlaggedContentTargetObjectType]:
-        from .manga_models import MangaTitle, Chapter, Page
+        from .manga_models import MangaTitle, Chapter, Page, Comment
         from .user_models import User, Reader, Administrator
-        from .community_models import Comment
         
         mapping: Dict[str, FlaggedContentTargetObjectType] = {
             self.TargetObjectTypeChoices.MANGA_TITLE.value: MangaTitle,
@@ -79,55 +141,6 @@ class FlaggedContent(models.Model):
     def resolve(self) -> None:
         self.is_resolved = True
         self.save(update_fields=["is_resolved"])
-
-
-class Announcement(models.Model):
-    class StatusChoices(models.TextChoices):
-        ACTIVE = "active", "Active"
-        SCHEDULED = "scheduled", "Scheduled"
-        EXPIRED = "expired", "Expired"
-        HIDDEN = "hidden", "Hidden"
-
-    id: uuid.UUID = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False)
-    title: str = models.CharField(max_length=200)
-    content: str = models.TextField()
-    created_at: datetime = models.DateTimeField(default=timezone.now)
-    scheduled_at: Optional[datetime] = models.DateTimeField(null=True, blank=True)
-    expired_at: Optional[datetime] = models.DateTimeField(null=True, blank=True)
-    status: str = models.CharField(
-        choices=StatusChoices.choices,
-        default=StatusChoices.ACTIVE,
-    )
-
-    def __str__(self) -> str:
-        return f"Announcement {self.id} - {self.title}"
-    
-    def update_metadata(self, **metadata: Any) -> None:
-        """Allowed fields: title, content"""
-        allowed_fields = {"title", "content"}
-        update_instance(self, allowed_fields, **metadata)
-    
-    def update_status(
-            self, status: str, 
-            scheduled_at: Optional[datetime] = None,
-            expired_at: Optional[datetime] = None
-        ) -> None:
-        if status not in self.StatusChoices.values:
-            raise ValueError(f"Invalid status: {status}")
-        self.status = status
-        updated_fields = ["status"]
-
-        if scheduled_at is not None:
-            self.scheduled_at = scheduled_at
-            updated_fields.append("scheduled_at")
-        elif expired_at is not None:
-            self.expired_at = expired_at
-            updated_fields.append("expired_at")
-
-        if updated_fields:
-            self.full_clean()
-            self.save(update_fields=updated_fields)
 
 
 class LogEntry(models.Model):
@@ -152,7 +165,6 @@ class LogEntry(models.Model):
         ADMINISTRATOR = "administrator", "Administrator"
         REPORT = "report", "Report"
         FLAGGED_CONTENT = "flaggedcontent", "FlaggedContent"
-        ANNOUNCEMENT = "announcement", "Announcement"
         PENALTY = "penalty", "Penalty"
 
     id: uuid.UUID = models.UUIDField(
@@ -184,9 +196,8 @@ class LogEntry(models.Model):
         return user.get_display_name()
     
     def get_target_object(self) -> Optional[LogEntryTargetObjectType]:
-        from .manga_models import MangaTitle, Chapter, Genre, Author, Page
+        from .manga_models import MangaTitle, Chapter, Genre, Author, Page, Comment
         from .user_models import User, Reader, Administrator
-        from .community_models import Comment, Report, Penalty
         
         mapping: Dict[str, LogEntryTargetObjectType] = {
             self.TargetObjectTypeChoices.MANGA_TITLE.value: MangaTitle,
@@ -200,7 +211,6 @@ class LogEntry(models.Model):
             self.TargetObjectTypeChoices.ADMINISTRATOR.value: Administrator,
             self.TargetObjectTypeChoices.REPORT.value: Report,
             self.TargetObjectTypeChoices.FLAGGED_CONTENT.value: FlaggedContent,
-            self.TargetObjectTypeChoices.ANNOUNCEMENT.value: Announcement,
             self.TargetObjectTypeChoices.PENALTY.value: Penalty,
         }
         return get_target_object(self.target_object_id,

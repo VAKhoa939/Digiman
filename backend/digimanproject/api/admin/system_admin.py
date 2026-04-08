@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.core.cache import cache
 
 from ..models.system_models import LogEntry, FlaggedContent
-from ..services.system_service import SystemService
+from ..services.system_service import LogEntryService
 from ..tasks import run_moderation_pipeline_task, STATUS_KEY
 from ..utils.celery_wake import wake_celery_worker
 
@@ -133,7 +133,7 @@ class FlaggedContentAdmin(admin.ModelAdmin):
                     "Flag resolved successfully.",
                     level=messages.SUCCESS,
                 )
-                SystemService.create_log_entry(None, LogEntry.ActionTypeChoices.RESOLVE_FLAG, obj)
+                LogEntryService.create_log_entry(None, LogEntry.ActionTypeChoices.RESOLVE_FLAG, obj)
             else:
                 self.message_user(
                     request,
