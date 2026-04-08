@@ -57,6 +57,9 @@ function NavBar() {
             <ul className="navbar-nav ms-auto align-items-center">
                 <div className="d-flex align-items-center me-2">
                 <SearchBar />
+                <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Pricing" onClick={() => navigate('/pricing')}>
+                  Pricing
+                </button>
                 <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Downloads" onClick={() => navigate('/downloads')}>
                   <CloudDownloadIcon />
                 </button>

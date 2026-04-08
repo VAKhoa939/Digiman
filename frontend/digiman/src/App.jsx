@@ -11,6 +11,8 @@ import LoginModal from './components/smallComponents/LoginForm'
 import RegisterModal from './components/smallComponents/RegisterForm'
 import AdvancedSearchPage from './components/pages/AdvancedSearchPage'
 import DownloadsPage from './components/pages/DownloadsPage'
+import Pricing from './components/pages/Pricing'
+import SubscriptionSuccess from './components/pages/SubscriptionSuccess'
 import PrivateRoute from './components/smallComponents/PrivateRoute'
 import Settings from './components/pages/Settings'
 import Profile from './components/pages/Profile'
@@ -130,6 +132,9 @@ function AppContent() {
           <Route path="/manga/:mangaId/chapter/:chapterId" element={<ChapterPage />} />
           <Route path="/manga/:mangaId/chapter/:chapterId/comments" element={<CommentsPage />} />
           <Route path="/downloads" element={<DownloadsPage />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/subscription/success" element={<SubscriptionSuccess />} />
+          <Route path="/subscription/cancel" element={<div className="container py-4"><h1>Subscription canceled</h1><p>Your subscription was canceled or the checkout was closed.</p></div>} />
           <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
           <Route path="/library" element={<PrivateRoute><Library /></PrivateRoute>} />
           <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />

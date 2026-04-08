@@ -12,4 +12,5 @@ urlpatterns = [
     # Utility endpoints
     path("auth/", include("api.urls.authentication_urls")),
     path("images/", include("api.urls.image_urls")),
+    path("payments/", include("api.urls.payment_urls")),
 ]
