@@ -4,6 +4,7 @@ from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author, Comm
 from ..services.manga_service import MangaTitleService
 from datetime import datetime
 
+
 class MangaTitleSerializer(serializers.ModelSerializer):
     """Fields for manga title: id, title, alternative_title, author_name, 
     description, cover_image, publication_status, publication_date,
@@ -58,8 +59,15 @@ class ChapterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chapter
         fields = [
-            "id", "manga_title", "manga_title_id", "title", "chapter_number", 
-            "upload_date", "page_count", "previous_chapter_id", "next_chapter_id",
+            "id", 
+            "manga_title", 
+            "manga_title_id", 
+            "title", 
+            "chapter_number", 
+            "upload_date",
+            "page_count", 
+            "previous_chapter_id", 
+            "next_chapter_id",
         ]
         read_only_fields = [
             field for field in fields if field not in {
@@ -85,9 +93,11 @@ class PageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Page
         fields = [
-            "id", "chapter_id", "page_number", "image_url",
+            "id", 
+            "chapter_id", 
+            "page_number", 
+            "image_url",
         ]
-        read_only_fields = ["id"]
 
 
 class GenreSerializer(serializers.ModelSerializer):
@@ -95,7 +105,6 @@ class GenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Genre
         fields = ["id", "name"]
-        read_only_fields = ["id"]
 
 
 class AuthorSerializer(serializers.ModelSerializer):
@@ -103,14 +112,13 @@ class AuthorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Author
         fields = ["id", "name"]
-        read_only_fields = ["id"]
         
 
 class CommentSerializer(serializers.ModelSerializer):
     """
     Fields for comment: id, owner_id, manga_title_id, chapter_id,
     parent_comment_id, text, attached_image_url, attached_image_upload,
-    created_at, status, hidden_reasons, is_edited, owner_name
+    created_at, status, hidden_reasons, is_edited, owner_name, owner_avatar
     """
     owner_name = serializers.SerializerMethodField()
     owner_avatar = serializers.SerializerMethodField()
@@ -130,11 +138,21 @@ class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = [
-            "id", "owner_id", "manga_title_id", "chapter_id", 
-            "parent_comment_id", "text", "attached_image_url",
-            "created_at", "status", "hidden_reasons", "is_edited", 
-            "owner_name", "owner_avatar",
-            "manga_title", "chapter",
+            "id", 
+            "owner_id", 
+            "manga_title_id", 
+            "chapter_id", 
+            "parent_comment_id", 
+            "text", 
+            "attached_image_url",
+            "created_at", 
+            "status", 
+            "hidden_reasons", 
+            "is_edited", 
+            "owner_name", 
+            "owner_avatar",
+            "manga_title", 
+            "chapter",
         ]
     
     def get_owner_name(self, obj: Comment) -> str:

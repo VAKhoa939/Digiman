@@ -66,11 +66,13 @@ class MangaTitle(models.Model):
     title: str = models.CharField(max_length=500, unique=True)
     alternative_title: str = models.CharField(
         max_length=500, blank=True, null=True, default="")
+    
     author: Optional["Author"] = models.ForeignKey(
         "Author", on_delete=models.SET_NULL, null=True, 
         related_name="manga_titles")
     description: str = models.TextField(blank=True)
     cover_image: str = models.URLField(blank=True, null=True, default="")
+
     publication_status: str = models.CharField(
         choices=PublicationStatusChoices.choices,
         default=PublicationStatusChoices.ONGOING)
@@ -78,10 +80,10 @@ class MangaTitle(models.Model):
     is_visible: bool = models.BooleanField(default=True)
     genres: models.ManyToManyField = models.ManyToManyField(
         "Genre", related_name="manga_titles")
+    
     is_premium: bool = models.BooleanField(default=False)
     first_free_chapter_amount: int = models.IntegerField(default=0)
     last_free_chapter_amount: int = models.IntegerField(default=0)
-
 
     def __str__(self) -> str:
         return self.title
@@ -124,7 +126,7 @@ class MangaTitle(models.Model):
     
     def get_chapters(self) -> models.QuerySet["Chapter"]:
         chapters: models.Manager["Chapter"] = self.chapters
-        return chapters.all()
+        return chapters.all().order_by("chapter_number")
     
     def get_comments(self) -> models.QuerySet["Comment"]:
         comments: models.Manager["Comment"] = self.comments
@@ -267,9 +269,11 @@ class Comment(models.Model):
         "Chapter", on_delete=models.CASCADE, null=True, blank=True, related_name="comments")
     parent_comment: Optional["Comment"] = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.CASCADE)
+    
     text: str = models.TextField(max_length=2000, blank=True, null=True)
     attached_image_url: str = models.URLField(blank=True, null=True)
     created_at: datetime = models.DateTimeField(default=timezone.now)
+    
     status: str = models.CharField(
         choices=StatusChoices.choices, 
         default=StatusChoices.ACTIVE

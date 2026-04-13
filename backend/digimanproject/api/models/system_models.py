@@ -82,7 +82,7 @@ class Penalty(models.Model):
     user: "User" = models.OneToOneField(
         "User", on_delete=models.CASCADE, related_name="penalties")
     reason: str = models.TextField()
-    duration_days: int = models.IntegerField(default=0)
+    duration_hours: int = models.IntegerField(default=0)
     timestamp: datetime = models.DateTimeField(default=timezone.now)
 
     def __str__(self) -> str:
@@ -118,8 +118,8 @@ class FlaggedContent(models.Model):
     target_object_id: uuid.UUID = models.UUIDField()
 
     def __str__(self) -> str:
-        from ..services.system_service import SystemService
-        index = SystemService.get_flagged_content_index(self)
+        from ..services.system_service import FlaggedContentService
+        index = FlaggedContentService.get_flagged_content_index(self)
         return f"Flagged Content #{index} on {self.target_object_type}'s {self.content_name}"
     
     def get_target_object(self) -> Optional[FlaggedContentTargetObjectType]:
@@ -177,6 +177,7 @@ class LogEntry(models.Model):
     action_type: str = models.CharField(
         choices=ActionTypeChoices.choices)
     timestamp: datetime = models.DateTimeField(default=timezone.now)
+
     target_object_type: str = models.CharField(
         choices=TargetObjectTypeChoices.choices)
     target_object_id: uuid.UUID = models.UUIDField()

@@ -7,6 +7,7 @@ urlpatterns = [
     path("", include("api.urls.manga_urls")),
     path("", include("api.urls.reader_urls")),
     path("", include("api.urls.system_urls")),
+    path("", include("api.urls.subscription_urls")),
 
     # Utility endpoints
     path("auth/", include("api.urls.authentication_urls")),

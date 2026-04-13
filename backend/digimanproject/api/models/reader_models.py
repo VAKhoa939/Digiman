@@ -26,6 +26,7 @@ class ReadingProgress(models.Model):
     def get_manga_title(self) -> "MangaTitle":
         return self.chapter.get_manga_title()
     
+    
 class MangaReaderStatistics(models.Model):
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)

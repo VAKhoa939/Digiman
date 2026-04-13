@@ -8,18 +8,26 @@ class ReadingProgressSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReadingProgress
         fields = [
-            "id", "reader_id", "chapter_id", "last_read_timestamp", "manga_title_id"
+            "id", 
+            "reader_id", 
+            "chapter_id", 
+            "last_read_timestamp", 
+            "manga_title_id"
         ]
-        read_only_fields = [*fields,]
 
     def get_manga_title_id(self, obj: ReadingProgress) -> str:
         return obj.get_manga_title().id
+    
     
 class MangaReaderStatisticsSerializer(serializers.ModelSerializer):
     class Meta:
         model = MangaReaderStatistics
         fields = [
-            "id", "reader_id", "manga_title_id", "is_reader_visited",
-            "is_reader_read", "is_reader_followed", "is_reader_commented",
+            "id", 
+            "reader_id", 
+            "manga_title_id", 
+            "is_reader_visited",
+            "is_reader_read", 
+            "is_reader_commented",
+            "star_rating",
         ]
-        read_only_fields = ["id", "reader_id", "manga_title_id",]
