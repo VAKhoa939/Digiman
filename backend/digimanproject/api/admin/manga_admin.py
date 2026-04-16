@@ -61,8 +61,12 @@ class CommentInline(admin.StackedInline):
     form = CommentForm
     extra = 1
     fields = (
-        "parent_comment", "owner",
-        "text", "attached_image_url", "attached_image_upload",)
+        "parent_comment", 
+        "owner",
+        "text", 
+        "attached_image_url", 
+        "attached_image_upload",
+    )
     readonly_fields = ("created_at", "owner",)
     ordering = ("created_at",)
 
@@ -87,14 +91,19 @@ class ChapterInline(admin.TabularInline):
     edit_link.short_description = "Edit Chapter"
 
 
-# --- Admin class ---
+# --- Admin classes ---
 
 @admin.register(MangaTitle)
 class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
     form = MangaTitleForm
     list_display = (
-        "title", "get_author_name", "publication_status", "is_visible", "is_premium",
-        "get_chapter_count", "get_comment_count", 
+        "title", 
+        "get_author_name", 
+        "publication_status", 
+        "is_visible", 
+        "is_premium",
+        "get_chapter_count", 
+        "get_comment_count", 
         "get_latest_chapter_upload_date",
     )
     list_filter = ("publication_status", "is_visible")
@@ -197,9 +206,14 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
 @admin.register(Chapter)
 class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
     list_display = (
-        "get_display_name", "chapter_number", "get_title", "upload_date", 
-        "get_page_count", "get_comment_count", 
-        "get_previous_chapter", "get_next_chapter",
+        "get_display_name", 
+        "chapter_number", 
+        "get_title", 
+        "upload_date", 
+        "get_page_count", 
+        "get_comment_count", 
+        "get_previous_chapter", 
+        "get_next_chapter",
     )
     list_filter = ("manga_title",)
     readonly_fields = ("upload_date",)
@@ -340,17 +354,30 @@ class GenreAdmin(LogUserMixin, admin.ModelAdmin):
 class CommentAdmin(LogUserMixin, admin.ModelAdmin):
     form = CommentForm
     list_display = (
-        "get_display_name", "owner", "manga_title", "chapter", "created_at", 
-        "get_parent_comment", "status",)
+        "get_display_name", 
+        "owner", 
+        "manga_title", 
+        "chapter", 
+        "created_at", 
+        "get_parent_comment", 
+        "status",
+    )
     list_per_page = 20
     list_filter = ("status", "created_at", "owner", "manga_title", "chapter",)
     ordering = ("-created_at", "manga_title", "chapter",)
     readonly_fields = ("created_at", "owner",)
 
     fields = (
-        "parent_comment", "owner", "manga_title", "chapter",
-        "text", "attached_image_url", "attached_image_upload",
-        "created_at", "status", "hidden_reasons",
+        "parent_comment", 
+        "owner", 
+        "manga_title", 
+        "chapter",
+        "text", 
+        "attached_image_url", 
+        "attached_image_upload",
+        "created_at", 
+        "status", 
+        "hidden_reasons",
     )
 
     def get_display_name(self, obj: Comment) -> str:

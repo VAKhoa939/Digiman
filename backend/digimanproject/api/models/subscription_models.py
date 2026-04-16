@@ -41,17 +41,16 @@ class SubscriptionPlan(models.Model):
     features: Dict[str, Any] = models.JSONField(null=False, default=dict)
     updated_at = models.DateTimeField(default=timezone.now)
 
-    provider = models.CharField(
-        max_length=100, 
-        choices=PaymentProvider.choices, 
-        default=PaymentProvider.STRIPE)
-    external_price_id = models.CharField(max_length=100, default="")
+    stripe_price_id = models.CharField(max_length=100, default="", blank=True, null=True)
 
     def __str__(self):
         return self.name
     
     def get_name(self) -> str:
         return self.name
+    
+    def get_stripe_price_id(self) -> str:
+        return self.stripe_price_id
 
     def check_access(self, feature: str) -> bool:
         return feature in self.features and self.features[feature].lower() == "true"
@@ -62,8 +61,16 @@ class SubscriptionPlan(models.Model):
         super().save(*args, **kwargs)
 
     def update(self, **data: Any) -> None:
-        """Allowed fields: name, price_vnd, price_usd, description, features"""
-        allowed_fields = ["name", "price_vnd", "price_usd", "description", "features"]
+        """Allowed fields: name, price_usd, frequency, 
+        description, features, stripe_price_id"""
+        allowed_fields = [
+            "name", 
+            "frequency", 
+            "price_usd", 
+            "description", 
+            "features", 
+            "stripe_price_id"
+        ]
         update_instance(self, allowed_fields, **data)
 
 
@@ -101,6 +108,15 @@ class ReaderSubscription(models.Model):
     def __str__(self):
         return f"Reader {self.reader.get_display_name()} - {self.subscription_plan.get_name()} Plan"
     
+    @admin.display(
+        description="External Subscription ID",
+    )
+    def get_masked_external_subscription_id(self) -> str:
+        if not self.external_subscription_id:
+            return "None"
+        n = len(self.external_subscription_id)
+        return "*" * (n - 4) + self.external_subscription_id[-4:]
+
     def check_is_plan_premium(self) -> bool:
         return self.subscription_plan.get_name() != "Free"
     
