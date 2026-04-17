@@ -6,7 +6,6 @@ from django.utils import timezone
 from django.contrib import admin
 
 import uuid
-import decimal
 from ..utils.helper_functions import update_instance
 
 from typing import TYPE_CHECKING
