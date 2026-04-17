@@ -5,7 +5,7 @@ from ..models.subscription_models import SubscriptionPlan, ReaderSubscription, P
 class SubscriptionPlanSerializer(serializers.ModelSerializer):
     """Fields for Subscription Plan: name, description, 
     price_usd, frequency, features, updated_at,
-    provider, external_price_id"""
+    stripe_price_id"""
 
     class Meta:
         model = SubscriptionPlan
@@ -17,8 +17,7 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
             "frequency", 
             "features",
             "updated_at",
-            "provider",
-            "external_price_id"
+            "stripe_price_id"
         ]
 
 

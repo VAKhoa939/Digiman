@@ -1,76 +1,143 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
+import freePlan from '../../data/plans';
+import PlanCard from '../smallComponents/PlanCard';
+import ConfirmModal from '../smallComponents/ConfirmModal';
+import Spinner from '../smallComponents/Spinner';
+
+const PROVIDERS = [
+  { id: 'Stripe', label: 'Pay with Stripe', enabled: true },
+  { id: 'Momo', label: 'Pay with Momo', enabled: false },
+];
 
 export default function Pricing() {
-  const [loading, setLoading] = useState(false);
+  const [plans, setPlans] = useState([freePlan]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [loadingProvider, setLoadingProvider] = useState(null);
+  const [error, setError] = useState(null);
+  const [pendingCheckout, setPendingCheckout] = useState(null);
 
-  async function startCheckout(priceId) {
-    if (!priceId) {
-      alert('Payment price ID is not configured.');
-      return;
+  useEffect(() => {
+    async function fetchPlans() {
+      try {
+        const res = await api.get('subscription-plans/');
+        setPlans(res.data.results ?? res.data);
+      } catch {
+        setError('Failed to load subscription plans.');
+      } finally {
+        setLoadingPlans(false);
+      }
     }
-    setLoading(true);
+    fetchPlans();
+  }, []);
+
+  function requestCheckout(planId) {
+    const plan = plans.find((p) => p.id === planId);
+    setPendingCheckout({ planId, plan });
+  }
+
+  function cancelCheckout() {
+    if (loadingProvider) return;
+    setPendingCheckout(null);
+  }
+
+  async function confirmCheckout(provider) {
+    if (!pendingCheckout) return;
+    const { planId } = pendingCheckout;
+    setError(null);
+    setLoadingProvider(provider);
     try {
-      const res = await fetch('/api/payments/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ priceId }),
+      const res = await api.post('payments/create-checkout-session', {
+        subscriptionPlanId: planId,
+        provider: provider,
       });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
+      if (res.data.url) {
+        window.location.href = res.data.url;
       } else {
-        alert('Failed to create checkout session');
-        setLoading(false);
+        setError('Failed to create checkout session.');
       }
     } catch (err) {
       console.error(err);
-      alert('Unexpected error creating checkout session');
-      setLoading(false);
+      const detail = err.response?.data?.detail;
+      setError(detail || err.message || 'Unexpected error creating checkout session.');
+    } finally {
+      setLoadingProvider(null);
+      setPendingCheckout(null);
     }
   }
 
+  const pendingPlan = pendingCheckout?.plan;
+  const pendingPrice = pendingPlan
+    ? `$${pendingPlan.price_usd}/${pendingPlan.frequency}`
+    : '';
+
   return (
     <div className="container py-4">
-      <h1>Pricing</h1>
-
-      <div className="row g-3">
-        <div className="col-md-6">
-          <div className="card p-4 h-100">
-            <h3>Free Plan</h3>
-            <p className="text-muted">Access with no cost</p>
-            <ul>
-              <li>Limited access to free manga titles / chapters</li>
-              <li>Reading with accessibility options and progress tracking</li>
-              <li>Engage community with comments</li>
-              <li>Personalized homepage</li>
-            </ul>
-            <div className="mt-auto">
-              <a href="/register" className="btn btn-outline-primary">Get Free</a>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-md-6">
-          <div className="card p-4 h-100">
-            <h3>Basic Plan</h3>
-            <p className="text-muted">Recommended — monthly subscription</p>
-            <strong className="d-block mb-2">$5 / month</strong>
-            <ul>
-              <li>Unlimited access to premium manga titles / chapters</li>
-              <li>Reading with accessibility options and progress tracking</li>
-              <li>Engage community with comments</li>
-              <li>Personalized homepage</li>
-              <li>Ability to download chapters and read without internet access</li>
-            </ul>
-            <div className="mt-auto">
-              <button className="btn btn-primary" onClick={() => startCheckout(import.meta.env.VITE_STRIPE_PRICE_BASIC)} disabled={loading}>
-                {loading ? 'Redirecting…' : 'Subscribe — $5/mo'}
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="pricing-hero">
+        <h1>Choose Your Plan</h1>
+        <p>Unlock premium manga, offline reading, and more with a plan that fits you.</p>
       </div>
+
+      {error && <div className="alert alert-danger text-center">{error}</div>}
+
+      {loadingPlans ? (
+        <Spinner />
+      ) : (
+        <div className="row g-4 justify-content-center">
+          {plans.map((plan) => (
+            <div key={plan.id} className="col-sm-6 col-lg-5">
+              <PlanCard
+                plan={plan}
+                loadingPlan={loadingProvider ? pendingCheckout?.planId : null}
+                onCheckout={requestCheckout}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <ConfirmModal
+        show={!!pendingCheckout}
+        onClose={cancelCheckout}
+        title="Confirm Subscription"
+        body={
+          pendingCheckout && (
+            <>
+              <p>
+                You are subscribing to the{' '}
+                <strong>{pendingPlan?.name}</strong> at{' '}
+                <strong>{pendingPrice}</strong>.
+              </p>
+              <p className="mb-0">Choose a payment method to continue:</p>
+            </>
+          )
+        }
+        loading={!!loadingProvider}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={cancelCheckout}
+              disabled={!!loadingProvider}
+            >
+              Cancel
+            </button>
+            {PROVIDERS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="btn btn-primary provider-btn"
+                onClick={() => confirmCheckout(p.id)}
+                disabled={!p.enabled || !!loadingProvider}
+              >
+                {loadingProvider === p.id ? 'Redirecting…' : p.label}
+                {!p.enabled && ' (Coming soon)'}
+              </button>
+            ))}
+          </>
+        }
+      />
     </div>
   );
 }

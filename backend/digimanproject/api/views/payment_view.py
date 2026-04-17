@@ -40,7 +40,7 @@ class CreateCheckoutSession(APIView):
         if not provider:
             return Response({"detail": "Missing provider."}, status=status.HTTP_400_BAD_REQUEST)
         
-        if provider == "stripe":
+        if provider.lower() == "stripe":
             frontend_url = env("FRONTEND_URL")
             price_id = subscription_plan.get_stripe_price_id()
             return stripe_create_checkout_session(user, price_id, frontend_url)
