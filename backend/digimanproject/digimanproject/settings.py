@@ -246,7 +246,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Jazzmin Settings For Styling Admin UI
 
 JAZZMIN_SETTINGS = {
-    # --- Basic UI branding (optional) ---
+    # --- Basic UI branding ---
     "site_title": "Digiman Admin",
     "site_header": "Digiman Administration",
     "welcome_sign": "Welcome to Digiman Admin",
@@ -254,38 +254,25 @@ JAZZMIN_SETTINGS = {
     
     # --- Sidebar configuration ---
     "show_sidebar": True,
-    "navigation_expanded": False,
+    "navigation_expanded": True,
+    "order_with_respect_to": [
+        "api.User",
+        "api.Reader",
+        "api.Administrator",
 
-    # --- custom group title --- 
-    "menus": [
-        {
-            "app": "api",
-            "label": "User Accounts",
-            "models": [
-                "api.User",
-                "api.Reader",
-                "api.Administrator",
-            ],
-        },
-        {
-            "app": "api",
-            "label": "Manga Content",
-            "models": [
-                "api.MangaTitle",
-                "api.Author",
-                "api.Genre",
-                "api.Chapter",
-                "api.Comment",
-            ],
-        },
-        {
-            "app": "api",
-            "label": "System Management",
-            "models": [
-                "api.LogEntry",
-                "api.FlaggedContent",
-            ],
-        },
+        "api.MangaTitle", 
+        "api.Chapter",
+        "api.Page",
+        "api.Comment",
+        "api.Author",
+        "api.Genre",
+
+        "api.FlaggedContent",
+        "api.LogEntry",
+
+        "api.SubscriptionPlan",
+        "api.ReaderSubscription",
+        "api.PaymentTransaction",
     ],
 
     # --- Optional visuals ---
@@ -293,14 +280,20 @@ JAZZMIN_SETTINGS = {
         "api.User": "fas fa-user",
         "api.Reader": "fas fa-book-reader",
         "api.Administrator": "fas fa-user-shield",
+
         "api.MangaTitle": "fas fa-book",
         "api.Author": "fas fa-user-tie",
         "api.Genre": "fas fa-list",
         "api.Chapter": "fas fa-scroll",
         "api.Page": "fas fa-image",
         "api.Comment": "fas fa-comments",
+
         "api.LogEntry": "fas fa-history",
         "api.FlaggedContent": "fas fa-flag",
+
+        "api.SubscriptionPlan" : "fas fa-credit-card",
+        "api.ReaderSubscription" : "fas fa-user-tag",
+        "api.PaymentTransaction" : "fas fa-arrows-alt-h",
     },
 }
 

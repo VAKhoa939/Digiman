@@ -101,11 +101,11 @@ class UserAdmin(BaseUserAdmin):
 @admin.register(Reader)
 class ReaderAdmin(BaseUserAdmin):
     form = ReaderAdminForm
-    list_display: tuple[str, ...] = (*BaseUserAdmin.list_display, "display_name", "age")
+    list_display: tuple[str, ...] = (*BaseUserAdmin.list_display, "display_name")
     search_fields: tuple[str, ...] = (*BaseUserAdmin.search_fields, "display_name")
     readonly_fields: tuple[str, ...] = (*BaseUserAdmin.readonly_fields,)
     
-    fields: tuple[str, ...] = (*BaseUserAdmin.fields, "display_name", "avatar", "avatar_upload", "age")
+    fields: tuple[str, ...] = (*BaseUserAdmin.fields, "display_name", "avatar", "avatar_upload")
     
     def get_queryset(self, request: HttpRequest):
         """Filter the queryset to only include readers."""

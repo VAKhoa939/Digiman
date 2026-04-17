@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.core.cache import cache
 
 from ..models.system_models import LogEntry, FlaggedContent
-from ..services.system_service import SystemService
+from ..services.system_service import LogEntryService
 from ..tasks import run_moderation_pipeline_task, STATUS_KEY
 from ..utils.celery_wake import wake_celery_worker
 
@@ -15,12 +15,25 @@ from ..utils.celery_wake import wake_celery_worker
 @admin.register(LogEntry)
 class LogEntryAdmin(admin.ModelAdmin):
     list_display = (
-        "get_display_name", "action_type", "get_user_display_name", 
-        "target_object_type", "target_object_id", "timestamp", 
-        "is_moderated"
+        "get_display_name", 
+        "action_type", 
+        "user", 
+        "target_object_type", 
+        "timestamp", 
+        "is_moderated",
     )
-    list_filter = ("action_type", "target_object_type")
+    list_filter = ("action_type", "user", "target_object_type",)
     ordering = ("-timestamp",)
+    fields = (
+        "id",
+        "user", 
+        "action_type", 
+        "timestamp", 
+        "target_object_type", 
+        "target_object_id", 
+        "is_moderated", 
+        "details",
+    )
 
     def get_display_name(self, obj: LogEntry) -> str:
         return str(obj)
@@ -36,15 +49,26 @@ class LogEntryAdmin(admin.ModelAdmin):
 @admin.register(FlaggedContent)
 class FlaggedContentAdmin(admin.ModelAdmin):
     list_display = (
-        "get_display_name", "target_object_type", "content_name", 
-        "dominant_attribute", "severity_score", "flagged_at"
+        "get_display_name", 
+        "target_object_type", 
+        "content_name", 
+        "dominant_attribute", 
+        "severity_score", 
+        "flagged_at",
     )
     ordering = ("-flagged_at",)
 
     fields = (
-        "dominant_attribute", "severity_score", "reason", "details", 
-        "flagged_at", "is_content_image", "content_name", "content", 
-        "target_object_type", "target_object_id",
+        "dominant_attribute", 
+        "severity_score", 
+        "reason", 
+        "details", 
+        "flagged_at", 
+        "is_content_image", 
+        "content_name", 
+        "content", 
+        "target_object_type", 
+        "target_object_id",
     )
 
     readonly_fields = (*fields,)
@@ -133,7 +157,7 @@ class FlaggedContentAdmin(admin.ModelAdmin):
                     "Flag resolved successfully.",
                     level=messages.SUCCESS,
                 )
-                SystemService.create_log_entry(None, LogEntry.ActionTypeChoices.RESOLVE_FLAG, obj)
+                LogEntryService.create_log_entry(None, LogEntry.ActionTypeChoices.RESOLVE_FLAG, obj)
             else:
                 self.message_user(
                     request,

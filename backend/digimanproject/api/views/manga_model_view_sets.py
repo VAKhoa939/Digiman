@@ -1,11 +1,14 @@
 from rest_framework import viewsets
+from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 
-from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
-from ..serializers.manga_model_serializers import MangaTitleSerializer, ChapterSerializer, PageSerializer, GenreSerializer, AuthorSerializer
+from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author, Comment
+from ..serializers.manga_model_serializers import MangaTitleSerializer, ChapterSerializer, PageSerializer, GenreSerializer, AuthorSerializer, CommentSerializer
+from ..services.manga_service import CommentService
 
-from ..filters.manga_filters import MangaTitleFilter, ChapterFilter
+from ..filters.manga_filters import MangaTitleFilter, ChapterFilter, CommentFilter
 from ..permissions.admin_permissions import AdminWriteOnly
 from django.db.models import Max
 
@@ -104,3 +107,49 @@ class AuthorViewSet(viewsets.ModelViewSet):
     filter_backends = [SearchFilter, OrderingFilter]
     ordering_fields = ["name"]
     ordering = ["name"]
+
+
+class CommentViewSet(viewsets.ModelViewSet):
+    permission_classes = [AllowAny]
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = CommentFilter
+    ordering_fields = ["created_at"]
+    ordering = ["created_at"]
+    
+    def perform_create(self, serializer: CommentSerializer):
+        request = self.request
+        attached_image_file = request.FILES.get("attached_image_upload")
+        if isinstance(attached_image_file, list):
+            attached_image_file = attached_image_file[0]
+
+        # Add the action user to the validated data
+        data = serializer.validated_data
+        #data["_action_user"] = request.user
+
+        comment = CommentService.create_comment(
+            data, request.user, attached_image_file
+        )
+        serializer.instance = comment
+
+    def perform_update(self, serializer: CommentSerializer):
+        request = self.request
+
+        attached_image_file = request.FILES.get("attached_image_upload")
+        if isinstance(attached_image_file, list):
+            attached_image_file = attached_image_file[0]
+
+        # Add the action user to the object
+        comment: Comment = serializer.instance
+        comment._action_user = request.user
+
+        updated_comment = CommentService.update_comment(
+            comment, serializer.validated_data, attached_image_file
+        )
+        serializer.instance = updated_comment
+
+    def perform_destroy(self, instance: Comment):
+        # Not allowed
+        raise PermissionDenied("Deleting comments is not allowed.")
+

@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .manga_models import MangaTitle, Chapter
-    from .reader_models import ReaderPreferences, LibraryList, ReadingProgress
-    from .community_models import Comment, Report, Notification
+    from .reader_models import ReadingProgress
+    from .community_models import Comment, Report
 
 class User(AbstractUser):
     class RoleChoices(models.TextChoices):
@@ -69,7 +69,6 @@ class User(AbstractUser):
 class Reader(User):
     display_name: str = models.CharField(max_length=100, blank=True, default="")
     avatar: str = models.URLField(blank=True, null=True, default="")
-    age: Optional[int] = models.PositiveIntegerField(null=True, blank=True)
     
     class Meta:
         verbose_name = "Reader"
@@ -81,8 +80,7 @@ class Reader(User):
     def update_metadata(self, **metadata: Any) -> None:
         """Allowed fields: """
         allowed_fields = {
-            "username", "email", "password", "status", "display_name", 
-            "avatar", "age"
+            "username", "email", "password", "status", "display_name", "avatar"
         }
         update_instance(self, allowed_fields, **metadata)
    
@@ -91,83 +89,6 @@ class Reader(User):
     
     def get_avatar(self):
         return self.avatar if self.avatar != "" else super().get_avatar()
-    
-    # Library List Management
-    def get_library_lists(self) -> models.QuerySet["LibraryList"]:
-        from .reader_models import LibraryList
-        lists: models.Manager["LibraryList"] = self.library_lists
-        return lists.filter(visibility_in=[
-            LibraryList.VisibilityChoices.PUBLIC,
-            LibraryList.VisibilityChoices.PRIVATE
-        ])
-    
-    def get_built_in_library_lists(self) -> models.QuerySet["LibraryList"]:
-        from .reader_models import LibraryList
-
-        existing_names = set(
-            LibraryList.objects.filter(
-                reader=self,
-                visibility=LibraryList.VisibilityChoices.BUILTIN
-            ).values_list("name", flat=True)
-        )
-
-        missing = [n for n in LibraryList.BuiltInListNames.values() \
-                    if n not in existing_names]
-        if missing:
-            LibraryList.objects.bulk_create([
-                LibraryList(
-                    reader=self,
-                    name=n, 
-                    visibility=LibraryList.VisibilityChoices.BUILTIN
-                ) for n in missing
-            ])
-
-        return LibraryList.objects.filter(
-            reader=self, visibility=LibraryList.VisibilityChoices.BUILTIN)
-    
-    def get_public_library_lists(self) -> models.QuerySet["LibraryList"]:
-        from .reader_models import LibraryList
-        lists: models.Manager["LibraryList"] = self.library_lists
-        return lists.filter(visibility=LibraryList.VisibilityChoices.PUBLIC)
-    
-    def create_library_list(self, name: str, visibility: str) -> "LibraryList":
-        from .reader_models import LibraryList
-        return LibraryList.objects.create(
-            reader=self, name=name, visibility=visibility)
-    
-    def update_library_list(
-        self, library_list: "LibraryList", **metadata: Any
-    ) -> None:
-        """Allowed fields: name, visibility"""
-        library_list.update_metadata(**metadata)
-
-    def delete_library_list(self, library_list: "LibraryList") -> bool:
-        deleted, _ = library_list.delete()
-        return deleted > 0
-
-    # Preferences Management
-    def get_preferences(self) -> "ReaderPreferences":
-        from .reader_models import ReaderPreferences
-        prefs, _ = ReaderPreferences.objects.get_or_create(reader=self)
-        return prefs
-    
-    def update_preferences(self, **preferences_data: Any) -> None:
-        """Allowed fields: theme_mode, page_display_style, 
-        reading_direction, image_size_mode, is_progress_bar_visible"""
-        prefs = self.get_preferences()
-        prefs.update_preferences(**preferences_data)
-
-    # Reading History Management
-    def get_reading_history(self) -> models.QuerySet["ReadingProgress"]:
-        history: models.Manager[ReadingProgress] = self.reading_progress
-        return history.all()
-    
-    def add_reading_progress(self, chapter: Chapter) -> "ReadingProgress":
-        from .reader_models import ReadingProgress
-        return ReadingProgress.objects.create(reader=self, chapter=chapter)
-    
-    def remove_reading_progress(self, reading_progress: "ReadingProgress") -> None:
-        reading_progress.delete()
 
     # Comment Management
     def post_comment(
@@ -186,9 +107,11 @@ class Reader(User):
         )
 
     def update_comment(
-        self, comment: "Comment", text: Optional[str], content: Optional[str]
+        self, comment: "Comment", 
+        text: Optional[str] = None,
+        attached_image_url: Optional[str] = None,
     ) -> None:
-        comment.update_metadata(text=text, content=content)
+        comment.update_metadata(text=text, attached_image_url=attached_image_url)
 
     def delete_comment(self, comment: "Comment") -> None:
         comment.set_deleted()

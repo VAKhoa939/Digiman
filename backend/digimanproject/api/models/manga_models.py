@@ -6,12 +6,12 @@ from django.utils import timezone
 from django.contrib import admin
 
 import uuid
-from ..utils.helper_functions import update_instance
+from ..utils.helper_functions import update_instance, update_instance, cast_user_to_subclass
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .community_models import Comment
+    from .user_models import User
 
 class Author(models.Model):
     id: uuid.UUID = models.UUIDField(
@@ -66,11 +66,13 @@ class MangaTitle(models.Model):
     title: str = models.CharField(max_length=500, unique=True)
     alternative_title: str = models.CharField(
         max_length=500, blank=True, null=True, default="")
+    
     author: Optional["Author"] = models.ForeignKey(
         "Author", on_delete=models.SET_NULL, null=True, 
         related_name="manga_titles")
     description: str = models.TextField(blank=True)
     cover_image: str = models.URLField(blank=True, null=True, default="")
+
     publication_status: str = models.CharField(
         choices=PublicationStatusChoices.choices,
         default=PublicationStatusChoices.ONGOING)
@@ -78,8 +80,10 @@ class MangaTitle(models.Model):
     is_visible: bool = models.BooleanField(default=True)
     genres: models.ManyToManyField = models.ManyToManyField(
         "Genre", related_name="manga_titles")
-    preview_chapter: Optional["Chapter"] = models.ForeignKey(
-        "Chapter", on_delete=models.SET_NULL, blank=True, null=True)
+    
+    is_premium: bool = models.BooleanField(default=False)
+    first_free_chapter_amount: int = models.IntegerField(default=0)
+    last_free_chapter_amount: int = models.IntegerField(default=0)
 
     def __str__(self) -> str:
         return self.title
@@ -105,12 +109,6 @@ class MangaTitle(models.Model):
     def get_author_name(self) -> str:
         return self.author.get_name()
     
-    @admin.display(
-        description="Preview Chapter"
-    )
-    def get_preview_chapter_number(self) -> int:
-        return self.preview_chapter.get_chapter_number()
-    
     def get_latest_chapter(self) -> "Chapter":
         chapters: models.Manager["Chapter"] = self.chapters
         return chapters.order_by("-upload_date").first()
@@ -128,7 +126,7 @@ class MangaTitle(models.Model):
     
     def get_chapters(self) -> models.QuerySet["Chapter"]:
         chapters: models.Manager["Chapter"] = self.chapters
-        return chapters.all()
+        return chapters.all().order_by("chapter_number")
     
     def get_comments(self) -> models.QuerySet["Comment"]:
         comments: models.Manager["Comment"] = self.comments
@@ -136,7 +134,8 @@ class MangaTitle(models.Model):
 
     def update_metadata(self, **metadata: Any) -> None:
         """allowed_fields: title, alternative_title, author, description, 
-        cover_image, publication_status, is_visible, preview_chapter"""
+        cover_image, publication_status, is_visible, is_premium,
+        first_free_chapter_amount, last_free_chapter_amount"""
 
         allowed_fields = {
             "title",
@@ -146,7 +145,9 @@ class MangaTitle(models.Model):
             "cover_image",
             "publication_status",
             "is_visible",
-            "preview_chapter",
+            "is_premium",
+            "first_free_chapter_amount",
+            "last_free_chapter_amount",
         }
         update_instance(self, allowed_fields, **metadata)
 
@@ -250,3 +251,83 @@ class Page(models.Model):
         """allowed_fields: page_number, image_url"""
         allowed_fields = {"page_number", "image_url"}
         update_instance(self, allowed_fields, **metadata)
+
+
+class Comment(models.Model):
+    class StatusChoices(models.TextChoices):
+        ACTIVE = "active", "Active"
+        DELETED = "deleted", "Deleted"
+        HIDDEN = "hidden", "Hidden"
+
+    id: uuid.UUID = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False)
+    owner: Optional["User"] = models.ForeignKey(
+        "User", null=True, blank=True, on_delete=models.SET_NULL, related_name="comments")
+    manga_title: Optional["MangaTitle"] = models.ForeignKey(
+        "MangaTitle", on_delete=models.CASCADE, null=True, blank=True, related_name="comments")
+    chapter: Optional["Chapter"] = models.ForeignKey(
+        "Chapter", on_delete=models.CASCADE, null=True, blank=True, related_name="comments")
+    parent_comment: Optional["Comment"] = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.CASCADE)
+    
+    text: str = models.TextField(max_length=2000, blank=True, null=True)
+    attached_image_url: str = models.URLField(blank=True, null=True)
+    created_at: datetime = models.DateTimeField(default=timezone.now)
+    
+    status: str = models.CharField(
+        choices=StatusChoices.choices, 
+        default=StatusChoices.ACTIVE
+    )
+    hidden_reasons: str = models.TextField(blank=True)
+    is_edited: bool = models.BooleanField(default=False)
+
+    def __str__(self) -> str:
+        index = Comment.get_comment_index(self)
+        where = self.manga_title if self.manga_title else self.chapter
+        if index is not None:
+            return f"Comment #{index} in {where}"
+        else:
+            return f"Comment by {self.get_owner_name()} at {self.created_at}"
+        
+    def get_owner_name(self) -> str:
+        return (cast_user_to_subclass(self.owner).get_display_name() 
+                if self.owner else "Guest")
+    
+    def get_owner_avatar(self) -> str:
+        return (cast_user_to_subclass(self.owner).get_avatar() 
+                if self.owner else "")
+
+    def toggle_hidden(self, hidden_reasons: str = "") -> None:
+        self.status = (
+            Comment.StatusChoices.HIDDEN 
+            if self.status == Comment.StatusChoices.ACTIVE else 
+            Comment.StatusChoices.ACTIVE
+        )
+        self.hidden_reasons = hidden_reasons
+        self.save(update_fields=["status", "hidden_reasons"])
+    
+    def set_deleted(self) -> None:
+        self.status = Comment.StatusChoices.DELETED
+        self.save(update_fields=["status"])
+
+    def update_metadata(self, **metadata: Any) -> None:
+        """Allowed fields: text, attached_image_url, status, hidden_reasons"""
+        allowed_fields = {"text", "attached_image_url", "status", "hidden_reasons"}
+
+        # set is_edited to True if any of the allowed fields are changed
+        if not self.is_edited and any(field in allowed_fields for field in metadata.keys()):
+            metadata["is_edited"] = True
+            allowed_fields.add("is_edited")
+            
+        update_instance(self, allowed_fields, **metadata)
+
+    @staticmethod
+    def get_comment_index(comment: Comment) -> Optional[int]:
+        if comment.manga_title:
+            comments = comment.manga_title.get_comments().order_by("created_at")
+        elif comment.chapter:
+            comments = comment.chapter.get_comments().order_by("created_at")
+        else:
+            return None
+        return comments.filter(created_at__lte=comment.created_at).count()
+        

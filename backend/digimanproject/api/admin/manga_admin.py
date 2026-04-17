@@ -4,10 +4,8 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.utils.html import format_html
 from django.urls import reverse
 from django.http import HttpRequest
-from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author
-from ..models.community_models import Comment
-from ..services.manga_service import MangaService
-from ..services.community_service import CommunityService
+from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author, Comment
+from ..services.manga_service import MangaTitleService, ChapterService, PageService, CommentService
 from .mixins import LogUserMixin
 
 
@@ -63,8 +61,12 @@ class CommentInline(admin.StackedInline):
     form = CommentForm
     extra = 1
     fields = (
-        "parent_comment", "owner",
-        "text", "attached_image_url", "attached_image_upload",)
+        "parent_comment", 
+        "owner",
+        "text", 
+        "attached_image_url", 
+        "attached_image_upload",
+    )
     readonly_fields = ("created_at", "owner",)
     ordering = ("created_at",)
 
@@ -89,14 +91,19 @@ class ChapterInline(admin.TabularInline):
     edit_link.short_description = "Edit Chapter"
 
 
-# --- Admin class ---
+# --- Admin classes ---
 
 @admin.register(MangaTitle)
 class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
     form = MangaTitleForm
     list_display = (
-        "title", "get_author_name", "publication_status", "is_visible", 
-        "get_chapter_count", "get_comment_count", 
+        "title", 
+        "get_author_name", 
+        "publication_status", 
+        "is_visible", 
+        "is_premium",
+        "get_chapter_count", 
+        "get_comment_count", 
         "get_latest_chapter_upload_date",
     )
     list_filter = ("publication_status", "is_visible")
@@ -118,7 +125,9 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
             "publication_status", 
             "is_visible", 
             "genres",
-            "preview_chapter",
+            "is_premium",
+            "first_free_chapter_amount",
+            "last_free_chapter_amount",
         )}),
     )
     
@@ -133,18 +142,18 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
 
         if not change:
             # create form
-            manga = MangaService.create_manga_title(form.cleaned_data, cover_image_file)
+            manga = MangaTitleService.create_manga_title(form.cleaned_data, cover_image_file)
             obj.pk = manga.pk
         else:
             # update form
-            MangaService.update_manga_title(obj, form.cleaned_data, cover_image_file)
+            MangaTitleService.update_manga_title(obj, form.cleaned_data, cover_image_file)
 
     def delete_model(self, request, obj):
         # Attach the current user to the object for logging
         user = request.user
         obj._action_user = user
 
-        MangaService.delete_manga_title(obj)
+        MangaTitleService.delete_manga_title(obj)
     
     def save_formset(
         self, request: HttpRequest, form: forms.ModelForm, 
@@ -160,14 +169,14 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
         if hasattr(formset, "deleted_objects"):
             for obj in formset.deleted_objects:
                 if isinstance(obj, Comment):
-                    CommunityService.delete_comment(obj)
+                    CommentService.delete_comment(obj)
         else:
             # Fallback for Django versions where deleted_objects isn't populated yet
             for form_instance in formset.forms:
                 if form_instance.cleaned_data.get("DELETE", False):
                     obj = form_instance.instance
                     if obj.pk and isinstance(obj, Comment):
-                        CommunityService.delete_comment(obj)
+                        CommentService.delete_comment(obj)
 
         # Filter out deleted forms
         active_forms = [
@@ -186,9 +195,9 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
 
             image_file = form_instance.cleaned_data.pop("attached_image_upload")
             if obj.pk:
-                CommunityService.update_comment(obj, form_instance.cleaned_data, image_file)
+                CommentService.update_comment(obj, form_instance.cleaned_data, image_file)
             else:
-                comment = CommunityService.create_comment(form_instance.cleaned_data, request.user, image_file)
+                comment = CommentService.create_comment(form_instance.cleaned_data, request.user, image_file)
                 obj.pk = comment.pk # Make sure the obj is attached
 
         formset.save_m2m()
@@ -197,9 +206,14 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
 @admin.register(Chapter)
 class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
     list_display = (
-        "get_display_name", "chapter_number", "get_title", "upload_date", 
-        "get_page_count", "get_comment_count", 
-        "get_previous_chapter", "get_next_chapter",
+        "get_display_name", 
+        "chapter_number", 
+        "get_title", 
+        "upload_date", 
+        "get_page_count", 
+        "get_comment_count", 
+        "get_previous_chapter", 
+        "get_next_chapter",
     )
     list_filter = ("manga_title",)
     readonly_fields = ("upload_date",)
@@ -222,13 +236,13 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
     get_display_name.short_description = "Display name"
 
     def get_previous_chapter(self, obj: Chapter) -> str:
-        id = MangaService.get_previous_chapter_id(obj)
-        return MangaService.get_chapter_display_name(id)
+        id = ChapterService.get_previous_chapter_id(obj)
+        return ChapterService.get_chapter_display_name(id)
     get_previous_chapter.short_description = "Previous chapter"
 
     def get_next_chapter(self, obj: Chapter) -> str:
-        id = MangaService.get_next_chapter_id(obj)
-        return MangaService.get_chapter_display_name(id)
+        id = ChapterService.get_next_chapter_id(obj)
+        return ChapterService.get_chapter_display_name(id)
     get_next_chapter.short_description = "Next chapter"
     
     def save_formset(
@@ -242,18 +256,18 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
         if hasattr(formset, "deleted_objects"):
             for obj in formset.deleted_objects:
                 if isinstance(obj, Page):
-                    MangaService.delete_page(obj)
+                    PageService.delete_page(obj)
                 if isinstance(obj, Comment):
-                    CommunityService.delete_comment(obj)
+                    CommentService.delete_comment(obj)
         else:
             # Fallback for Django versions where deleted_objects isn't populated yet
             for form_instance in formset.forms:
                 if form_instance.cleaned_data.get("DELETE", False):
                     obj = form_instance.instance
                     if obj.pk and isinstance(obj, Page):
-                        MangaService.delete_page(obj)
+                        PageService.delete_page(obj)
                     if obj.pk and isinstance(obj, Comment):
-                        CommunityService.delete_comment(obj)
+                        CommentService.delete_comment(obj)
 
         # Filter out deleted forms
         active_forms = [
@@ -273,17 +287,17 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
                 print("saving page", str(obj))
                 image_file = form_instance.cleaned_data.pop("image_upload")
                 if obj.pk:
-                    MangaService.update_page(obj, form_instance.cleaned_data, image_file)
+                    PageService.update_page(obj, form_instance.cleaned_data, image_file)
                 else:
-                    page = MangaService.create_page(form_instance.cleaned_data, image_file)
+                    page = PageService.create_page(form_instance.cleaned_data, image_file)
                     obj.pk = page.pk # Make sure the obj is attached
             if isinstance(obj, Comment):
                 print("saving comment", str(obj))
                 image_file = form_instance.cleaned_data.pop("attached_image_upload")
                 if obj.pk:
-                    CommunityService.update_comment(obj, form_instance.cleaned_data, image_file)
+                    CommentService.update_comment(obj, form_instance.cleaned_data, image_file)
                 else:
-                    comment = CommunityService.create_comment(form_instance.cleaned_data, request.user, image_file)
+                    comment = CommentService.create_comment(form_instance.cleaned_data, request.user, image_file)
                     obj.pk = comment.pk # Make sure the obj is attached
 
         formset.save_m2m()
@@ -311,17 +325,17 @@ class PageAdmin(LogUserMixin, admin.ModelAdmin):
         image_file: InMemoryUploadedFile = form.cleaned_data.pop("image_upload")
 
         if not change:
-            page = MangaService.create_page(form.cleaned_data, image_file)
+            page = PageService.create_page(form.cleaned_data, image_file)
             obj.pk = page.pk # Make sure the obj is attached
         else:
-            MangaService.update_page(obj, form.cleaned_data, image_file)
+            PageService.update_page(obj, form.cleaned_data, image_file)
 
     def delete_model(self, request, obj):
         # Attach the current user to the object for logging
         user = request.user
         obj._action_user = user
 
-        MangaService.delete_page(obj)
+        PageService.delete_page(obj)
     
     
 @admin.register(Author)
@@ -340,17 +354,30 @@ class GenreAdmin(LogUserMixin, admin.ModelAdmin):
 class CommentAdmin(LogUserMixin, admin.ModelAdmin):
     form = CommentForm
     list_display = (
-        "get_display_name", "owner", "manga_title", "chapter", "created_at", 
-        "get_parent_comment", "status",)
+        "get_display_name", 
+        "owner", 
+        "manga_title", 
+        "chapter", 
+        "created_at", 
+        "get_parent_comment", 
+        "status",
+    )
     list_per_page = 20
     list_filter = ("status", "created_at", "owner", "manga_title", "chapter",)
     ordering = ("-created_at", "manga_title", "chapter",)
     readonly_fields = ("created_at", "owner",)
 
     fields = (
-        "parent_comment", "owner", "manga_title", "chapter",
-        "text", "attached_image_url", "attached_image_upload",
-        "created_at", "status", "hidden_reasons",
+        "parent_comment", 
+        "owner", 
+        "manga_title", 
+        "chapter",
+        "text", 
+        "attached_image_url", 
+        "attached_image_upload",
+        "created_at", 
+        "status", 
+        "hidden_reasons",
     )
 
     def get_display_name(self, obj: Comment) -> str:
@@ -371,14 +398,14 @@ class CommentAdmin(LogUserMixin, admin.ModelAdmin):
         print("attached_image_upload", image_file)
 
         if not change:
-            comment = CommunityService.create_comment(form.cleaned_data, request.user, image_file)
+            comment = CommentService.create_comment(form.cleaned_data, request.user, image_file)
             obj.pk = comment.pk # Make sure the obj is attached
         else:
-            CommunityService.update_comment(obj, form.cleaned_data, image_file)
+            CommentService.update_comment(obj, form.cleaned_data, image_file)
 
     def delete_model(self, request, obj):
         # Attach the current user to the object for logging
         user = request.user
         obj._action_user = user
 
-        CommunityService.delete_comment(obj)
+        CommentService.delete_comment(obj)
