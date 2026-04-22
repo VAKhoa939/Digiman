@@ -11,9 +11,8 @@ from ..utils.helper_functions import update_instance
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .manga_models import MangaTitle, Chapter
-    from .reader_models import ReadingProgress
-    from .community_models import Comment, Report
+    from .manga_models import MangaTitle, Chapter, Comment
+    from .system_models import Report
 
 class User(AbstractUser):
     class RoleChoices(models.TextChoices):
@@ -44,11 +43,20 @@ class User(AbstractUser):
     def __str__(self):
         return self.username
     
+    def get_id(self):
+        return self.id
+    
     def get_avatar(self):
         return ""
     
     def get_display_name(self):
         return self.username
+    
+    def get_email(self):
+        return self.email
+    
+    def get_role(self):
+        return self.role
 
     def update_password(self, password: str) -> None:
         self.set_password(password)
@@ -98,7 +106,7 @@ class Reader(User):
         manga_title: Optional["MangaTitle"] = None, 
         chapter: Optional["Chapter"] = None
     ) -> "Comment":
-        from .community_models import Comment
+        from .manga_models import Comment
         
         return Comment.objects.create(
             owner=self, text=text, attached_image_url=attached_image_url,
@@ -121,7 +129,7 @@ class Reader(User):
         self, content: str, target_content_type: str, 
         target_content_id: uuid.UUID
     ) -> "Report":
-        from .community_models import Report
+        from .manga_models import Report
         
         if target_content_type not in Report.TargetContentTypeChoices.values():
             raise ValueError(f"Invalid target content type: {target_content_type}")

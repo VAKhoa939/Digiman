@@ -1,9 +1,13 @@
 from rest_framework.routers import DefaultRouter
-from ..views.subscription_model_view_sets import SubscriptionPlanViewSet, ReaderSubscriptionViewSet, PaymentTransactionViewSet
+from django.urls import path
+from ..views.subscription_view import SubscriptionPlanViewSet, ReaderSubscriptionViewSet, PaymentTransactionViewSet, SubscriptionMeView
 
 router = DefaultRouter()
-router.register(r'subscription-plans', SubscriptionPlanViewSet, basename='subscription-plan')
+router.register(r'plans', SubscriptionPlanViewSet, basename='plan')
 router.register(r'reader-subscriptions', ReaderSubscriptionViewSet, basename='reader-subscription')
-router.register(r'payment-transactions', PaymentTransactionViewSet, basename='payment-transaction')
+router.register(r'transactions', PaymentTransactionViewSet, basename='transaction')
 
 urlpatterns = router.urls
+urlpatterns.extend([
+    path("me", SubscriptionMeView.as_view(), name="me"),
+])

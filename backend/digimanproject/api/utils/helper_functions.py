@@ -2,6 +2,7 @@ from typing import Any, Dict, Optional, Set, Tuple, TypeVar, TYPE_CHECKING
 import uuid
 from django.db.models import Model
 from rest_framework.serializers import Serializer
+from datetime import datetime, timezone
 
 if TYPE_CHECKING:
     from ..models.user_models import User
@@ -62,3 +63,6 @@ def cast_user_to_subclass(user: "User"):
         return Administrator.objects.get(pk=user.pk)
     else:
         return user
+    
+def stripe_ts_to_datetime(ts: int) -> datetime:
+    return datetime.fromtimestamp(ts, tz=timezone.utc)
