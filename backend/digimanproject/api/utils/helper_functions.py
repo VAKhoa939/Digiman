@@ -43,6 +43,8 @@ def get_dominant_attribute_and_score(scores: Dict[str, float], thresholds: Dict[
     """
     if not scores:
         return "unknown", 0.0
+    dominant_key = "unknown"
+    dominant_score = 0.0
     max_margin = float('-inf')
     for attribute, score in scores.items():
         if attribute not in thresholds:
