@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from .user_models import Reader
 
 
-class PaymentProvider(models.TextChoices):
+class PaymentProviderChoices(models.TextChoices):
     STRIPE = "Stripe"
     MOMO = "Momo"
     NONE = "None"
@@ -100,9 +100,10 @@ class ReaderSubscription(models.Model):
 
     provider = models.CharField(
         max_length=100, 
-        choices=PaymentProvider.choices, 
-        default=PaymentProvider.NONE)
+        choices=PaymentProviderChoices.choices, 
+        default=PaymentProviderChoices.NONE)
     external_subscription_id = models.CharField(max_length=100, default="")
+    external_customer_id = models.CharField(max_length=100, default="")
 
     def __str__(self):
         return f"Reader {self.reader.get_display_name()} - {self.subscription_plan.get_name()} Plan"
@@ -135,7 +136,7 @@ class ReaderSubscription(models.Model):
         self.start_date = timezone.now()
         self.next_billing_date = None
         self.last_billing_date = None
-        self.provider = PaymentProvider.NONE
+        self.provider = PaymentProviderChoices.NONE
         self.external_subscription_id = ""
         self.save(update_fields=["subscription_plan", "status", "is_auto_renewal",
             "start_date", "next_billing_date", "last_billing_date", 
@@ -195,10 +196,16 @@ class PaymentTransaction(models.Model):
 
     provider = models.CharField(
         max_length=100,
-        choices=PaymentProvider.choices,
-        default=PaymentProvider.STRIPE)
+        choices=PaymentProviderChoices.choices,
+        default=PaymentProviderChoices.STRIPE)
     external_transaction_id = models.CharField(max_length=100, default="")
+    external_customer_id = models.CharField(max_length=100, default="")
 
     def __str__(self):
         return f"Transaction {self.created_at} - Reader {self.reader.get_display_name()}"
+    
+    def update_metadata(self, **metadata: Any) -> None:
+        """Allowed fields: reader, subscription_plan"""
+        allowed_fields = ["reader", "subscription_plan",]
+        update_instance(self, allowed_fields, **metadata)
     

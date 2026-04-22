@@ -20,7 +20,7 @@ export default function Pricing() {
   useEffect(() => {
     async function fetchPlans() {
       try {
-        const res = await api.get('subscription-plans/');
+        const res = await api.get('subscriptions/plans/');
         setPlans(res.data.results ?? res.data);
       } catch {
         setError('Failed to load subscription plans.');
@@ -48,7 +48,7 @@ export default function Pricing() {
     setLoadingProvider(provider);
     try {
       const res = await api.post('payments/create-checkout-session', {
-        subscriptionPlanId: planId,
+        planId: planId,
         provider: provider,
       });
       if (res.data.url) {

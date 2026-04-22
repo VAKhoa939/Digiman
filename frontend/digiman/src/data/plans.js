@@ -12,9 +12,6 @@ const freePlan = {
   ],
   price_usd: '0.00',
   frequency: 'permanent',
-  features: {},
-  updated_at: null,
-  external_price_id: null,
 };
 
 export default freePlan;
