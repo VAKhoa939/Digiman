@@ -56,10 +56,12 @@ def get_dominant_attribute_and_score(scores: Dict[str, float], thresholds: Dict[
     return dominant_key, dominant_score
 
 def cast_user_to_subclass(user: "User"):
-    from ..models.user_models import User, Reader, Administrator
-    if user.role == User.RoleChoices.READER:
+    from ..models.user_models import Reader, Administrator, RoleChoices
+
+    role = user.get_role()
+    if role == RoleChoices.READER:
         return Reader.objects.get(pk=user.pk)
-    elif user.role == User.RoleChoices.ADMIN:
+    elif role == RoleChoices.ADMIN:
         return Administrator.objects.get(pk=user.pk)
     else:
         return user

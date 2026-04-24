@@ -13,12 +13,15 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .manga_models import MangaTitle, Chapter, Comment
     from .system_models import Report
+    from .subscription_models import ReaderSubscription
+
+
+class RoleChoices(models.TextChoices):
+    ADMIN = "admin", "Administrator"
+    READER = "reader", "Reader"
+
 
 class User(AbstractUser):
-    class RoleChoices(models.TextChoices):
-        ADMIN = "admin", "Administrator"
-        READER = "reader", "Reader"
-
     class StatusChoices(models.TextChoices):
         ACTIVE = "active", "Active"
         SUSPENDED = "suspended", "Suspended"
@@ -57,6 +60,9 @@ class User(AbstractUser):
     
     def get_role(self):
         return self.role
+    
+    def check_admin_access(self):
+        return self.role == RoleChoices.ADMIN
 
     def update_password(self, password: str) -> None:
         self.set_password(password)
@@ -98,7 +104,7 @@ class Reader(User):
     def get_avatar(self):
         return self.avatar if self.avatar != "" else super().get_avatar()
 
-    # Comment Management
+    """ Comment Management """
     def post_comment(
         self, text: Optional[str] = None,
         attached_image_url: Optional[str] = None,
@@ -123,8 +129,16 @@ class Reader(User):
 
     def delete_comment(self, comment: "Comment") -> None:
         comment.set_deleted()
+    
+    """ Subscription Management """
+    def get_subscription(self) -> "ReaderSubscription":
+        return ReaderSubscription.objects.get(reader_id=self.id)
 
-    # Report Management
+    def check_subscription_feature_access(self, feature: str) -> bool:
+        subscription = self.get_subscription()
+        return subscription.check_access(feature)
+
+    """ Report Management """
     def post_report(
         self, content: str, target_content_type: str, 
         target_content_id: uuid.UUID
@@ -138,6 +152,7 @@ class Reader(User):
             target_content_type=target_content_type, 
             target_content_id=target_content_id
         )
+
 
 class Administrator(Reader):
     

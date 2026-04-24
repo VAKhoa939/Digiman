@@ -215,22 +215,23 @@ class CurrentUserView(APIView):
         Response data:
         - body: (User/Reader/Administrator data)
         """
-        from ..models.user_models import User, Reader, Administrator
+        from ..models.user_models import User, Reader, Administrator, RoleChoices
         from ..serializers.user_model_serializers import UserSerializer, ReaderSerializer, AdministratorSerializer
         
         user = request.user
-        if not isinstance(user, User):
+        if not user or not isinstance(user, User):
             return Response(
                 {"detail": "Invalid user type."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         # Check if the user is also a Reader or Administrator
-        match user.role:
-            case User.RoleChoices.READER:
+        role = user.get_role()
+        match role:
+            case RoleChoices.READER:
                 user = Reader.objects.get(pk=user.pk)
                 serializer = ReaderSerializer(user)
-            case User.RoleChoices.ADMIN:
+            case RoleChoices.ADMIN:
                 user = Administrator.objects.get(pk=user.pk)
                 serializer = AdministratorSerializer(user)
             case _:

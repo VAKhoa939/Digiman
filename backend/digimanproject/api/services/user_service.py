@@ -2,7 +2,6 @@ from django.db import transaction
 from ..models.user_models import User, Reader, Administrator
 from ..services.image_service import ImageService, BucketNames
 from rest_framework.request import Request
-import uuid
 
 from typing import Union
 

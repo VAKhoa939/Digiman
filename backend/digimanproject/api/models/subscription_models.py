@@ -20,6 +20,11 @@ class PaymentProviderChoices(models.TextChoices):
     NONE = "None"
 
 
+class SubscriptionFeatureChoices(models.TextChoices):
+    PREMIUM_CHAPTERS = "premium_chapters"
+    OFFLINE_READING = "offline_reading"
+
+
 class SubscriptionPlan(models.Model):
     class FrequencyChoices(models.TextChoices):
         PERMANENT = "permanent", "Permanent"
@@ -42,6 +47,11 @@ class SubscriptionPlan(models.Model):
 
     stripe_price_id = models.CharField(max_length=100, default="", blank=True, null=True)
 
+    class Meta:
+        ordering = ["price_usd"]
+        verbose_name = "Subscription Plan"
+        verbose_name_plural = "Subscription Plans"
+
     def __str__(self):
         return self.name
     
@@ -50,6 +60,9 @@ class SubscriptionPlan(models.Model):
     
     def get_stripe_price_id(self) -> str:
         return self.stripe_price_id
+    
+    def get_features(self) -> Dict[str, Any]:
+        return self.features
 
     def check_access(self, feature: str) -> bool:
         return feature in self.features and self.features[feature].lower() == "true"
@@ -105,9 +118,19 @@ class ReaderSubscription(models.Model):
     external_subscription_id = models.CharField(max_length=100, default="")
     external_customer_id = models.CharField(max_length=100, default="")
 
+    class Meta:
+        verbose_name = "Reader Subscription"
+        verbose_name_plural = "Reader Subscriptions"
+
     def __str__(self):
         return f"Reader {self.reader.get_display_name()} - {self.subscription_plan.get_name()} Plan"
     
+    def get_plan_features(self) -> Dict[str, Any]:
+        return self.subscription_plan.get_features()
+    
+    def get_plan_name(self) -> str:
+        return self.subscription_plan.get_name()
+
     @admin.display(
         description="External Subscription ID",
     )
@@ -117,8 +140,13 @@ class ReaderSubscription(models.Model):
         n = len(self.external_subscription_id)
         return "*" * (n - 4) + self.external_subscription_id[-4:]
 
-    def check_is_plan_premium(self) -> bool:
+    def check_plan_premium(self) -> bool:
         return self.subscription_plan.get_name() != "Free"
+    
+    def check_access(self, feature: str) -> bool:
+        if self.status != self.StatusChoices.ACTIVE:
+            return False
+        return self.subscription_plan.check_access(feature)
     
     def toggle_auto_renewal(self) -> None:
         self.is_auto_renewal = not self.is_auto_renewal
@@ -200,6 +228,11 @@ class PaymentTransaction(models.Model):
         default=PaymentProviderChoices.STRIPE)
     external_transaction_id = models.CharField(max_length=100, default="")
     external_customer_id = models.CharField(max_length=100, default="")
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Payment Transaction"
+        verbose_name_plural = "Payment Transactions"
 
     def __str__(self):
         return f"Transaction {self.created_at} - Reader {self.reader.get_display_name()}"
