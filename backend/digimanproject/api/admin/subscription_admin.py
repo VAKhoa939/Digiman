@@ -63,6 +63,7 @@ class ReaderSubscriptionAdmin(LogUserMixin, admin.ModelAdmin):
         'status',
         'provider',
         'get_masked_external_subscription_id',
+        'get_masked_external_customer_id',
     )
 
     def get_display_name(self, obj: ReaderSubscription) -> str:
@@ -77,6 +78,7 @@ class ReaderSubscriptionAdmin(LogUserMixin, admin.ModelAdmin):
     
     def has_delete_permission(self, request, obj=None):
         return False
+
 
 @admin.register(PaymentTransaction)
 class PaymentTransactionAdmin(LogUserMixin, admin.ModelAdmin):
@@ -101,7 +103,8 @@ class PaymentTransactionAdmin(LogUserMixin, admin.ModelAdmin):
         'created_at',
         'paid_at',
         'provider',
-        'external_transaction_id',
+        'get_masked_external_transaction_id',
+        'get_masked_external_customer_id',
     )
 
     def get_display_name(self, obj: PaymentTransaction) -> str:

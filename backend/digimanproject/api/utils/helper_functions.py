@@ -68,3 +68,9 @@ def cast_user_to_subclass(user: "User"):
     
 def stripe_ts_to_datetime(ts: int) -> datetime:
     return datetime.fromtimestamp(ts, tz=timezone.utc)
+
+def format_datetime_long(dt: datetime) -> str:
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+def format_datetime_short(dt: datetime) -> str:
+    return dt.strftime("%Y-%m-%d")

@@ -5,9 +5,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from ..services.user_service import UserService
 from rest_framework_simplejwt.views import TokenRefreshView
+
+from ..services.user_service import UserService
 from ..services.system_service import LogEntryService
+from ..services.subscription_service import ReaderSubscriptionService
 
 
 def set_refresh_cookie(response: Response, refresh_token: str, remember: bool):
@@ -67,6 +69,9 @@ class RegisterView(APIView):
         LogEntryService.log_object_save(user, True)
         LogEntryService.log_login(user)
 
+        # Create ReaderSubscription
+        ReaderSubscriptionService.create_reader_subscription_free_plan(user.email)
+
         # Issue JWT
         refresh = RefreshToken.for_user(user)
         response = Response(
@@ -110,6 +115,9 @@ class LoginView(APIView):
         
         # Log login
         LogEntryService.log_login(user)
+
+        # Create ReaderSubscription if needed
+        ReaderSubscriptionService.create_reader_subscription_free_plan(user.email)
 
         # Issue JWT
         refresh = RefreshToken.for_user(user)

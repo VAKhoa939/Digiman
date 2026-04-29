@@ -1,5 +1,5 @@
 from django.db import transaction
-from ..models.user_models import User, Reader, Administrator
+from ..models.user_models import User, Reader, Administrator, RoleChoices
 from ..services.image_service import ImageService, BucketNames
 from rest_framework.request import Request
 
@@ -21,7 +21,7 @@ class UserService:
         (default: Reader).
         Optionally uploads avatar.
         """
-        role = data.get("role") or User.RoleChoices.READER
+        role = data.get("role") or RoleChoices.READER
 
         # Handle avatar upload
         avatar_url = None
@@ -33,9 +33,9 @@ class UserService:
             data["avatar"] = avatar_url
 
         # Role-based user creation
-        if role == User.RoleChoices.READER:
+        if role == RoleChoices.READER:
             user = Reader.objects.create(**data)
-        elif role == User.RoleChoices.ADMIN:
+        elif role == RoleChoices.ADMIN:
             # Set admin-specific fields, allowing full access
             data["is_superuser"] = True
             data["is_staff"] = True
@@ -89,16 +89,16 @@ class UserService:
 
     @staticmethod
     def get_user_model(role: str) -> UserType:
-        if role == User.RoleChoices.READER:
+        if role == RoleChoices.READER:
             return Reader
-        elif role == User.RoleChoices.ADMIN:
+        elif role == RoleChoices.ADMIN:
             return Administrator
         else:
             raise ValueError(f"Invalid role: {role}")
 
     @staticmethod
     def check_user_exists(
-        username: str, email: str, role: str = User.RoleChoices.READER
+        username: str, email: str, role: str = RoleChoices.READER
     ) -> bool:
         UserModel = UserService.get_user_model(role)
         return (UserModel.objects.filter(username=username).exists() 

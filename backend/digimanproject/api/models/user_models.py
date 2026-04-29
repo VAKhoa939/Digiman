@@ -132,6 +132,7 @@ class Reader(User):
     
     """ Subscription Management """
     def get_subscription(self) -> "ReaderSubscription":
+        from .subscription_models import ReaderSubscription
         return ReaderSubscription.objects.get(reader_id=self.id)
 
     def check_subscription_feature_access(self, feature: str) -> bool:
@@ -143,7 +144,7 @@ class Reader(User):
         self, content: str, target_content_type: str, 
         target_content_id: uuid.UUID
     ) -> "Report":
-        from .manga_models import Report
+        from .system_models import Report
         
         if target_content_type not in Report.TargetContentTypeChoices.values():
             raise ValueError(f"Invalid target content type: {target_content_type}")

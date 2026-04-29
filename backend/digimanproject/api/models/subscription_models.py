@@ -58,6 +58,9 @@ class SubscriptionPlan(models.Model):
     def get_name(self) -> str:
         return self.name
     
+    def get_price_usd(self) -> float:
+        return self.price_usd
+    
     def get_stripe_price_id(self) -> str:
         return self.stripe_price_id
     
@@ -130,6 +133,12 @@ class ReaderSubscription(models.Model):
     
     def get_plan_name(self) -> str:
         return self.subscription_plan.get_name()
+    
+    def get_plan(self) -> "SubscriptionPlan":
+        return self.subscription_plan
+    
+    def get_reader(self) -> "Reader":
+        return self.reader
 
     @admin.display(
         description="External Subscription ID",
@@ -138,7 +147,16 @@ class ReaderSubscription(models.Model):
         if not self.external_subscription_id:
             return "None"
         n = len(self.external_subscription_id)
-        return "*" * (n - 4) + self.external_subscription_id[-4:]
+        return self.external_subscription_id[:4] + "*" * (n - 8) + self.external_subscription_id[-4:]
+
+    @admin.display(
+        description="External Customer ID",
+    )
+    def get_masked_external_customer_id(self) -> str:
+        if not self.external_customer_id:
+            return "None"
+        n = len(self.external_customer_id)
+        return self.external_customer_id[:4] + "*" * (n - 8) + self.external_customer_id[-4:]
 
     def check_plan_premium(self) -> bool:
         return self.subscription_plan.get_name() != "Free"
@@ -148,6 +166,23 @@ class ReaderSubscription(models.Model):
             return False
         return self.subscription_plan.check_access(feature)
     
+    def update_metadata(self, **metadata: Any) -> None:
+        """Allowed fields: subscription_plan, status, is_auto_renewal,
+        start_date, next_billing_date, last_billing_date, provider,
+        external_subscription_id, external_customer_id"""
+        allowed_fields = [
+            "subscription_plan", 
+            "status", 
+            "is_auto_renewal",
+            "start_date", 
+            "next_billing_date", 
+            "last_billing_date",
+            "provider", 
+            "external_subscription_id", 
+            "external_customer_id",
+        ]
+        update_instance(self, allowed_fields, **metadata)
+
     def toggle_auto_renewal(self) -> None:
         self.is_auto_renewal = not self.is_auto_renewal
         self.save(update_fields=["is_auto_renewal"])
@@ -166,9 +201,18 @@ class ReaderSubscription(models.Model):
         self.last_billing_date = None
         self.provider = PaymentProviderChoices.NONE
         self.external_subscription_id = ""
-        self.save(update_fields=["subscription_plan", "status", "is_auto_renewal",
-            "start_date", "next_billing_date", "last_billing_date", 
-            "provider", "external_subscription_id",])
+        self.external_customer_id = ""
+        self.update_metadata(
+            subscription_plan=self.subscription_plan,
+            status=self.status,
+            is_auto_renewal=self.is_auto_renewal,
+            start_date=self.start_date,
+            next_billing_date=self.next_billing_date,
+            last_billing_date=self.last_billing_date,
+            provider=self.provider,
+            external_subscription_id=self.external_subscription_id,
+            external_customer_id=self.external_customer_id
+        )
         
     def set_past_due(self):
         self.status = self.StatusChoices.PAST_DUE
@@ -180,16 +224,6 @@ class ReaderSubscription(models.Model):
         self.next_billing_date = next_billing_date
         self.save(update_fields=["status", "last_billing_date", "next_billing_date"])
         
-    def update_metadata(self, **metadata: Any) -> None:
-        """Allowed fields: subscription_plan, status, is_auto_renewal,
-        start_date, next_billing_date, last_billing_date, provider,
-        external_subscription_id"""
-        allowed_fields = ["subscription_plan", "status", "is_auto_renewal",
-            "start_date", "next_billing_date", "last_billing_date",
-            "provider", "external_subscription_id",
-        ]
-        update_instance(self, allowed_fields, **metadata)
-
 
 class PaymentTransaction(models.Model):
     class TransactionTypeChoices(models.TextChoices):
@@ -235,7 +269,43 @@ class PaymentTransaction(models.Model):
         verbose_name_plural = "Payment Transactions"
 
     def __str__(self):
-        return f"Transaction {self.created_at} - Reader {self.reader.get_display_name()}"
+        from ..utils.helper_functions import format_datetime_long
+        return f"Transaction {format_datetime_long(self.created_at)} - Reader {self.reader.get_display_name()}"
+    
+    @admin.display(description="External Transaction ID")
+    def get_masked_external_transaction_id(self) -> str:
+        if not self.external_transaction_id:
+            return "None"
+        n = len(self.external_transaction_id)
+        return self.external_transaction_id[:4] + "*" * (n - 8) + self.external_transaction_id[-4:]
+    
+    @admin.display(description="External Customer ID")
+    def get_masked_external_customer_id(self) -> str:
+        if not self.external_customer_id:
+            return "None"
+        n = len(self.external_customer_id)
+        return self.external_customer_id[:4] + "*" * (n - 8) + self.external_customer_id[-4:]
+
+    def get_reader(self) -> "Reader":
+        return self.reader
+    
+    def get_amount_usd(self) -> float:
+        return self.amount_usd
+    
+    def get_created_at(self) -> datetime:
+        return self.created_at
+    
+    def get_paid_at(self) -> datetime:
+        return self.paid_at
+    
+    def get_provider(self) -> str:
+        return self.provider
+    
+    def get_plan_name(self) -> str:
+        return self.subscription_plan.get_name()
+    
+    def check_success(self) -> bool:
+        return self.status == self.StatusChoices.SUCCESS
     
     def update_metadata(self, **metadata: Any) -> None:
         """Allowed fields: reader, subscription_plan"""
