@@ -34,7 +34,8 @@ class StripeService:
             subscription_plan=plan,
             external_subscription_id=external_subscription_id,
             external_customer_id=external_customer_id,
-            status=ReaderSubscription.StatusChoices.INACTIVE,
+            status=ReaderSubscription.SubscriptionStatusChoices.INACTIVE,
+            last_payment_status=ReaderSubscription.LastPaymentStatusChoices.PENDING,
             provider=PaymentProviderChoices.STRIPE,
             is_auto_renewal=False
         )
@@ -60,7 +61,8 @@ class StripeService:
         subscription.update_metadata(
             next_billing_date=stripe_ts_to_datetime(next_billing_date),
             last_billing_date=stripe_ts_to_datetime(last_billing_date),
-            status=ReaderSubscription.StatusChoices.ACTIVE,
+            status=ReaderSubscription.SubscriptionStatusChoices.ACTIVE,
+            last_payment_status=ReaderSubscription.LastPaymentStatusChoices.PAID,
             is_auto_renewal=True
         )
 

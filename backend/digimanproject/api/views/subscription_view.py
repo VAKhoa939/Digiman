@@ -9,6 +9,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from ..models.subscription_models import SubscriptionPlan, ReaderSubscription, PaymentTransaction
 from ..serializers.subscription_serializers import SubscriptionPlanSerializer, ReaderSubscriptionSerializer, PaymentTransactionSerializer, SubscriptionMeSerializer
+from ..services.subscription_service import ReaderSubscriptionService
 
 from ..permissions.admin_permissions import AdminWriteOnly
 
@@ -42,7 +43,10 @@ class SubscriptionMeView(APIView):
         if not user or not isinstance(user, User):
             return Response({"detail": "Invalid user."}, status=status.HTTP_400_BAD_REQUEST)
 
+        ReaderSubscriptionService.check_or_create_reader_subscription(user.get_id())
+
         return Response(
-            SubscriptionMeSerializer(user.get_id()).data, 
+            SubscriptionMeSerializer(user.get_id()).data.get
+            ("reader_subscription"), 
             status=status.HTTP_200_OK
         )

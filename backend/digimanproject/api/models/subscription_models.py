@@ -90,10 +90,17 @@ class SubscriptionPlan(models.Model):
 
 
 class ReaderSubscription(models.Model):
-    class StatusChoices(models.TextChoices):
+    class SubscriptionStatusChoices(models.TextChoices):
         ACTIVE = "active", "Active"
         INACTIVE = "inactive", "Inactive"
         PAST_DUE = "past_due", "Past Due"
+
+    class LastPaymentStatusChoices(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PAID = "paid", "Paid"
+        UNPAID = "unpaid", "Unpaid"
+        FAILED = "failed", "Failed"
+        NONE = "none", "None"
 
     id = models.UUIDField(
         primary_key=True, editable=False, default=uuid.uuid4)
@@ -110,9 +117,14 @@ class ReaderSubscription(models.Model):
 
     status = models.CharField(
         max_length=100, 
-        choices=StatusChoices.choices, 
-        default=StatusChoices.ACTIVE)
+        choices=SubscriptionStatusChoices.choices, 
+        default=SubscriptionStatusChoices.ACTIVE)
     is_auto_renewal = models.BooleanField(default=True)
+    last_payment_status = models.CharField(
+        max_length=100, 
+        choices=LastPaymentStatusChoices.choices, 
+        default=LastPaymentStatusChoices.NONE
+    )
 
     provider = models.CharField(
         max_length=100, 
@@ -162,18 +174,19 @@ class ReaderSubscription(models.Model):
         return self.subscription_plan.get_name() != "Free"
     
     def check_access(self, feature: str) -> bool:
-        if self.status != self.StatusChoices.ACTIVE:
+        if self.status != self.SubscriptionStatusChoices.ACTIVE:
             return False
         return self.subscription_plan.check_access(feature)
     
     def update_metadata(self, **metadata: Any) -> None:
         """Allowed fields: subscription_plan, status, is_auto_renewal,
         start_date, next_billing_date, last_billing_date, provider,
-        external_subscription_id, external_customer_id"""
+        external_subscription_id, external_customer_id, last_payment_status"""
         allowed_fields = [
             "subscription_plan", 
             "status", 
             "is_auto_renewal",
+            "last_payment_status",
             "start_date", 
             "next_billing_date", 
             "last_billing_date",
@@ -189,12 +202,12 @@ class ReaderSubscription(models.Model):
 
     def change_plan(self, subscription_plan: SubscriptionPlan):
         self.subscription_plan = subscription_plan
-        self.status = self.StatusChoices.ACTIVE
+        self.status = self.SubscriptionStatusChoices.ACTIVE
         self.is_auto_renewal = True
 
     def set_free_plan(self):
         self.subscription_plan = SubscriptionPlan.objects.get(name="Free")
-        self.status = self.StatusChoices.ACTIVE
+        self.status = self.SubscriptionStatusChoices.ACTIVE
         self.is_auto_renewal = True
         self.start_date = timezone.now()
         self.next_billing_date = None
@@ -215,11 +228,11 @@ class ReaderSubscription(models.Model):
         )
         
     def set_past_due(self):
-        self.status = self.StatusChoices.PAST_DUE
+        self.status = self.SubscriptionStatusChoices.PAST_DUE
         self.save(update_fields=["status"])
 
     def renew(self, last_billing_date, next_billing_date):
-        self.status = self.StatusChoices.ACTIVE
+        self.status = self.SubscriptionStatusChoices.ACTIVE
         self.last_billing_date = last_billing_date
         self.next_billing_date = next_billing_date
         self.save(update_fields=["status", "last_billing_date", "next_billing_date"])

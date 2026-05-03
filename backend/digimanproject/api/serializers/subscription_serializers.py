@@ -65,7 +65,7 @@ class SubscriptionMeSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     plan_name = serializers.CharField(max_length=100, read_only=True)
     status = serializers.ChoiceField(
-        choices=ReaderSubscription.StatusChoices.choices, 
+        choices=ReaderSubscription.SubscriptionStatusChoices.choices, 
         read_only=True
     )
     features = serializers.JSONField(read_only=True)
@@ -82,8 +82,9 @@ class SubscriptionMeSerializer(serializers.Serializer):
             return {
                 "id": subscription.id, 
                 "plan_name": subscription.get_plan_name(), 
-                "status": subscription.status, 
                 "features": subscription.get_plan_features(), 
+                "status": subscription.status, 
+                "last_payment_status": subscription.last_payment_status,
                 "next_billing_date": subscription.next_billing_date, 
                 "last_billing_date": subscription.last_billing_date
             }

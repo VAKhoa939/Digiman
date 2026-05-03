@@ -164,8 +164,6 @@ export default function CommentsPage({ inline = false }){
   }
 
   const rootClass = inline ? 'comments-section' : 'container my-4 comments-section'
-  console.log('comments', comments)
-  console.log('user', user)
   return (
     <div className={rootClass}>
       <div className="d-flex justify-content-between align-items-center mb-3">

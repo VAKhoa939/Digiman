@@ -3,12 +3,15 @@ import {
   login as apiLogin, logout as apiLogout, fetchUser as apiFetchUser,
   register as apiRegister
 } from "../services/auth";
+import { fetchMySubscription } from "../services/subscriptionService";
+import { emitToast } from "../utils/toast";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null); 
+  const [subscription, setSubscription] = useState(null);
   const [fetchUserLoading, setfetchUserLoading] = useState(true);
 
   const fetchUser = useCallback(async () => {
@@ -16,10 +19,16 @@ export function AuthProvider({ children }) {
       const data = await apiFetchUser();
       setUser(data);
       setIsAuthenticated(true);
-      console.log("fetchUser successful", data);
+
+      const subscription = await fetchMySubscription();
+      setSubscription(subscription);
+
+      console.log("fetchUser successful", data, subscription);
+
       return true;
     } catch (err) {
       setUser(null);
+      setSubscription(null);
       setIsAuthenticated(false);
       console.error("fetchUser failed\nMessage: " + err.message);
       return false;
@@ -29,20 +38,16 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (identifier, password, remember) => {
     try {
       const data = await apiLogin(identifier, password, remember);
-      if (data) {
-        const result = await fetchUser();
-        if (result) {
-          console.log("Login successful");
-          try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: 'Login successful' } })); } catch (e) { /* fallback */ }
-          return true;
-        }
-        else {
-          console.log("Login failed");
-          try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Login failed. Please try again.' } })); } catch (e) { /* fallback */ }
-          return false;
-        }
+      if (!data) return false;
+      const result = await fetchUser();
+      if (result) {
+        emitToast('success', 'Login successful');
+        return true;
       }
-      return false;
+      else {
+        emitToast('error', 'Login failed. Please try again.');
+        return false;
+      }
     } catch (err) {
       console.error("Login failed\nMessage: " + err.message);
       try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: `Login failed: ${err.message}` } })); } catch (e) { /* fallback */ }
@@ -53,23 +58,19 @@ export function AuthProvider({ children }) {
   const register = useCallback(async (username, email, password, remember) => {
     try {
       const data = await apiRegister(username, email, password, remember);
-      if (data) {
-        const result = await fetchUser();
-        if (result) {
-          console.log("Registration successful");
-          try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: 'Registration successful' } })); } catch (e) { /* fallback */ }
-          return true;
-        }
-        else {
-          console.log("Registration failed");
-          try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Registration failed. Please try again.' } })); } catch (e) { /* fallback */ }
-          return false;
-        }
+      if (!data) return false;
+      const result = await fetchUser();
+      if (result) {
+        emitToast('success', 'Registration successful');
+        return true;
+      }
+      else {
+        emitToast('error', 'Registration failed. Please try again.');
+        return false;
       }
       return false;
     } catch (err) {
-      console.error("Registration failed\nMessage: " + err.message);
-      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: `Registration failed: ${err.message}` } })); } catch (e) { /* fallback */ }
+      emitToast('error', 'Registration failed. Please try again.');
       return false;
     }
   }, [fetchUser]);
@@ -82,10 +83,19 @@ export function AuthProvider({ children }) {
     } finally {
       setUser(null);
       setIsAuthenticated(false);
-      console.log("Logout successful");
-      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'You have been logged out.' } })); } catch (e) { /* fallback */ }
+      emitToast('info', 'You have been logged out.');
     }
   }, [fetchUser]);
+
+  const refetchSubscription = useCallback(async () => {
+    try {
+      const subscription = await fetchMySubscription();
+      setSubscription(subscription);
+      console.log("refetchSubscription successful", subscription);
+    } catch (err) {
+      console.error("refetchSubscription failed\nMessage: " + err.message);
+    }
+  }, []);
   
   // Auto-login on page refresh (using refresh cookie)
   useEffect(() => {
@@ -107,7 +117,8 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{ 
-      user, isAuthenticated, fetchUserLoading, login, logout, register
+      user, isAuthenticated, fetchUserLoading, subscription,
+      login, logout, register, refetchSubscription
     }}>
       {children}
     </AuthContext.Provider>
