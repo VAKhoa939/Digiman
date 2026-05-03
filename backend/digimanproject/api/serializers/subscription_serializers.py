@@ -2,6 +2,8 @@ from rest_framework import serializers
 from ..models.subscription_models import SubscriptionPlan, ReaderSubscription, PaymentTransaction
 
 
+"""Subscription Model Serializers"""
+
 class SubscriptionPlanSerializer(serializers.ModelSerializer):
     """Fields for Subscription Plan: id, name, description, price_usd, frequency"""
 
@@ -26,7 +28,7 @@ class ReaderSubscriptionSerializer(serializers.ModelSerializer):
         fields = [
             "id", 
             "reader_id",
-            "subscription_plan_id", 
+            "subscription_plan_id",
             "start_date", 
             "next_billing_date", 
             "last_billing_date", 
@@ -56,3 +58,35 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
             "external_transaction_id"
         ]
         
+
+"""Custom Subscription Serializers"""
+
+class SubscriptionMeSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    plan_name = serializers.CharField(max_length=100, read_only=True)
+    status = serializers.ChoiceField(
+        choices=ReaderSubscription.SubscriptionStatusChoices.choices, 
+        read_only=True
+    )
+    features = serializers.JSONField(read_only=True)
+    next_billing_date = serializers.DateTimeField(read_only=True)
+    last_billing_date = serializers.DateTimeField(read_only=True)
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['reader_subscription'] = serializers.SerializerMethodField()
+
+    def get_reader_subscription(self, reader_id):
+        try:
+            subscription = ReaderSubscription.objects.get(reader_id=reader_id)
+            return {
+                "id": subscription.id, 
+                "plan_name": subscription.get_plan_name(), 
+                "features": subscription.get_plan_features(), 
+                "status": subscription.status, 
+                "last_payment_status": subscription.last_payment_status,
+                "next_billing_date": subscription.next_billing_date, 
+                "last_billing_date": subscription.last_billing_date
+            }
+        except ReaderSubscription.DoesNotExist:
+            return None

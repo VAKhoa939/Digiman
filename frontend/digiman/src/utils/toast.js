@@ -1,6 +1,7 @@
 // Small helper to emit application toasts via the global CustomEvent
 export function emitToast(type, message) {
   try {
+    console.log(message);
     window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type, message } }));
   } catch (e) {
     // best-effort: fall back to console if dispatch fails

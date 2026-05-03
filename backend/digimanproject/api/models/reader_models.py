@@ -23,6 +23,10 @@ class ReadingProgress(models.Model):
         "Chapter", on_delete=models.SET_NULL, null=True)
     last_read_timestamp: datetime = models.DateTimeField(default=timezone.now)
 
+    class Meta:
+        verbose_name = "Reading Progress"
+        verbose_name_plural = "Reading Progresses"
+
     def get_manga_title(self) -> "MangaTitle":
         return self.chapter.get_manga_title()
     
@@ -38,6 +42,10 @@ class MangaReaderStatistics(models.Model):
     is_reader_read: bool = models.BooleanField(default=False)
     is_reader_commented: bool = models.BooleanField(default=False)
     star_rating: int = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Manga Reader Statistics"
+        verbose_name_plural = "Manga Reader Statistics"
 
     def update_statistics(self, **statistics_data: Any) -> None:
         """Allowed fields: is_reader_visited, is_reader_read,

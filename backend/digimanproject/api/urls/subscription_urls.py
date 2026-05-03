@@ -9,5 +9,5 @@ router.register(r'transactions', PaymentTransactionViewSet, basename='transactio
 
 urlpatterns = router.urls
 urlpatterns.extend([
-    path("me", SubscriptionMeView.as_view(), name="me"),
+    path("me/", SubscriptionMeView.as_view(), name="me"),
 ])

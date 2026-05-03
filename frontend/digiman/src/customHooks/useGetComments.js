@@ -22,8 +22,6 @@ export default function useGetComments(mangaId, chapterId) {
 		enabled: navigator.onLine
 	});
 
-	if (data && data.results) console.log("fetched comments", data.results);
-
 	return {
 		comments: data?.results?.map(mapComment) || [],
 		isLoading,

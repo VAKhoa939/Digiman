@@ -18,6 +18,10 @@ class Author(models.Model):
         primary_key=True, default=uuid.uuid4, editable=False)
     name: str = models.CharField(max_length=100, unique=True)
 
+    class Meta:
+        verbose_name = "Author"
+        verbose_name_plural = "Authors"
+
     def __str__(self) -> str:
         return self.name
     
@@ -38,6 +42,10 @@ class Genre(models.Model):
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     name: str = models.CharField(max_length=50, unique=True)
+
+    class Meta:
+        verbose_name = "Genre"
+        verbose_name_plural = "Genres"
 
     def __str__(self) -> str:
         return self.name
@@ -84,6 +92,10 @@ class MangaTitle(models.Model):
     is_premium: bool = models.BooleanField(default=False)
     first_free_chapter_amount: int = models.IntegerField(default=0)
     last_free_chapter_amount: int = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Manga Title"
+        verbose_name_plural = "Manga Titles"
 
     def __str__(self) -> str:
         return self.title
@@ -163,6 +175,14 @@ class MangaTitle(models.Model):
     def clear_genres(self) -> None:
         self.genres.clear()
 
+    def check_chapter_number_premium(self, chapter_number: int) -> bool:
+        if not self.is_premium:
+            return False
+        chapter_count = self.get_chapter_count()
+        first_premium_chapter_number = self.first_free_chapter_amount
+        last_premium_chapter_number = chapter_count - self.last_free_chapter_amount - 1
+        return first_premium_chapter_number <= chapter_number <= last_premium_chapter_number
+
 
 class Chapter(models.Model):
     id: uuid.UUID = models.UUIDField(
@@ -227,6 +247,9 @@ class Chapter(models.Model):
             pages.aggregate(models.Max("page_number"))["page_number__max"] or 0
         )
 
+    def check_premium(self) -> bool:
+        return self.manga_title.check_chapter_number_premium(self.chapter_number)
+
 
 class Page(models.Model):
     id: uuid.UUID = models.UUIDField(
@@ -246,6 +269,9 @@ class Page(models.Model):
 
     def __str__(self) -> str:
         return f"{self.chapter} - Page {self.page_number}"
+    
+    def get_chapter(self) -> "Chapter":
+        return self.chapter
     
     def update_metadata(self, **metadata: Any) -> None:
         """allowed_fields: page_number, image_url"""
