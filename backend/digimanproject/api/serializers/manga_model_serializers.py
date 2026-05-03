@@ -1,7 +1,7 @@
 from typing import Optional
 from rest_framework import serializers
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author, Comment
-from ..services.manga_service import MangaTitleService
+from ..services.manga_service import MangaTitleService, ChapterService
 from datetime import datetime
 
 
@@ -82,10 +82,10 @@ class ChapterSerializer(serializers.ModelSerializer):
         return obj.get_page_count()
     
     def get_previous_chapter_id(self, obj: Chapter) -> Optional[str]:
-        return MangaTitleService.get_previous_chapter_id(obj)
+        return ChapterService.get_previous_chapter_id(obj)
     
     def get_next_chapter_id(self, obj: Chapter) -> Optional[str]:
-        return MangaTitleService.get_next_chapter_id(obj)
+        return ChapterService.get_next_chapter_id(obj)
 
 
 class PageSerializer(serializers.ModelSerializer):

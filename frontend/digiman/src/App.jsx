@@ -22,6 +22,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import useMangaPage from './customHooks/useMangaPage';
 import Spinner from './components/smallComponents/Spinner';
 import useModalBackground from './customHooks/useModalBackground';
+import ChatWidget from './components/smallComponents/ChatWidget';
 
 function AppContent() {
   const { location, background } = useModalBackground();
@@ -118,6 +119,7 @@ function AppContent() {
   return (
     <>
       <NavBar />
+      <ChatWidget />
 
       <Container fluid style={{ paddingTop: '80px' }}>
         {/* Render the background routes. When a modal route is opened with

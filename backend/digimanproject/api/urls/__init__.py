@@ -13,4 +13,5 @@ urlpatterns = [
     path("images/", include("api.urls.image_urls")),
     path("subscriptions/", include("api.urls.subscription_urls")),
     path("payments/", include("api.urls.payment_urls")),
+    path("chatbot/", include("api.urls.chatbot_urls")),
 ]
