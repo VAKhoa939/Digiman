@@ -1,14 +1,12 @@
 from typing import Optional
 from rest_framework import serializers
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author, Comment
-from ..services.manga_service import MangaTitleService, ChapterService
 from datetime import datetime
 
 
 class MangaTitleSerializer(serializers.ModelSerializer):
     """Fields for manga title: id, title, alternative_title, author_name, 
     description, cover_image, publication_status, publication_date,
-    is_visible, first_free_chapter_amount, last_free_chapter_amount,
     chapter_count, comment_count, latest_chapter_date"""
     author_name = serializers.SerializerMethodField()
     chapter_count = serializers.SerializerMethodField()
@@ -26,10 +24,7 @@ class MangaTitleSerializer(serializers.ModelSerializer):
             "cover_image", 
             "publication_status", 
             "publication_date", 
-            "is_visible",
             "is_premium",
-            "first_free_chapter_amount",
-            "last_free_chapter_amount",
             "chapter_count", 
             "comment_count",
             "latest_chapter_date",
@@ -55,6 +50,7 @@ class ChapterSerializer(serializers.ModelSerializer):
     page_count = serializers.SerializerMethodField()
     previous_chapter_id = serializers.SerializerMethodField()
     next_chapter_id = serializers.SerializerMethodField()
+    is_premium = serializers.SerializerMethodField()
 
     class Meta:
         model = Chapter
@@ -68,11 +64,7 @@ class ChapterSerializer(serializers.ModelSerializer):
             "page_count", 
             "previous_chapter_id", 
             "next_chapter_id",
-        ]
-        read_only_fields = [
-            field for field in fields if field not in {
-                "title", "chapter_number", "manga_title_id",
-            }
+            "is_premium",
         ]
 
     def get_manga_title(self, obj: Chapter) -> str:
@@ -82,10 +74,15 @@ class ChapterSerializer(serializers.ModelSerializer):
         return obj.get_page_count()
     
     def get_previous_chapter_id(self, obj: Chapter) -> Optional[str]:
-        return ChapterService.get_previous_chapter_id(obj)
+        prev = obj.get_previous_chapter()
+        return None if prev is None else prev.id
     
     def get_next_chapter_id(self, obj: Chapter) -> Optional[str]:
-        return ChapterService.get_next_chapter_id(obj)
+        next = obj.get_next_chapter()
+        return None if next is None else next.id
+    
+    def get_is_premium(self, obj: Chapter) -> bool:
+        return obj.check_premium()
 
 
 class PageSerializer(serializers.ModelSerializer):

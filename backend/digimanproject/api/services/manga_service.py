@@ -67,36 +67,6 @@ class MangaTitleService:
         if manga.cover_image:
             ImageService.delete_image(manga.cover_image, BucketNames.MANGA_CONTENT)
         manga.delete()
-
-
-class ChapterService:
-    @staticmethod
-    def get_previous_chapter_id(chapter: Chapter) -> Optional[str]:
-        return (
-            Chapter.objects
-            .filter(
-                manga_title=chapter.manga_title, 
-                chapter_number__lt=chapter.chapter_number)
-            .order_by("-chapter_number")
-            .values_list("id", flat=True)
-            .first()
-        )
-
-    @staticmethod
-    def get_next_chapter_id(chapter: Chapter) -> Optional[str]:
-        return (
-            Chapter.objects
-            .filter(
-                manga_title=chapter.manga_title, 
-                chapter_number__gt=chapter.chapter_number)
-            .order_by("chapter_number")
-            .values_list("id", flat=True)
-            .first()
-        )
-    
-    @staticmethod
-    def get_chapter_display_name(chapter_id: uuid.UUID) -> str:
-        return str(Chapter.objects.get(id=chapter_id))
     
 
 class PageService:

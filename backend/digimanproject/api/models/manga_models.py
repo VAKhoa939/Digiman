@@ -143,6 +143,14 @@ class MangaTitle(models.Model):
     def get_comments(self) -> models.QuerySet["Comment"]:
         comments: models.Manager["Comment"] = self.comments
         return comments.all()
+    
+    def get_previous_chapter(self, chapter: "Chapter") -> Optional["Chapter"]:
+        chapters: models.Manager["Chapter"] = self.chapters
+        return chapters.filter(chapter_number__lt=chapter.chapter_number).last()
+    
+    def get_next_chapter(self, chapter: "Chapter") -> Optional["Chapter"]:
+        chapters: models.Manager["Chapter"] = self.chapters
+        return chapters.filter(chapter_number__gt=chapter.chapter_number).first()
 
     def update_metadata(self, **metadata: Any) -> None:
         """allowed_fields: title, alternative_title, author, description, 
@@ -214,6 +222,19 @@ class Chapter(models.Model):
     def get_chapter_number(self) -> int:
         return self.chapter_number
     
+    
+    @admin.display(
+        description="Previous chapter"
+    )
+    def get_previous_chapter(self) -> Optional["Chapter"]:
+        return self.manga_title.get_previous_chapter(self)
+    
+    @admin.display(
+        description="Next chapter"
+    )
+    def get_next_chapter(self) -> Optional["Chapter"]:
+        return self.manga_title.get_next_chapter(self)
+    
     @admin.display(
         description="Number of pages"
     )
@@ -247,6 +268,9 @@ class Chapter(models.Model):
             pages.aggregate(models.Max("page_number"))["page_number__max"] or 0
         )
 
+    @admin.display(
+        description="Is premium"
+    )
     def check_premium(self) -> bool:
         return self.manga_title.check_chapter_number_premium(self.chapter_number)
 
