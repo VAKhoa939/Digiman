@@ -23,7 +23,7 @@ export default function useGetComments(mangaId, chapterId) {
 	});
 
 	return {
-		comments: data?.results?.map(mapComment) || [],
+		comments: data?.map(mapComment) || [],
 		isLoading,
 		error,
 	};

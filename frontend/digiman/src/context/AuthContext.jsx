@@ -5,6 +5,7 @@ import {
 } from "../services/auth";
 import { fetchMySubscription } from "../services/subscriptionService";
 import { emitToast } from "../utils/toast";
+import { mapReaderSubscription } from "../utils/transform";
 
 const AuthContext = createContext(null);
 
@@ -21,7 +22,7 @@ export function AuthProvider({ children }) {
       setIsAuthenticated(true);
 
       const subscription = await fetchMySubscription();
-      setSubscription(subscription);
+      setSubscription(mapReaderSubscription(subscription));
 
       console.log("fetchUser successful", data, subscription);
 
@@ -82,6 +83,7 @@ export function AuthProvider({ children }) {
       console.warn('Logout API call failed, clearing local auth state', err);
     } finally {
       setUser(null);
+      setSubscription(null);
       setIsAuthenticated(false);
       emitToast('info', 'You have been logged out.');
     }
@@ -90,7 +92,7 @@ export function AuthProvider({ children }) {
   const refetchSubscription = useCallback(async () => {
     try {
       const subscription = await fetchMySubscription();
-      setSubscription(subscription);
+      setSubscription(mapReaderSubscription(subscription));
       console.log("refetchSubscription successful", subscription);
     } catch (err) {
       console.error("refetchSubscription failed\nMessage: " + err.message);

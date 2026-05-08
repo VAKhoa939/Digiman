@@ -173,9 +173,10 @@ class ReaderSubscription(models.Model):
     def check_plan_premium(self) -> bool:
         return self.subscription_plan.get_name() != "Free"
     
+    def check_active(self) -> bool:
+        return self.status == self.SubscriptionStatusChoices.ACTIVE
+    
     def check_access(self, feature: str) -> bool:
-        if self.status != self.SubscriptionStatusChoices.ACTIVE:
-            return False
         return self.subscription_plan.check_access(feature)
     
     def update_metadata(self, **metadata: Any) -> None:

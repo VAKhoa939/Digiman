@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../services/api';
 import freePlan from '../../data/plans';
 import PlanCard from '../smallComponents/PlanCard';
 import ConfirmModal from '../smallComponents/ConfirmModal';
 import Spinner from '../smallComponents/Spinner';
+import { createCheckoutSession, fetchSubscriptionPlans } from '../../services/subscriptionService';
 
 const PROVIDERS = [
   { id: 'Stripe', label: 'Pay with Stripe', enabled: true },
@@ -20,8 +20,8 @@ export default function Pricing() {
   useEffect(() => {
     async function fetchPlans() {
       try {
-        const res = await api.get('subscriptions/plans/');
-        setPlans(res.data.results ?? res.data);
+        const data = await fetchSubscriptionPlans();
+        setPlans(data);
       } catch {
         setError('Failed to load subscription plans.');
       } finally {
@@ -47,19 +47,15 @@ export default function Pricing() {
     setError(null);
     setLoadingProvider(provider);
     try {
-      const res = await api.post('payments/create-checkout-session', {
-        planId: planId,
-        provider: provider,
-      });
-      if (res.data.url) {
-        window.location.href = res.data.url;
+      const data = await createCheckoutSession(planId, provider);
+      if (data.url) {
+        window.location.href = data.url;
       } else {
         setError('Failed to create checkout session.');
       }
     } catch (err) {
       console.error(err);
-      const detail = err.response?.data?.detail;
-      setError(detail || err.message || 'Unexpected error creating checkout session.');
+      setError(err.message || 'Unexpected error creating checkout session.');
     } finally {
       setLoadingProvider(null);
       setPendingCheckout(null);

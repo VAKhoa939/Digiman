@@ -89,7 +89,7 @@ export default function useChapterPage(chapterId, mangaId) {
 					...mapChapter(chapterMeta),
 					pages: pages.map(mapPage),
 				});
-				setChaptersList(chaptersListData?.results?.map(mapChapter) || []);
+				setChaptersList(chaptersListData?.map(mapChapter) || []);
 				setError(chapterMetaError || pagesError || chaptersListError);
 				setLoading(false);
 				console.log("Loaded chapter: ", chapterMeta);

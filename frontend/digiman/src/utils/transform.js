@@ -1,4 +1,5 @@
 export function mapMangaTitle(fetchedData) {
+  if (!fetchedData) return null;
   return {
     id: fetchedData.id,
     title: fetchedData.title,
@@ -11,11 +12,12 @@ export function mapMangaTitle(fetchedData) {
     chapterCount: fetchedData.chapter_count,
     dateUpdated: fetchedData.latest_chapter_date,
     publicationDate: fetchedData.publication_date,
-    previewChapterId: fetchedData.preview_chapter_id,
+    isPremium: fetchedData.is_premium,
   };
 }
 
 export function mapChapter(fetchedData) {
+  if (!fetchedData) return null;
   return {
     id: fetchedData.id,
     number: fetchedData.chapter_number,
@@ -26,10 +28,12 @@ export function mapChapter(fetchedData) {
     pageCount: fetchedData.page_count,
     prevChapterId: fetchedData.previous_chapter_id,
     nextChapterId: fetchedData.next_chapter_id,
+    isPremium: fetchedData.is_premium,
   };
 }
 
 export function mapPage(fetchedData) {
+  if (!fetchedData) return null;
   return {
     id: fetchedData.id,
     index: fetchedData.page_number,
@@ -39,6 +43,7 @@ export function mapPage(fetchedData) {
 }
 
 export function mapComment(fetchedData) {
+  if (!fetchedData) return null;
   return {
     id: fetchedData.id,
     name: fetchedData.owner_name,
@@ -71,4 +76,18 @@ export function mapInputCommentData(
     chapter: chapterId ?? null,
     attached_image_url: attached_image_url
   };
+}
+
+export function mapReaderSubscription(fetchedData) {
+  if (!fetchedData) return null;
+  return {
+    id: fetchedData.id,
+    planName: fetchedData.plan_name,
+    status: fetchedData.status,
+    isActive: fetchedData.is_active,
+    features: fetchedData.features,
+    lastPaymentStatus: fetchedData.last_payment_status,
+    nextBillingDate: fetchedData.next_billing_date,
+    lastBillingDate: fetchedData.last_billing_date
+  }
 }

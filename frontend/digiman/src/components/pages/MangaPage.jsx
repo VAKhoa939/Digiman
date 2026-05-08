@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
 import DownloadIcon from '@mui/icons-material/Download';
 import CheckIcon from '@mui/icons-material/Check';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -9,10 +9,43 @@ import { useAuth } from '../../context/AuthContext';
 import Spinner from '../smallComponents/Spinner';
 import { getTimeAgo } from '../../utils/formatTime';
 import CommentsPage from './CommentsPage';
+import useMangaPage from '../../customHooks/useMangaPage';
+import { hasFeatureAccess } from '../../utils/subscriptionAccess';
+import ConfirmModal from '../smallComponents/ConfirmModal';
+
+const PREMIUM_CHAPTER_FEATURE = 'premium_chapters';
+
+const MangaRoute = () => {
+  const { mangaId } = useParams();
+
+  const { 
+    mangaData, mangaIsLoading, mangaError,
+    genresData, genresIsLoading, genresError,
+    chaptersData, chaptersIsLoading, chaptersError
+  } = useMangaPage(mangaId);
+
+  if (mangaError) return <div className="text-danger">No manga found.</div>;
+
+  return (
+    <>
+      {mangaIsLoading ? <Spinner /> 
+      : <MangaPage
+        {...mangaData}
+        genres={genresData}
+        genresIsLoading={genresIsLoading}
+        genresError={genresError}
+        chapters={chaptersData}
+        chaptersIsLoading={chaptersIsLoading}
+        chaptersError={chaptersError}
+        onRequireLogin={() => navigate('/login', { state: { background: location } })}
+      />}
+    </>
+  );
+};
 
 const MangaPage = ({
   id, title, altTitle, coverUrl, author, artist, synopsis, status, 
-  chapterCount, dateUpdated, publicationDate, previewChapterId,
+  chapterCount, dateUpdated, publicationDate, isPremium,
   genres, genresIsLoading, genresError,
   chapters, chaptersIsLoading, chaptersError,
   // If not logged in parent can provide this to open the login modal
@@ -20,11 +53,12 @@ const MangaPage = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const {isAuthenticated, user} = useAuth();
+  const {isAuthenticated, user, subscription} = useAuth();
   const [imgSrc, setImgSrc] = useState(coverUrl);
   const [followed, setFollowed] = useState(false);
   const [downloadedSet, setDownloadedSet] = useState(new Set())
   const [statuses, setStatuses] = useState({}) // chapterId -> { status, progress }
+  const [showPremiumModal, setShowPremiumModal] = useState(false)
 
   useEffect(() => {
     setImgSrc(coverUrl);
@@ -62,10 +96,33 @@ const MangaPage = ({
     return ()=>{ mounted=false; window.removeEventListener('digiman:downloadsChanged', onDownloadsChanged) }
   }, [id, chapters])
 
+  
   const handleImageError = () => {
     // fallback to a safe remote placeholder if the provided URL fails to load
     setImgSrc('https://via.placeholder.com/300x450?text=No+Cover');
   };
+
+
+  const onDownloadClick = (e, chapter) => {
+    e.preventDefault();
+    // If user not authenticated, require login first
+    if (!isAuthenticated) { requireLogin(); return; }
+    // optimistically mark as downloading
+    console.log('MangaPage: download clicked', { mangaId: id, chapterId: chapter.id });
+    setStatuses(s => ({ ...s, [chapter.id]: { status: 'downloading', progress: 0 } }))
+    try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'Download queued' } })) }catch(_){ }
+    startDownload(id, chapter.id, { chapterTitle: chapter.title || `Chapter ${chapter.number}`, mangaTitle: title })
+      .then(() => {
+        try{ window.dispatchEvent(new CustomEvent('digiman:downloadsChanged')) }catch(_){ }
+        navigate('/downloads')
+      })
+      .catch((err) => {
+        console.warn('startDownload failed (manga page)', err)
+        try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Failed to start download' } })) }catch(_){ }
+        navigate('/downloads')
+      })
+  }
+
 
   const onFollowClick = (e) => {
     e.preventDefault();
@@ -109,8 +166,7 @@ const MangaPage = ({
       // ignore
     }
   }, [user, id]);
-// Preview is intended for guests: allow when not authenticated
-const canPreview = !Boolean(isAuthenticated);
+
 
   // Helper: call parent login handler if provided, otherwise navigate to login route
   const requireLogin = () => {
@@ -120,6 +176,35 @@ const canPreview = !Boolean(isAuthenticated);
       try { navigate('/login', { state: { background: location } }); } catch (_) { /* ignore */ }
     }
   };
+
+
+  const onChapterClick = (e, chapter) => {
+    e.preventDefault();
+
+    // Determine the URL based on the chapter's download status
+    const url = statuses[chapter.id] && statuses[chapter.id].status === 'downloaded'
+      ? `/offline/mangas/${id}/chapter/${chapter.id}`
+      : `/manga/${id}/chapter/${chapter.id}`;
+
+    // Check authentication
+    if (!isAuthenticated) {
+      requireLogin();
+      return;
+    }
+
+    // Check subscription access
+    if (chapter.isPremium && !hasFeatureAccess(subscription, PREMIUM_CHAPTER_FEATURE)) {
+      setShowPremiumModal(true);
+      return;
+    }
+    navigate(url);
+  };
+
+  const onConfirmPremiumModel = (e) => {
+    e.preventDefault();
+    navigate('/pricing');
+  }
+
   return (
     <div className="manga-page container py-4">
       <style>{`
@@ -158,6 +243,7 @@ const canPreview = !Boolean(isAuthenticated);
 
           <div className="manga-meta d-flex flex-wrap align-items-center mb-3">
             <span className="badge bg-secondary me-2">{status}</span>
+            {isPremium && <span className="badge bg-warning text-dark me-1">Premium</span>}
             <div className="me-3">Author: <strong>{author}</strong></div>
             <div className="me-3">Artist: <strong>{artist}</strong></div>
             <div className="genres">
@@ -174,29 +260,7 @@ const canPreview = !Boolean(isAuthenticated);
           </div>
 
           <div className="mb-3">
-            {/* Preview button: visible when user is not authenticated (or auth state missing).
-                Disabled for logged-in users. Blue color via btn-info. */}
-            {/** determine preview availability: treat undefined isAuthenticated as not-logged-in **/}
-            {(() => {
-              return (
-                <button
-                  className={`btn btn-info me-2 ${!canPreview ? 'disabled' : ''}`}
-                  onClick={() => {
-                    if (!canPreview) return; // disabled for logged-in users
-                        if (previewChapterId) {
-                      navigate(`/manga/${id}/chapter/${previewChapterId}`);
-                    } else {
-                      try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'No preview available' } })); }catch(_){ }
-                    }
-                  }}
-                  aria-disabled={!canPreview}
-                  disabled={!canPreview}
-                >
-                  Preview
-                </button>
-              );
-            })()}
-
+            {/* Read button */}
             { !isAuthenticated ? (
               <div className="tooltip-wrapper">
                 <button
@@ -216,6 +280,7 @@ const canPreview = !Boolean(isAuthenticated);
                 }}
               >Read</button>
             )}
+            {/* Follow button */}
             <button
               className={followed ? 'btn btn-success btn-follow' : 'btn btn-outline-light btn-follow'}
               onClick={onFollowClick}
@@ -242,20 +307,23 @@ const canPreview = !Boolean(isAuthenticated);
                 <li key={c.id} 
                   className="list-group-item d-flex justify-content-between align-items-center"
                 >
+                  {/* Chapter info */}
                   <div>
-                      <div className="fw-bold chapter-title">
-                      <Link
-                        to={statuses[c.id] && statuses[c.id].status === 'downloaded' ? `/offline/mangas/${id}/chapter/${c.id}` : `/manga/${id}/chapter/${c.id}`}
-                        className="text-decoration-none text-white"
-                        onClick={(e) => {
-                          if (!isAuthenticated) { e.preventDefault(); requireLogin(); }
-                        }}
+                    <div className="cursor-pointer fw-bold chapter-title">
+                      <span
+                        className="cursor-pointer text-decoration-none text-white"
+                        onClick={(e) => onChapterClick(e, c)}
                       >{c.title ? `${c.number}. ${c.title}` : `${c.number}. Chapter ${c.number}`}
-                      </Link>
+                      </span>
                     </div>
                     <div className="small text-muted">{getTimeAgo(c.date)}</div>
+                    {(isPremium && c.isPremium) ?
+                      <span className="badge bg-warning text-dark me-1">Premium</span>
+                      : <span className="badge bg-light text-dark me-1">Free</span>
+                    }
                   </div>
-                      <div>
+                  {/* Download button */}
+                  <div>
                     {statuses[c.id] && statuses[c.id].status === 'downloaded' ? (
                       <button className="btn btn-sm btn-success d-flex align-items-center" disabled>
                         <CheckIcon style={{ fontSize: 16, marginRight: 6 }} />
@@ -264,24 +332,7 @@ const canPreview = !Boolean(isAuthenticated);
                     ) : (
                       <button
                         className="btn btn-sm btn-outline-light d-flex align-items-center"
-                        onClick={() => {
-                          // If user not authenticated, require login first
-                          if (!isAuthenticated) { requireLogin(); return; }
-                          // optimistically mark as downloading
-                          console.log('MangaPage: download clicked', { mangaId: id, chapterId: c.id });
-                          setStatuses(s => ({ ...s, [c.id]: { status: 'downloading', progress: 0 } }))
-                          try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'Download queued' } })) }catch(_){ }
-                          startDownload(id, c.id, { chapterTitle: c.title || `Chapter ${c.number}`, mangaTitle: title })
-                            .then(() => {
-                              try{ window.dispatchEvent(new CustomEvent('digiman:downloadsChanged')) }catch(_){ }
-                              navigate('/downloads')
-                            })
-                            .catch((err) => {
-                              console.warn('startDownload failed (manga page)', err)
-                              try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Failed to start download' } })) }catch(_){ }
-                              navigate('/downloads')
-                            })
-                        }}
+                        onClick={(e) => onDownloadClick(e, c)}
                         disabled={statuses[c.id] && statuses[c.id].status === 'downloading'}
                         title={!isAuthenticated ? 'Login required' : ''}
                       >
@@ -309,8 +360,21 @@ const canPreview = !Boolean(isAuthenticated);
       <div className="mt-4">
         <CommentsPage inline={true} />
       </div>
+      <ConfirmModal
+        show={showPremiumModal}
+        onClose={() => setShowPremiumModal(false)}
+        confirmLabel='Go To Pricing'
+        onConfirm={() => navigate('/pricing')}
+        title='Premium Subscription Required'
+        body={
+          <div>
+            <p>This chapter is premium and requires a premium subscription to read.</p>
+            <p>Do you want to go to the pricing page to subscribe?</p>
+          </div>
+        }
+      />
     </div>
   );
 };
 
-export default MangaPage;
+export default MangaRoute;

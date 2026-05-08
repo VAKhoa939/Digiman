@@ -107,7 +107,7 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
         "get_latest_chapter_upload_date",
     )
     list_filter = ("publication_status", "is_visible")
-    search_fields = ("title", "author_name")
+    search_fields = ("title", "author__name")
     ordering = ("-publication_date",)
     readonly_fields = ("publication_date",)
     list_per_page = 20

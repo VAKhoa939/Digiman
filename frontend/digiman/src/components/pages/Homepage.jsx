@@ -1,15 +1,15 @@
 import React from 'react';
 import { Container } from 'react-bootstrap';
-import MangaCard from '../../components/smallComponents/MangaCard';
-import Banner from '../../components/smallComponents/Banner';
+import MangaCard from '../smallComponents/MangaCard';
+import Banner from '../smallComponents/Banner';
 import MangaList from '../common/MangaList';
-import useCatalog from '../../customHooks/useCatalog';
+import useHomepage from '../../customHooks/useHomepage';
 
-function Catalog() {
+function Homepage() {
   const {
     latest, latestIsLoading, latestError,
     popular, popularIsLoading, popularError
-  } = useCatalog();
+  } = useHomepage();
 
   return (
     <>
@@ -39,4 +39,4 @@ function Catalog() {
   )
 }
 
-export default Catalog
+export default Homepage

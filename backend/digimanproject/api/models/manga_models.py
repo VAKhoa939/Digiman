@@ -146,11 +146,11 @@ class MangaTitle(models.Model):
     
     def get_previous_chapter(self, chapter: "Chapter") -> Optional["Chapter"]:
         chapters: models.Manager["Chapter"] = self.chapters
-        return chapters.filter(chapter_number__lt=chapter.chapter_number).last()
+        return chapters.order_by("chapter_number").filter(chapter_number__lt=chapter.chapter_number).last()
     
     def get_next_chapter(self, chapter: "Chapter") -> Optional["Chapter"]:
         chapters: models.Manager["Chapter"] = self.chapters
-        return chapters.filter(chapter_number__gt=chapter.chapter_number).first()
+        return chapters.order_by("chapter_number").filter(chapter_number__gt=chapter.chapter_number).first()
 
     def update_metadata(self, **metadata: Any) -> None:
         """allowed_fields: title, alternative_title, author, description, 
@@ -187,8 +187,8 @@ class MangaTitle(models.Model):
         if not self.is_premium:
             return False
         chapter_count = self.get_chapter_count()
-        first_premium_chapter_number = self.first_free_chapter_amount
-        last_premium_chapter_number = chapter_count - self.last_free_chapter_amount - 1
+        first_premium_chapter_number = self.first_free_chapter_amount + 1
+        last_premium_chapter_number = chapter_count - self.last_free_chapter_amount
         return first_premium_chapter_number <= chapter_number <= last_premium_chapter_number
 
 
@@ -243,7 +243,7 @@ class Chapter(models.Model):
         return pages.count()
     
     @admin.display(
-        description="Number of of comments"
+        description="Number of comments"
     )
     def get_comment_count(self) -> int:
         comments: models.Manager["Comment"] = self.comments
@@ -269,7 +269,8 @@ class Chapter(models.Model):
         )
 
     @admin.display(
-        description="Is premium"
+        description="Is premium",
+        boolean=True
     )
     def check_premium(self) -> bool:
         return self.manga_title.check_chapter_number_premium(self.chapter_number)
