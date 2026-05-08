@@ -134,10 +134,15 @@ class Reader(User):
     def get_subscription(self) -> "ReaderSubscription":
         from .subscription_models import ReaderSubscription
         return ReaderSubscription.objects.get(reader_id=self.id)
+    
+    def check_subscription_active(self) -> bool:
+        subscription = self.get_subscription()
+        return subscription.check_active()
 
     def check_subscription_feature_access(self, feature: str) -> bool:
         subscription = self.get_subscription()
-        return subscription.check_access(feature)
+        return (subscription.check_active()
+            and subscription.check_access(feature))
 
     """ Report Management """
     def post_report(

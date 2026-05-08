@@ -3,7 +3,7 @@ import api from "./api";
 export async function fetchAllMangaTitles(params={}, page=1) {
   const res = await api.get(`manga-titles/`, { params: { page: page, ...params } });
   if (res.data.detail) throw new Error(res.data.detail);
-  return res.data;
+  return res.data.results ?? res.data;
 }
 
 export async function fetchLatestUpdatedMangaTitle(page=1) {
@@ -13,13 +13,13 @@ export async function fetchLatestUpdatedMangaTitle(page=1) {
     } 
   });
   if (res.data.detail) throw new Error(res.data.detail);
-  return res.data;
+  return res.data.results ?? res.data;
 }
 
 export async function fetchMangaTitle(mangaTitleId) {
   const res = await api.get(`manga-titles/${mangaTitleId}/`);
   if (res.data.detail) throw new Error(res.data.detail);
-  return res.data;
+  return res.data.results ?? res.data;
 }
 
 export async function fetchMangaTitleChapters(
@@ -34,7 +34,7 @@ export async function fetchMangaTitleChapters(
     }
   });
   if (res.data.detail) throw new Error(res.data.detail);
-  return res.data;
+  return res.data.results ?? res.data;
 }
 
 export async function fetchMangaTitleGenres(mangaTitleId) {
@@ -44,13 +44,13 @@ export async function fetchMangaTitleGenres(mangaTitleId) {
     }
   });
   if (res.data.detail) throw new Error(res.data.detail);
-  return res.data;
+  return res.data.results ?? res.data;
 }
 
 export async function fetchChapter(chapterId) {
   const res = await api.get(`chapters/${chapterId}/`);
   if (res.data.detail) throw new Error(res.data.detail);
-  return res.data;
+  return res.data.results ?? res.data;
 }
 
 export async function fetchChapterPages(chapterId) {
@@ -61,11 +61,11 @@ export async function fetchChapterPages(chapterId) {
     }
   });
   if (res.data.detail) throw new Error(res.data.detail);
-  return res.data;
+  return res.data.results ?? res.data;
 }
 
 export async function fetchGenres() {
   const res = await api.get("genres/", { params: { ordering: "name" } });
   if (res.data.detail) throw new Error(res.data.detail);
-  return res.data;
+  return res.data.results ?? res.data;
 }

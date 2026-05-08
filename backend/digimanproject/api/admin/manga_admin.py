@@ -5,7 +5,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.http import HttpRequest
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author, Comment
-from ..services.manga_service import MangaTitleService, ChapterService, PageService, CommentService
+from ..services.manga_service import MangaTitleService, PageService, CommentService
 from .mixins import LogUserMixin
 
 
@@ -107,7 +107,7 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
         "get_latest_chapter_upload_date",
     )
     list_filter = ("publication_status", "is_visible")
-    search_fields = ("title", "author_name")
+    search_fields = ("title", "author__name")
     ordering = ("-publication_date",)
     readonly_fields = ("publication_date",)
     list_per_page = 20
@@ -210,13 +210,13 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
         "chapter_number", 
         "get_title", 
         "upload_date", 
+        "check_premium",
         "get_page_count", 
         "get_comment_count", 
         "get_previous_chapter", 
         "get_next_chapter",
     )
     list_filter = ("manga_title",)
-    readonly_fields = ("upload_date",)
     search_fields = ("title", "manga_title__title")
     ordering = ("manga_title__title", "-upload_date")
     list_per_page = 20
@@ -224,26 +224,30 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
 
     fieldset = (
         ("Chapter Details", {"fields": (
+            "id",
             "manga_title", 
             "title", 
             "chapter_number", 
             "upload_date", 
+            "check_premium",
+            "get_page_count", 
+            "get_comment_count", 
+            "get_previous_chapter", 
+            "get_next_chapter",
         )}),
+    )
+    readonly_fields = (
+        "upload_date",
+        "check_premium",
+        "get_page_count",
+        "get_comment_count",
+        "get_previous_chapter",
+        "get_next_chapter",
     )
 
     def get_display_name(self, obj: Page) -> str:
         return str(obj)
     get_display_name.short_description = "Display name"
-
-    def get_previous_chapter(self, obj: Chapter) -> str:
-        id = ChapterService.get_previous_chapter_id(obj)
-        return ChapterService.get_chapter_display_name(id)
-    get_previous_chapter.short_description = "Previous chapter"
-
-    def get_next_chapter(self, obj: Chapter) -> str:
-        id = ChapterService.get_next_chapter_id(obj)
-        return ChapterService.get_chapter_display_name(id)
-    get_next_chapter.short_description = "Next chapter"
     
     def save_formset(
         self, request: HttpRequest, form: forms.ModelForm, 

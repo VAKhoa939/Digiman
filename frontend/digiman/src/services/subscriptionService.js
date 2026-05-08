@@ -5,3 +5,18 @@ export async function fetchMySubscription() {
     if (res.data.detail) throw new Error(res.data.detail);
     return res.data.results ?? res.data;
 }
+
+export async function fetchSubscriptionPlans() {
+    const res = await api.get('subscriptions/plans/');
+    if (res.data.detail) throw new Error(res.data.detail);
+    return res.data.results ?? res.data;
+}
+
+export async function createCheckoutSession(planId, provider) {
+    const res = await api.post('payments/create-checkout-session', {
+        planId: planId,
+        provider: provider,
+    });
+    if (res.data.detail) throw new Error(res.data.detail);
+    return res.data.results ?? res.data;
+}

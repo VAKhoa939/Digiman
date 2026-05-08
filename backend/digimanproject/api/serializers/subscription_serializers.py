@@ -84,6 +84,7 @@ class SubscriptionMeSerializer(serializers.Serializer):
                 "plan_name": subscription.get_plan_name(), 
                 "features": subscription.get_plan_features(), 
                 "status": subscription.status, 
+                "is_active": subscription.check_active(),
                 "last_payment_status": subscription.last_payment_status,
                 "next_billing_date": subscription.next_billing_date, 
                 "last_billing_date": subscription.last_billing_date

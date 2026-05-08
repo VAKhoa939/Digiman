@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { fetchMySubscription } from "../services/subscriptionService";
+import { mapReaderSubscription } from "../utils/transform";
 
 export function useSubscriptionSuccess(contextSubscription) {
 	const startTime = useRef(Date.now());
@@ -13,17 +14,19 @@ export function useSubscriptionSuccess(contextSubscription) {
 	&& contextSubscription.last_payment_status === "pending");
 
 	const {data, isLoading, isError} = useQuery({
-		queryKey: ["subscription-status-check"],
+		queryKey: ["subscription-success"],
 		queryFn: () => fetchMySubscription(),
 		staleTime: 0,
 		cacheTime: 0,
 		enabled: shouldFetch,
 		refetchInterval: (data) => {
 			if (elapsedTime >= 1000 * 15) return false;
-			if (!data 
-				|| data.plan_name === "Free" 
-				|| (data.status === "inactive"
-				&& data.last_payment_status === "pending")
+
+			const mappedData = mapReaderSubscription(data);
+			if (!mappedData 
+				|| mappedData.planName === "Free" 
+				|| (mappedData.status === "inactive"
+				&& mappedData.lastPaymentStatus === "pending")
 			) {
 				console.log("Refetching subscription status...", elapsedTime);
 				return 1000 * 2;
@@ -48,15 +51,16 @@ export function useSubscriptionSuccess(contextSubscription) {
 			if (!shouldFetch) return "success";
 			if (isError) return "failed";
 			if (elapsedTime >= 1000 * 15) return "timeout";
-			if (data 
-				&& data.plan_name !== "Free" 
-				&& data.status === "inactive"
-				&& data.last_payment_status === "failed"
+			const mappedData = mapReaderSubscription(data);
+			if (mappedData 
+				&& mappedData.planName !== "Free" 
+				&& mappedData.status === "inactive"
+				&& mappedData.lastPaymentStatus === "failed"
 			) return "failed";
-			if (data 
-				&& data.plan_name !== "Free" 
-				&& data.status === "active"
-				&& data.last_payment_status === "paid"
+			if (mappedData 
+				&& mappedData.planName !== "Free" 
+				&& mappedData.status === "active"
+				&& mappedData.lastPaymentStatus === "paid"
 			) return "success";
 			return "pending";
 		}
@@ -64,13 +68,13 @@ export function useSubscriptionSuccess(contextSubscription) {
 		if (data || isError) setStatus(checkStatus(data, status, elapsedTime, shouldFetch));
 	}, [data, isError, status, elapsedTime, shouldFetch]);
 
-	const subscriptionData = shouldFetch ? data : contextSubscription;
+	const subscriptionData = shouldFetch ? mapReaderSubscription(data) : contextSubscription;
 
 	const restart = (queryClient) => {
 		startTime.current = Date.now();
 		setStatus("pending");
 		setElapsedTime(0);
-		queryClient.invalidateQueries({ queryKey: ["subscription-status-check"] });
+		queryClient.invalidateQueries({ queryKey: ["subscription-success"] });
 	};
 
 	return {status, data: subscriptionData, isLoading, isError, restart};

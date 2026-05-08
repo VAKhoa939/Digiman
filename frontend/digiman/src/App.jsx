@@ -3,8 +3,7 @@ import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-rout
 import { Container } from 'react-bootstrap'
 import NavBar from './components/smallComponents/NavBar'
 import Toaster from './components/smallComponents/Toaster'
-import MangaPage from './components/pages/MangaPage'
-import Catalog from './components/pages/Catalog'
+import Homepage from './components/pages/Homepage'
 import ChapterPage from './components/pages/ChapterPage'
 import CommentsPage from './components/pages/CommentsPage'
 import LoginModal from './components/smallComponents/LoginForm'
@@ -19,10 +18,10 @@ import Profile from './components/pages/Profile'
 import Library from './components/pages/Library'
 import { AuthProvider } from './context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import useMangaPage from './customHooks/useMangaPage';
 import Spinner from './components/smallComponents/Spinner';
 import useModalBackground from './customHooks/useModalBackground';
 import ChatWidget from './components/smallComponents/ChatWidget';
+import MangaRoute from './components/pages/MangaPage';
 
 function AppContent() {
   const { location, background } = useModalBackground();
@@ -88,34 +87,6 @@ function AppContent() {
 
   const onCloseModal = () => {if (background) navigate(background); else navigate(-1);};
 
-  // Small wrapper used by the Route to pass the :id param and load data from local fixture.
-  const MangaRoute = () => {
-    const { mangaId } = useParams();
-
-    const { 
-      mangaData, mangaIsLoading, mangaError,
-      genresData, genresIsLoading, genresError,
-      chaptersData, chaptersIsLoading, chaptersError
-    } = useMangaPage(mangaId);
-
-    if (mangaError) return <div className="text-danger">No manga found.</div>;
-
-    return (
-      <>
-        {mangaIsLoading ? <Spinner /> 
-        : <MangaPage
-          {...mangaData}
-          genres={genresData}
-          genresIsLoading={genresIsLoading}
-          genresError={genresError}
-          chapters={chaptersData}
-          chaptersIsLoading={chaptersIsLoading}
-          chaptersError={chaptersError}
-          onRequireLogin={() => navigate('/login', { state: { background: location } })}
-        />}
-      </>
-    );
-  };
   return (
     <>
       <NavBar />
@@ -126,7 +97,7 @@ function AppContent() {
             state.background, `background` will be set and we render the
             background UI using that location. */}
         <Routes location={background || location}>
-          <Route path="/" element={<Catalog />} />
+          <Route path="/" element={<Homepage />} />
           <Route path="/search/advanced" element={<AdvancedSearchPage />} />
           <Route path="/manga/:mangaId" element={<MangaRoute />} />
           <Route path="/manga/:mangaId/comments" element={<CommentsPage />} />
