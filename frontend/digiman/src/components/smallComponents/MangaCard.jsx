@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { getTimeAgo } from '../../utils/formatTime';
 
 // Small presentational card used in lists/catalogs. Clicking the card navigates to /manga/:id
-const MangaCard = ({ id, title, status, coverUrl, author, chapterCount, genres = [], dateUpdated, cardWidth = '210px', imgHeight = '300px' }) => {
+const MangaCard = ({ id, title, status, coverUrl, author, chapterCount, genres = [], dateUpdated, averageRating = 0, readCount = 0, cardWidth = '210px', imgHeight = '300px' }) => {
   const [imgSrc, setImgSrc] = useState(coverUrl || `https://via.placeholder.com/${parseInt(cardWidth,10) || 210}x${parseInt(imgHeight,10) || 300}?text=No+Cover`);
 
   const onError = () => setImgSrc('https://via.placeholder.com/210x300?text=No+Cover');
@@ -34,6 +34,12 @@ const MangaCard = ({ id, title, status, coverUrl, author, chapterCount, genres =
             {status ? (
               <span className="badge bg-warning text-dark">{status}</span>
             ) : null}
+          </div>
+          <div className="d-flex align-items-center gap-2 mt-1">
+            <span style={{ color: 'var(--accent, #FFCB3D)', fontSize: '0.8rem' }}>
+              ★ {averageRating > 0 ? averageRating.toFixed(1) : '—'}
+            </span>
+            <span className="text-muted small">{readCount} reads</span>
           </div>
         </div>
       </div>

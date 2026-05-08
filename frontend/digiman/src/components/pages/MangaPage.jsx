@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import DownloadIcon from '@mui/icons-material/Download';
 import CheckIcon from '@mui/icons-material/Check';
@@ -9,10 +9,12 @@ import { useAuth } from '../../context/AuthContext';
 import Spinner from '../smallComponents/Spinner';
 import { getTimeAgo } from '../../utils/formatTime';
 import CommentsPage from './CommentsPage';
+import { markMangaVisited, setStarRating } from '../../services/readerService';
 
 const MangaPage = ({
-  id, title, altTitle, coverUrl, author, artist, synopsis, status, 
+  id, title, altTitle, coverUrl, author, artist, synopsis, status,
   chapterCount, dateUpdated, publicationDate, previewChapterId,
+  averageRating = 0, readCount = 0,
   genres, genresIsLoading, genresError,
   chapters, chaptersIsLoading, chaptersError,
   // If not logged in parent can provide this to open the login modal
@@ -25,10 +27,38 @@ const MangaPage = ({
   const [followed, setFollowed] = useState(false);
   const [downloadedSet, setDownloadedSet] = useState(new Set())
   const [statuses, setStatuses] = useState({}) // chapterId -> { status, progress }
+  const [userRating, setUserRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [liveAvgRating, setLiveAvgRating] = useState(averageRating);
+  const [liveReadCount, setLiveReadCount] = useState(readCount);
 
   useEffect(() => {
     setImgSrc(coverUrl);
   }, [coverUrl]);
+
+  useEffect(() => {
+    setLiveAvgRating(averageRating);
+    setLiveReadCount(readCount);
+  }, [averageRating, readCount]);
+
+  // Mark visited once the manga page mounts (authenticated readers only)
+  useEffect(() => {
+    if (!isAuthenticated || !id) return;
+    markMangaVisited(id).catch(() => {/* silent — non-critical */});
+  }, [isAuthenticated, id]);
+
+  const handleStarClick = useCallback(async (star) => {
+    if (!isAuthenticated) { requireLogin(); return; }
+    try {
+      const updated = await setStarRating(id, star);
+      setUserRating(star);
+      setLiveAvgRating(updated.average_rating ?? liveAvgRating);
+      setLiveReadCount(updated.read_count ?? liveReadCount);
+      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: `Rated ${star} star${star > 1 ? 's' : ''}` } })); } catch (_) {}
+    } catch (_) {
+      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Failed to save rating' } })); } catch (_e) {}
+    }
+  }, [isAuthenticated, id, liveAvgRating, liveReadCount]);
 
   useEffect(()=>{
     let mounted = true
@@ -155,6 +185,41 @@ const canPreview = !Boolean(isAuthenticated);
           <h1 className="manga-title mb-1">{title}</h1>
           
           {altTitle && <div className="text-muted small mb-2">{altTitle}</div>}
+
+          <div className="d-flex align-items-center gap-3 mb-2">
+            <span style={{ color: 'var(--accent, #FFCB3D)', fontSize: '1rem' }}>
+              {'★'.repeat(Math.round(liveAvgRating))}{'☆'.repeat(5 - Math.round(liveAvgRating))}
+              <span className="ms-1 text-muted" style={{ fontSize: '0.85rem' }}>
+                {liveAvgRating > 0 ? liveAvgRating.toFixed(1) : 'No ratings'}
+              </span>
+            </span>
+            <span className="text-muted small">{liveReadCount} reads</span>
+          </div>
+
+          {isAuthenticated && (
+            <div className="d-flex align-items-center mb-2">
+              <span className="text-muted small me-2">Your rating:</span>
+              {[1, 2, 3, 4, 5].map(star => (
+                <span
+                  key={star}
+                  role="button"
+                  aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                  onClick={() => handleStarClick(star)}
+                  onMouseEnter={() => setHoverRating(star)}
+                  onMouseLeave={() => setHoverRating(0)}
+                  style={{
+                    fontSize: '1.4rem',
+                    cursor: 'pointer',
+                    color: star <= (hoverRating || userRating) ? 'var(--accent, #FFCB3D)' : 'var(--app-muted, #6c757d)',
+                    transition: 'color 80ms',
+                    lineHeight: 1,
+                  }}
+                >
+                  ★
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="manga-meta d-flex flex-wrap align-items-center mb-3">
             <span className="badge bg-secondary me-2">{status}</span>

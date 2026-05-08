@@ -104,6 +104,9 @@ function NavBar() {
                       <button className="dropdown-item" onClick={() => navigate('/library')}>Library</button>
                     </li>
                     <li>
+                      <button className="dropdown-item" onClick={() => navigate('/history')}>Reading History</button>
+                    </li>
+                    <li>
                       <button className="dropdown-item" onClick={() => navigate('/settings')}>Settings</button>
                     </li>
                     {/* Admin link for users with administrative privileges */}
