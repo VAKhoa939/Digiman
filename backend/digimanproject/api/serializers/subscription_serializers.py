@@ -62,16 +62,6 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
 """Custom Subscription Serializers"""
 
 class SubscriptionMeSerializer(serializers.Serializer):
-    id = serializers.UUIDField(read_only=True)
-    plan_name = serializers.CharField(max_length=100, read_only=True)
-    status = serializers.ChoiceField(
-        choices=ReaderSubscription.SubscriptionStatusChoices.choices, 
-        read_only=True
-    )
-    features = serializers.JSONField(read_only=True)
-    next_billing_date = serializers.DateTimeField(read_only=True)
-    last_billing_date = serializers.DateTimeField(read_only=True)
-    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['reader_subscription'] = serializers.SerializerMethodField()
@@ -79,15 +69,22 @@ class SubscriptionMeSerializer(serializers.Serializer):
     def get_reader_subscription(self, reader_id):
         try:
             subscription = ReaderSubscription.objects.get(reader_id=reader_id)
+            plan = subscription.get_plan()
+            #latest_transaction = PaymentTransaction.objects.filter(reader_id=reader_id).order_by("-created_at").first()
+            #serialized_latest_transaction = PaymentTransactionSerializer(latest_transaction).data if latest_transaction else None
+
             return {
                 "id": subscription.id, 
-                "plan_name": subscription.get_plan_name(), 
-                "features": subscription.get_plan_features(), 
+                "plan_name": plan.get_name(), 
+                "features": plan.get_features(), 
+                "description": plan.get_description(),
                 "status": subscription.status, 
                 "is_active": subscription.check_active(),
                 "last_payment_status": subscription.last_payment_status,
+                "is_auto_renewal": subscription.is_auto_renewal,
                 "next_billing_date": subscription.next_billing_date, 
-                "last_billing_date": subscription.last_billing_date
+                "last_billing_date": subscription.last_billing_date,
+                #"latest_transaction": serialized_latest_transaction
             }
         except ReaderSubscription.DoesNotExist:
             return None

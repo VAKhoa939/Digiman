@@ -66,6 +66,9 @@ class SubscriptionPlan(models.Model):
     
     def get_features(self) -> Dict[str, Any]:
         return self.features
+    
+    def get_description(self) -> List[str]:
+        return self.description
 
     def check_access(self, feature: str) -> bool:
         return feature in self.features and self.features[feature].lower() == "true"
@@ -145,6 +148,12 @@ class ReaderSubscription(models.Model):
     
     def get_plan_name(self) -> str:
         return self.subscription_plan.get_name()
+    
+    def get_is_auto_renewal(self) -> bool:
+        return self.is_auto_renewal
+    
+    def get_last_payment_status(self) -> str:
+        return self.last_payment_status
     
     def get_plan(self) -> "SubscriptionPlan":
         return self.subscription_plan

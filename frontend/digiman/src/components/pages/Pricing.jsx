@@ -4,6 +4,8 @@ import PlanCard from '../smallComponents/PlanCard';
 import ConfirmModal from '../smallComponents/ConfirmModal';
 import Spinner from '../smallComponents/Spinner';
 import { createCheckoutSession, fetchSubscriptionPlans } from '../../services/subscriptionService';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const PROVIDERS = [
   { id: 'Stripe', label: 'Pay with Stripe', enabled: true },
@@ -11,25 +13,51 @@ const PROVIDERS = [
 ];
 
 export default function Pricing() {
+  const { subscription } = useAuth();
   const [plans, setPlans] = useState([freePlan]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [loadingProvider, setLoadingProvider] = useState(null);
   const [error, setError] = useState(null);
   const [pendingCheckout, setPendingCheckout] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
+    function mapActivePlan(plans) {
+      if (!plans || plans.length === 0) return plans;
+      return plans.map((plan) => {
+        if (!subscription?.isActive || plan.name === 'Free') return plan;
+        
+        if (subscription?.planName === plan.name) {
+          return {
+            ...plan,
+            buttonText: 'Go to Subscription Status',
+            buttonDisabled: false,
+            onClick: () => navigate('/subscription-status'),
+          }
+        }
+        return {
+          ...plan,
+          buttonText: 'Plan Active',
+          buttonDisabled: true,
+          onClick: () => {},
+        }
+      })
+    }
+
     async function fetchPlans() {
       try {
         const data = await fetchSubscriptionPlans();
-        setPlans(data);
-      } catch {
+        console.log('Plans fetched', data, subscription);
+        setPlans(mapActivePlan(data));
+      } catch (err) {
         setError('Failed to load subscription plans.');
+        console.error('Failed to load subscription plans.', err);
       } finally {
         setLoadingPlans(false);
       }
     }
     fetchPlans();
-  }, []);
+  }, [subscription]);
 
   function requestCheckout(planId) {
     const plan = plans.find((p) => p.id === planId);
@@ -41,7 +69,8 @@ export default function Pricing() {
     setPendingCheckout(null);
   }
 
-  async function confirmCheckout(provider) {
+  async function confirmCheckout(event, provider) {
+    event.preventDefault();
     if (!pendingCheckout) return;
     const { planId } = pendingCheckout;
     setError(null);
@@ -124,7 +153,7 @@ export default function Pricing() {
                 key={p.id}
                 type="button"
                 className="btn btn-primary provider-btn"
-                onClick={() => confirmCheckout(p.id)}
+                onClick={(e) => confirmCheckout(e, p.id)}
                 disabled={!p.enabled || !!loadingProvider}
               >
                 {loadingProvider === p.id ? 'Redirecting…' : p.label}

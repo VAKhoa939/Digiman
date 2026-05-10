@@ -83,9 +83,10 @@ export function mapReaderSubscription(fetchedData) {
   return {
     id: fetchedData.id,
     planName: fetchedData.plan_name,
+    features: fetchedData.features,
+    description: fetchedData.description,
     status: fetchedData.status,
     isActive: fetchedData.is_active,
-    features: fetchedData.features,
     lastPaymentStatus: fetchedData.last_payment_status,
     nextBillingDate: fetchedData.next_billing_date,
     lastBillingDate: fetchedData.last_billing_date
