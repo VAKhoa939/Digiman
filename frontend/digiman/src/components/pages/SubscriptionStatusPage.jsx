@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import Spinner from '../smallComponents/Spinner';
 import ConfirmModal from '../smallComponents/ConfirmModal';
 import { useNavigate } from 'react-router';
-import { toggleAutoRenewal } from '../../services/subscriptionService';
+import useSubscriptionStatusPage from '../../customHooks/useSubscriptionStatusPage';
 
 const SUBSCRIPTION_STATUS = {
   "active": "Active",
@@ -20,20 +20,17 @@ const LAST_PAYMENT_STATUS = {
 
 function SubscriptionStatusPage() {
   const { subscription, fetchUserLoading, isErrorFetchingUser, refetchSubscription } = useAuth();
-  const { showConfirmModal, setShowConfirmModal } = useState(false);
-  const { toggleAutoRenewalLoading, setToggleAutoRenewalLoading } = useState(false);
+  const { toggleAutoRenewalLoading, runToggleAutoRenewal } = useSubscriptionStatusPage(
+    subscription,
+    refetchSubscription
+  );
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const navigate = useNavigate();
 
-  const onClickToggleAutoRenewal = async () => {
-    try {
-      setToggleAutoRenewalLoading(true);
-      await toggleAutoRenewal();
-
-    } catch (err) {
-      console.error('Error toggling auto-renewal', err);
-    } finally {
-      setToggleAutoRenewalLoading(false);
-    }
+  const onConfirmClick = async (event) => {
+    event.preventDefault();
+    await runToggleAutoRenewal();
+    setShowConfirmModal(false);
   }
 
   return (
@@ -79,14 +76,14 @@ function SubscriptionStatusPage() {
       <ConfirmModal 
         show={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
-        onConfirm={() => {}}
-        title="Turn Auto-Renewal On/Off"
+        onConfirm={(e) => onConfirmClick(e)}
+        title="Toggle Auto-Renewal"
         body={
           <p>
-            Are you sure you want to turn {subscription.autoRenewal ? 'off' : 'on'} auto-renewal?
+            Are you sure you want to turn {subscription.isAutoRenewal ? 'off' : 'on'} auto-renewal?
           </p>
         }
-        confirmLabel={subscription.autoRenewal ? 'Turn Off' : 'Turn On'}
+        confirmLabel={subscription.isAutoRenewal ? 'Turn Off' : 'Turn On'}
         loading={toggleAutoRenewalLoading}
       />
     </div>

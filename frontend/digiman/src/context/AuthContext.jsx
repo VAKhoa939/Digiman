@@ -55,7 +55,7 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error("Login failed\nMessage: " + err.message);
-      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: `Login failed: ${err.message}` } })); } catch (e) { /* fallback */ }
+      emitToast('error', 'Login failed. Please try again.');
       return false;
     }
   }, [fetchUser]);
