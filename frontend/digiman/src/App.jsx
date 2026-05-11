@@ -22,6 +22,7 @@ import Spinner from './components/smallComponents/Spinner';
 import useModalBackground from './customHooks/useModalBackground';
 import ChatWidget from './components/smallComponents/ChatWidget';
 import MangaRoute from './components/pages/MangaPage';
+import SubscriptionStatusPage from './components/pages/SubscriptionStatusPage';
 
 function AppContent() {
   const { location, background } = useModalBackground();
@@ -108,6 +109,7 @@ function AppContent() {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/subscription/success" element={<SubscriptionSuccess />} />
           <Route path="/subscription/cancel" element={<div className="container py-4"><h1>Subscription canceled</h1><p>Your subscription was canceled or the checkout was closed.</p></div>} />
+          <Route path="/subscription/status" element={<PrivateRoute><SubscriptionStatusPage /></PrivateRoute>} />
           <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
           <Route path="/library" element={<PrivateRoute><Library /></PrivateRoute>} />
           <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />

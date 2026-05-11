@@ -25,7 +25,10 @@ export default function Pricing() {
     function mapActivePlan(plans) {
       if (!plans || plans.length === 0) return plans;
       return plans.map((plan) => {
-        if (!subscription?.isActive || plan.name === 'Free') return plan;
+        if (!subscription?.isActive 
+          || subscription.planName === 'Free' 
+          || plan.name === 'Free'
+        ) return plan;
         
         if (subscription?.planName === plan.name) {
           return {

@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); 
   const [subscription, setSubscription] = useState(null);
   const [fetchUserLoading, setfetchUserLoading] = useState(true);
+  const [isErrorFetchingUser, setIsErrorFetchingUser] = useState(false);
 
   const fetchUser = useCallback(async () => {
     try {
@@ -31,8 +32,11 @@ export function AuthProvider({ children }) {
       setUser(null);
       setSubscription(null);
       setIsAuthenticated(false);
+      setIsErrorFetchingUser(true);
       console.error("fetchUser failed\nMessage: " + err.message);
       return false;
+    } finally {
+      setfetchUserLoading(false);
     }
   }, []);
 
@@ -91,11 +95,15 @@ export function AuthProvider({ children }) {
 
   const refetchSubscription = useCallback(async () => {
     try {
+      setfetchUserLoading(true);
       const subscription = await fetchMySubscription();
       setSubscription(mapReaderSubscription(subscription));
       console.log("refetchSubscription successful", subscription);
     } catch (err) {
       console.error("refetchSubscription failed\nMessage: " + err.message);
+    }
+    finally {
+      setfetchUserLoading(false);
     }
   }, []);
   
@@ -112,7 +120,6 @@ export function AuthProvider({ children }) {
       const result = await fetchUser();
       if (result) console.log("Auto-login successful");
       else console.log("Auto-login failed");
-      setfetchUserLoading(false);
     }
     tryAutoLogin();
   }, []);

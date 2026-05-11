@@ -70,21 +70,19 @@ class SubscriptionMeSerializer(serializers.Serializer):
         try:
             subscription = ReaderSubscription.objects.get(reader_id=reader_id)
             plan = subscription.get_plan()
-            #latest_transaction = PaymentTransaction.objects.filter(reader_id=reader_id).order_by("-created_at").first()
-            #serialized_latest_transaction = PaymentTransactionSerializer(latest_transaction).data if latest_transaction else None
 
             return {
                 "id": subscription.id, 
-                "plan_name": plan.get_name(), 
-                "features": plan.get_features(), 
-                "description": plan.get_description(),
+                "plan_name": plan.name, 
+                "features": plan.features, 
+                "description": plan.description,
                 "status": subscription.status, 
                 "is_active": subscription.check_active(),
                 "last_payment_status": subscription.last_payment_status,
                 "is_auto_renewal": subscription.is_auto_renewal,
+                "start_date": subscription.start_date,
                 "next_billing_date": subscription.next_billing_date, 
                 "last_billing_date": subscription.last_billing_date,
-                #"latest_transaction": serialized_latest_transaction
             }
         except ReaderSubscription.DoesNotExist:
             return None
