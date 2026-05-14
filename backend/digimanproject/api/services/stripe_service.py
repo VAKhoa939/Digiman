@@ -6,6 +6,8 @@ from ..models.user_models import Reader
 from ..models.subscription_models import SubscriptionPlan, ReaderSubscription, PaymentTransaction, PaymentProviderChoices
 from ..services.email_service import SubscriptionEmailService
 from ..utils.helper_functions import stripe_ts_to_datetime
+from ..utils.stripe_client import stripe
+from uuid import UUID
 
 
 class StripeService:
@@ -81,3 +83,23 @@ class StripeService:
         )
 
         SubscriptionEmailService.notify_first_payment(transaction)
+
+    @staticmethod
+    @transaction.atomic
+    def handle_customer_subscription_updated_event(obj: dict) -> None:
+        pprint(obj)
+        external_subscription_id = obj["id"]
+        cancel_at_period_end = obj["cancel_at_period_end"]
+
+        subscription = ReaderSubscription.objects.get(external_subscription_id=external_subscription_id)
+        subscription.update_metadata(
+            is_auto_renewal=not cancel_at_period_end
+        )
+
+    def toggle_cancel_at_period_end(user_id: UUID) -> None:
+        subscription = ReaderSubscription.objects.get(reader_id=user_id)
+        stripe.Subscription.modify(
+            id=subscription.external_subscription_id,
+            cancel_at_period_end=subscription.is_auto_renewal
+        )
+

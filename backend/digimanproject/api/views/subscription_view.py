@@ -10,6 +10,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from ..models.subscription_models import SubscriptionPlan, ReaderSubscription, PaymentTransaction
 from ..serializers.subscription_serializers import SubscriptionPlanSerializer, ReaderSubscriptionSerializer, PaymentTransactionSerializer, SubscriptionMeSerializer
 from ..services.subscription_service import ReaderSubscriptionService
+from ..services.stripe_service import StripeService
 
 from ..permissions.admin_permissions import AdminWriteOnly
 
@@ -50,3 +51,19 @@ class SubscriptionMeView(APIView):
             ("reader_subscription"), 
             status=status.HTTP_200_OK
         )
+
+
+class ToggleAutoRenewalView(APIView):
+    def post(self, request: Request) -> Response:
+        from ..models.user_models import User
+
+        user = request.user
+        if not user or not isinstance(user, User):
+            return Response({"detail": "Invalid user."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            StripeService.toggle_cancel_at_period_end(user.get_id())
+
+            return Response(data={}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(e)
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

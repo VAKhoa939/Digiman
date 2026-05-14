@@ -22,10 +22,10 @@ export function AuthProvider({ children }) {
       setUser(data);
       setIsAuthenticated(true);
 
-      const subscription = await fetchMySubscription();
-      setSubscription(mapReaderSubscription(subscription));
+      const fetchedSubscription = await fetchMySubscription();
+      setSubscription(mapReaderSubscription(fetchedSubscription));
 
-      console.log("fetchUser successful", data, subscription);
+      console.log("fetchUser successful", data, fetchedSubscription);
 
       return true;
     } catch (err) {
@@ -95,17 +95,16 @@ export function AuthProvider({ children }) {
 
   const refetchSubscription = useCallback(async () => {
     try {
-      setfetchUserLoading(true);
-      const subscription = await fetchMySubscription();
-      setSubscription(mapReaderSubscription(subscription));
-      console.log("refetchSubscription successful", subscription);
+      const newSubscription = await fetchMySubscription();
+      const mappedSubscription = mapReaderSubscription(newSubscription);
+      setSubscription(mappedSubscription);
+      console.log("refetchSubscription successful", mappedSubscription);
+      return mappedSubscription;
     } catch (err) {
       console.error("refetchSubscription failed\nMessage: " + err.message);
+      return subscription;
     }
-    finally {
-      setfetchUserLoading(false);
-    }
-  }, []);
+  }, [subscription]);
   
   // Auto-login on page refresh (using refresh cookie)
   useEffect(() => {

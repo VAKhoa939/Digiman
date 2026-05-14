@@ -14,10 +14,11 @@ export function useSubscriptionStatusPage(subscription, refetchSubscription) {
 
 			const startTime = Date.now();
 			const interval = setInterval(async () => {
-				await refetchSubscription();
+				const newSubscription = await refetchSubscription();
+				const newIsAutoRenewal = newSubscription.isAutoRenewal;
+				
 				const timeElapsed = Date.now() - startTime;
-				console.log("Refetching subscription status...", timeElapsed);
-				const newIsAutoRenewal = subscription.isAutoRenewal;
+				console.log("Refetching subscription status...", timeElapsed, oldIsAutoRenewal, newIsAutoRenewal);
 
 				if (newIsAutoRenewal !== oldIsAutoRenewal) {
 					clearInterval(interval);
