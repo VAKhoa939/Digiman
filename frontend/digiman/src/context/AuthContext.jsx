@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); 
   const [subscription, setSubscription] = useState(null);
   const [fetchUserLoading, setfetchUserLoading] = useState(true);
+  const [isErrorFetchingUser, setIsErrorFetchingUser] = useState(false);
 
   const fetchUser = useCallback(async () => {
     try {
@@ -21,18 +22,21 @@ export function AuthProvider({ children }) {
       setUser(data);
       setIsAuthenticated(true);
 
-      const subscription = await fetchMySubscription();
-      setSubscription(mapReaderSubscription(subscription));
+      const fetchedSubscription = await fetchMySubscription();
+      setSubscription(mapReaderSubscription(fetchedSubscription));
 
-      console.log("fetchUser successful", data, subscription);
+      console.log("fetchUser successful", data, fetchedSubscription);
 
       return true;
     } catch (err) {
       setUser(null);
       setSubscription(null);
       setIsAuthenticated(false);
+      setIsErrorFetchingUser(true);
       console.error("fetchUser failed\nMessage: " + err.message);
       return false;
+    } finally {
+      setfetchUserLoading(false);
     }
   }, []);
 
@@ -51,7 +55,7 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error("Login failed\nMessage: " + err.message);
-      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: `Login failed: ${err.message}` } })); } catch (e) { /* fallback */ }
+      emitToast('error', 'Login failed. Please try again.');
       return false;
     }
   }, [fetchUser]);
@@ -91,13 +95,16 @@ export function AuthProvider({ children }) {
 
   const refetchSubscription = useCallback(async () => {
     try {
-      const subscription = await fetchMySubscription();
-      setSubscription(mapReaderSubscription(subscription));
-      console.log("refetchSubscription successful", subscription);
+      const newSubscription = await fetchMySubscription();
+      const mappedSubscription = mapReaderSubscription(newSubscription);
+      setSubscription(mappedSubscription);
+      console.log("refetchSubscription successful", mappedSubscription);
+      return mappedSubscription;
     } catch (err) {
       console.error("refetchSubscription failed\nMessage: " + err.message);
+      return subscription;
     }
-  }, []);
+  }, [subscription]);
   
   // Auto-login on page refresh (using refresh cookie)
   useEffect(() => {
@@ -112,7 +119,6 @@ export function AuthProvider({ children }) {
       const result = await fetchUser();
       if (result) console.log("Auto-login successful");
       else console.log("Auto-login failed");
-      setfetchUserLoading(false);
     }
     tryAutoLogin();
   }, []);

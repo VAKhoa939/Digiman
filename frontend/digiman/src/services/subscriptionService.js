@@ -20,3 +20,9 @@ export async function createCheckoutSession(planId, provider) {
     if (res.data.detail) throw new Error(res.data.detail);
     return res.data.results ?? res.data;
 }
+
+export async function toggleAutoRenewal() {
+    const res = await api.post('subscriptions/toggle-auto-renewal/');
+    if (res.data.detail) throw new Error(res.data.detail);
+    return res.data.results ?? res.data;
+}

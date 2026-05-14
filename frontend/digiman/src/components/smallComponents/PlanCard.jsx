@@ -7,21 +7,22 @@ const FREQUENCY_LABELS = {
   yearly: '/yr',
 };
 
+
 const PlanCard = ({ plan, loadingPlan, onCheckout }) => {
-  const { id, name, description, price_usd, frequency } = plan;
+  const { id, name, description, price_usd, frequency, buttonText, buttonDisabled, onClick } = plan;
   const isLoading = loadingPlan === id;
   const isFree = parseFloat(price_usd) === 0;
-  const freqLabel = FREQUENCY_LABELS[frequency] || '';
-  const priceAmount = isFree ? 'Free' : `$${price_usd}`;
-  const isRecommended = !isFree;
+  const freqLabel = isFree ? '/mo' : FREQUENCY_LABELS[frequency];
+  const priceAmount = `$${price_usd}`;
+  const isRecommended = name === 'Basic';
 
   return (
     <div className={`plan-card${isRecommended ? ' plan-card--recommended' : ''}`}>
-      {isRecommended && <div className="plan-card__badge">Recommended</div>}
+      {isRecommended ? <div className="plan-card__badge">Recommended</div> : <div className="plan-card__badge-placeholder"/>}
       <h3 className="plan-card__name">{name}</h3>
       <div className="plan-card__price">
         {priceAmount}
-        {!isFree && freqLabel && <span>{freqLabel}</span>}
+        {freqLabel && <span>{freqLabel}</span>}
       </div>
       <hr className="plan-card__divider" />
       <ul className="plan-card__features">
@@ -32,10 +33,10 @@ const PlanCard = ({ plan, loadingPlan, onCheckout }) => {
       {!isFree && (
         <button
           className="btn btn-primary plan-card__btn"
-          onClick={() => onCheckout(id)}
-          disabled={isLoading}
+          onClick={onClick || (() => onCheckout(id))}
+          disabled={buttonDisabled || isLoading}
         >
-          {isLoading ? 'Redirecting…' : 'Subscribe Now'}
+          {isLoading ? 'Redirecting…' : (buttonText || 'Subscribe Now')}
         </button>
       )}
     </div>

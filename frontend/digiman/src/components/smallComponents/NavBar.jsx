@@ -106,6 +106,9 @@ function NavBar() {
                     <li>
                       <button className="dropdown-item" onClick={() => navigate('/settings')}>Settings</button>
                     </li>
+                    <li>
+                      <button className="dropdown-item" onClick={() => navigate('/subscription/status')}>Subscription Status</button>
+                    </li>
                     {/* Admin link for users with administrative privileges */}
                     {(() => {
                       const isAdmin = Boolean(user && (

@@ -9,9 +9,10 @@ export function useSubscriptionSuccess(contextSubscription) {
 	const [elapsedTime, setElapsedTime] = useState(0);
 
 	const shouldFetch = !contextSubscription 
-	|| contextSubscription.plan_name === "Free"
-	|| (contextSubscription.status === "inactive"
-	&& contextSubscription.last_payment_status === "pending");
+	|| contextSubscription.planName === "Free"
+	|| contextSubscription.lastPaymentStatus === "none"
+	|| contextSubscription.lastPaymentStatus === "pending";
+	console.log("shouldFetch", shouldFetch, contextSubscription);
 
 	const {data, isLoading, isError} = useQuery({
 		queryKey: ["subscription-success"],
@@ -25,8 +26,8 @@ export function useSubscriptionSuccess(contextSubscription) {
 			const mappedData = mapReaderSubscription(data);
 			if (!mappedData 
 				|| mappedData.planName === "Free" 
-				|| (mappedData.status === "inactive"
-				&& mappedData.lastPaymentStatus === "pending")
+				|| mappedData.lastPaymentStatus === "pending"
+				|| mappedData.lastPaymentStatus === "none"
 			) {
 				console.log("Refetching subscription status...", elapsedTime);
 				return 1000 * 2;

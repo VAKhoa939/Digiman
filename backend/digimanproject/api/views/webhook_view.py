@@ -46,6 +46,8 @@ class StripeWebhookView(APIView):
                 StripeService.handle_checkout_session_completed_event(obj)
             case "invoice.paid":
                 StripeService.handle_invoice_paid_event(obj)
+            case "customer.subscription.updated":
+                StripeService.handle_customer_subscription_updated_event(obj)
             case _:
                 pass
         # Additional events (invoice.payment_failed, customer.subscription.updated etc.)

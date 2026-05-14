@@ -40,7 +40,7 @@ export default function SubscriptionSuccess() {
 
   return (
     <div className="container py-4">
-      <h1>Subscription Payment Verification</h1>
+      <h1>Subscription Verification</h1>
       <div className="card p-4 my-3" style={{ maxWidth: 640 }}>
         <p>{message}</p>
         {status === 'success' && (
@@ -56,7 +56,7 @@ export default function SubscriptionSuccess() {
               <button
                 type='button'
                 className='btn btn-secondary ms-2'
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/subscription/status')}
               >Go to Subscription Status</button>
             </div>
           </>

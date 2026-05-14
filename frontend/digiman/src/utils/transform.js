@@ -1,3 +1,5 @@
+import { formatTime } from "./formatTime";
+
 export function mapMangaTitle(fetchedData) {
   if (!fetchedData) return null;
   return {
@@ -83,11 +85,14 @@ export function mapReaderSubscription(fetchedData) {
   return {
     id: fetchedData.id,
     planName: fetchedData.plan_name,
+    features: fetchedData.features,
+    description: fetchedData.description,
     status: fetchedData.status,
     isActive: fetchedData.is_active,
-    features: fetchedData.features,
     lastPaymentStatus: fetchedData.last_payment_status,
-    nextBillingDate: fetchedData.next_billing_date,
-    lastBillingDate: fetchedData.last_billing_date
+    isAutoRenewal: fetchedData.is_auto_renewal,
+    startDate: formatTime(fetchedData.start_date),
+    nextBillingDate: formatTime(fetchedData.next_billing_date),
+    lastBillingDate: formatTime(fetchedData.last_billing_date),
   }
 }
