@@ -10,6 +10,8 @@ import Spinner from '../smallComponents/Spinner';
 import { getTimeAgo } from '../../utils/formatTime';
 import CommentsPage from './CommentsPage';
 import { markMangaVisited, setStarRating } from '../../services/readerService';
+import RecommendationBlock from '../smallComponents/RecommendationBlock';
+import { useRecommendations } from '../../customHooks/useHomepage';
 
 const MangaPage = ({
   id, title, altTitle, coverUrl, author, artist, synopsis, status,
@@ -31,6 +33,8 @@ const MangaPage = ({
   const [hoverRating, setHoverRating] = useState(0);
   const [liveAvgRating, setLiveAvgRating] = useState(averageRating);
   const [liveReadCount, setLiveReadCount] = useState(readCount);
+
+  const { recommendations, recommendationsIsLoading, recommendationsError } = useRecommendations(id);
 
   useEffect(() => {
     setImgSrc(coverUrl);
@@ -370,6 +374,15 @@ const canPreview = !Boolean(isAuthenticated);
           </ul>)}
         </div>
       </div>
+      {/* You might also like */}
+      <RecommendationBlock
+        title="You Might Also Like"
+        subtitle={title ? `Similar to "${title}"` : null}
+        items={recommendations}
+        isLoading={recommendationsIsLoading}
+        error={recommendationsError}
+      />
+
       {/* Inline full comments section */}
       <div className="mt-4">
         <CommentsPage inline={true} />
