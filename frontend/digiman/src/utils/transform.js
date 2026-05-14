@@ -15,6 +15,8 @@ export function mapMangaTitle(fetchedData) {
     dateUpdated: fetchedData.latest_chapter_date,
     publicationDate: fetchedData.publication_date,
     isPremium: fetchedData.is_premium,
+    averageRating: fetchedData.average_rating ?? 0,
+    readCount: fetchedData.read_count ?? 0,
   };
 }
 

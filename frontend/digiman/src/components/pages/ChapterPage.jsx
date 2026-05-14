@@ -9,10 +9,13 @@ import ChapterActions from '../chapterComponents/ChapterActions';
 import CommentsPage from './CommentsPage';
 import ReaderSettings from '../chapterComponents/ReaderSettings';
 import useChapterPage from '../../customHooks/useChapterPage';
+import { useAuth } from '../../context/AuthContext';
+import { saveReadingProgress } from '../../services/readerService';
 
 export default function ChapterPage() {
   const { mangaId, chapterId } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   
   const [readerMode, setReaderMode] = useState('vertical'); // reader mode state: 'vertical' (continuous) or 'paged'
   const [swipeAxis, setSwipeAxis] = useState('vertical'); // swipe axis state: 'vertical' (up/down) or 'horizontal' (left/right)
@@ -28,6 +31,13 @@ export default function ChapterPage() {
   });
 
   const { chapter, chaptersList, loading, error } = useChapterPage(chapterId, mangaId);
+
+  // Save reading progress once the chapter data is loaded (authenticated readers only).
+  // This also triggers the backend signal that marks is_reader_visited and is_reader_read.
+  useEffect(() => {
+    if (!isAuthenticated || !chapterId || loading || !chapter) return;
+    saveReadingProgress(chapterId).catch(() => {/* silent — non-critical */});
+  }, [isAuthenticated, chapterId, loading, chapter]);
 
   // initialize readerMode/swipeAxis from persisted settings
   useEffect(() => {
