@@ -4,15 +4,10 @@ import MangaCard from '../../components/smallComponents/MangaCard';
 import Banner from '../../components/smallComponents/Banner';
 import RecommendationBlock from '../../components/smallComponents/RecommendationBlock';
 import MangaList from '../common/MangaList';
-import useHomepage from '../../customHooks/useHomepage';
 import { usePopular, useMostRead, useHomepageRecommendation } from '../../customHooks/useHomepage';
 import { useAuth } from '../../context/AuthContext';
 
 function Homepage() {
-  const {
-    latest, latestIsLoading, latestError,
-  } = useHomepage();
-
   const { isAuthenticated } = useAuth();
   const { popular, popularIsLoading, popularError } = usePopular();
   const { mostRead, mostReadIsLoading, mostReadError } = useMostRead();
@@ -50,15 +45,6 @@ function Homepage() {
               isLoading={bannersIsLoading}
             />
           )}
-
-          <MangaList
-            title="Latest Updated"
-            items={latest}
-            loading={latestIsLoading}
-            error={latestError}
-            viewAllPath="/search/advanced?ordering=-updated_at"
-            cardComponent={MangaCard}
-          />
         </Container>
       </div>
     </>
