@@ -17,31 +17,26 @@ class StripeService:
         """
         Handle Stripe checkout session completed event.
 
-        Update reader subscription with Stripe subscription data 
-        and set status to INACTIVE (because of waiting for payment confirmation
-        via Stripe invoice events).
+        Update reader subscription with Stripe subscription data.
         """
+        print("\nCheckout session completed event\n")
         pprint(obj)
         metadata = obj["metadata"]
         reader_id = metadata["reader_id"]
-        plan_id = metadata["plan_id"]
         external_customer_id = obj["customer"]
         external_subscription_id = obj["subscription"]
 
         reader = Reader.objects.get(id=reader_id)
-        plan = SubscriptionPlan.objects.get(id=plan_id)
-
         subscription = reader.get_subscription()
+        # If the reader already has a subscription (activated via invoice.paid event), 
+        # only update external_subscription_id and status,
+        # and send notification email
         subscription.update_metadata(
-            subscription_plan=plan,
             external_subscription_id=external_subscription_id,
             external_customer_id=external_customer_id,
-            status=ReaderSubscription.SubscriptionStatusChoices.INACTIVE,
-            last_payment_status=ReaderSubscription.LastPaymentStatusChoices.PENDING,
-            provider=PaymentProviderChoices.STRIPE,
-            is_auto_renewal=False
+            provider=PaymentProviderChoices.STRIPE
         )
-
+        
     @staticmethod
     @transaction.atomic
     def handle_invoice_paid_event(obj: dict) -> None:
@@ -52,36 +47,41 @@ class StripeService:
 
         Update reader subscription with Stripe invoice data and set status to ACTIVE.
         """
+        print("\nInvoice paid event\n")
         pprint(obj)
         external_transaction_id = obj["id"]
         external_customer_id = obj["customer"]
         paid_at = obj["created"]
         next_billing_date = obj["period_end"]
         last_billing_date = obj["period_start"]
+        subscription_metadata = obj["parent"]["subscription_details"]["metadata"]
+        reader_id = subscription_metadata["reader_id"]
+        plan_id = subscription_metadata["plan_id"]
 
-        subscription = ReaderSubscription.objects.get(external_customer_id=external_customer_id)
-        subscription.update_metadata(
-            next_billing_date=stripe_ts_to_datetime(next_billing_date),
-            last_billing_date=stripe_ts_to_datetime(last_billing_date),
-            status=ReaderSubscription.SubscriptionStatusChoices.ACTIVE,
-            last_payment_status=ReaderSubscription.LastPaymentStatusChoices.PAID,
-            is_auto_renewal=True
-        )
+        reader = Reader.objects.get(id=reader_id)
+        plan = SubscriptionPlan.objects.get(id=plan_id)
 
-        reader = subscription.get_reader()
-        plan = subscription.get_plan()
-
-        transaction = PaymentTransaction.objects.create(
+        transaction, created = PaymentTransaction.objects.get_or_create(
             reader=reader,
             subscription_plan=plan,
             amount_usd=plan.get_price_usd(),
             paid_at=stripe_ts_to_datetime(paid_at),
+            status=PaymentTransaction.StatusChoices.SUCCESS,
             provider=PaymentProviderChoices.STRIPE,
-            external_transaction_id=external_transaction_id,
             external_customer_id=external_customer_id,
-            status=PaymentTransaction.StatusChoices.SUCCESS
+            external_transaction_id=external_transaction_id,
         )
 
+        subscription = reader.get_subscription()
+        subscription.update_metadata(
+            subscription_plan=plan,
+            status=ReaderSubscription.SubscriptionStatusChoices.ACTIVE,
+            is_auto_renewal=True,
+            last_payment_status=ReaderSubscription.LastPaymentStatusChoices.PAID,
+            next_billing_date=stripe_ts_to_datetime(next_billing_date),
+            last_billing_date=stripe_ts_to_datetime(last_billing_date),
+        )
+        
         SubscriptionEmailService.notify_first_payment(transaction)
 
     @staticmethod

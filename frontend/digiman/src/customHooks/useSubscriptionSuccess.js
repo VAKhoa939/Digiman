@@ -8,10 +8,12 @@ export function useSubscriptionSuccess(contextSubscription) {
 	const [status, setStatus] = useState("pending");
 	const [elapsedTime, setElapsedTime] = useState(0);
 
-	const shouldFetch = !contextSubscription 
-	|| contextSubscription.planName === "Free"
-	|| contextSubscription.lastPaymentStatus === "none"
-	|| contextSubscription.lastPaymentStatus === "pending";
+	function isSubscriptionPending(subscription) {
+		return !subscription 
+			|| subscription.lastPaymentStatus === "none";
+	}
+
+	const shouldFetch = isSubscriptionPending(contextSubscription);
 	console.log("shouldFetch", shouldFetch, contextSubscription);
 
 	const {data, isLoading, isError} = useQuery({
@@ -24,11 +26,7 @@ export function useSubscriptionSuccess(contextSubscription) {
 			if (elapsedTime >= 1000 * 15) return false;
 
 			const mappedData = mapReaderSubscription(data);
-			if (!mappedData 
-				|| mappedData.planName === "Free" 
-				|| mappedData.lastPaymentStatus === "pending"
-				|| mappedData.lastPaymentStatus === "none"
-			) {
+			if (isSubscriptionPending(mappedData)) {
 				console.log("Refetching subscription status...", elapsedTime);
 				return 1000 * 2;
 			}
@@ -52,18 +50,11 @@ export function useSubscriptionSuccess(contextSubscription) {
 			if (!shouldFetch) return "success";
 			if (isError) return "failed";
 			if (elapsedTime >= 1000 * 15) return "timeout";
+			
 			const mappedData = mapReaderSubscription(data);
-			if (mappedData 
-				&& mappedData.planName !== "Free" 
-				&& mappedData.status === "inactive"
-				&& mappedData.lastPaymentStatus === "failed"
-			) return "failed";
-			if (mappedData 
-				&& mappedData.planName !== "Free" 
-				&& mappedData.status === "active"
-				&& mappedData.lastPaymentStatus === "paid"
-			) return "success";
-			return "pending";
+			if (!mappedData || mappedData.lastPaymentStatus === "none") return "pending";
+			if (mappedData.lastPaymentStatus === "failed") return "failed";
+			return "success";
 		}
 
 		if (data || isError) setStatus(checkStatus(data, status, elapsedTime, shouldFetch));

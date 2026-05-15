@@ -9,7 +9,7 @@ from rest_framework import status
 
 from ..serializers.payment_serializers import CreateCheckoutSessionSerializer
 from ..models.user_models import User
-from ..models.subscription_models import SubscriptionPlan, PaymentProviderChoices
+from ..models.subscription_models import SubscriptionPlan, ReaderSubscription, PaymentProviderChoices
 from ..utils.stripe_client import stripe
 from ..utils.env_getters import env
 
@@ -43,6 +43,10 @@ class CreateCheckoutSession(APIView):
         subscription_plan = SubscriptionPlan.objects.get(id=plan_id)
         frontend_url = env("FRONTEND_URL")
 
+        # reset the subscription to default (free) plan
+        subscription = ReaderSubscription.objects.get(reader_id=user.id)
+        subscription.set_free_plan()
+
         if provider == PaymentProviderChoices.STRIPE:
             customer_email = user.get_email()
             price_id = subscription_plan.get_stripe_price_id()
@@ -62,6 +66,9 @@ class CreateCheckoutSession(APIView):
                 line_items=[{"price": price_id, "quantity": 1}],
                 mode="subscription",
                 metadata=metadata,
+                subscription_data={
+                    "metadata": metadata
+                },
                 success_url=f"{frontend_url}/subscription/success",
                 cancel_url=f"{frontend_url}/subscription/cancel",
             )

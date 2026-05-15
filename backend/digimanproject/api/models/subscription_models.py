@@ -99,9 +99,7 @@ class ReaderSubscription(models.Model):
         PAST_DUE = "past_due", "Past Due"
 
     class LastPaymentStatusChoices(models.TextChoices):
-        PENDING = "pending", "Pending"
         PAID = "paid", "Paid"
-        UNPAID = "unpaid", "Unpaid"
         FAILED = "failed", "Failed"
         NONE = "none", "None"
 
@@ -216,25 +214,27 @@ class ReaderSubscription(models.Model):
         self.is_auto_renewal = True
 
     def set_free_plan(self):
-        self.subscription_plan = SubscriptionPlan.objects.get(name="Free")
-        self.status = self.SubscriptionStatusChoices.ACTIVE
-        self.is_auto_renewal = True
-        self.start_date = timezone.now()
-        self.next_billing_date = None
-        self.last_billing_date = None
-        self.provider = PaymentProviderChoices.NONE
-        self.external_subscription_id = ""
-        self.external_customer_id = ""
+        subscription_plan = SubscriptionPlan.objects.get(name="Free")
+        status = self.SubscriptionStatusChoices.ACTIVE
+        is_auto_renewal = False
+        start_date = timezone.now()
+        last_payment_status = self.LastPaymentStatusChoices.NONE
+        next_billing_date = None
+        last_billing_date = None
+        provider = PaymentProviderChoices.NONE
+        external_subscription_id = ""
+        external_customer_id = ""
         self.update_metadata(
-            subscription_plan=self.subscription_plan,
-            status=self.status,
-            is_auto_renewal=self.is_auto_renewal,
-            start_date=self.start_date,
-            next_billing_date=self.next_billing_date,
-            last_billing_date=self.last_billing_date,
-            provider=self.provider,
-            external_subscription_id=self.external_subscription_id,
-            external_customer_id=self.external_customer_id
+            subscription_plan=subscription_plan,
+            status=status,
+            is_auto_renewal=is_auto_renewal,
+            start_date=start_date,
+            last_payment_status=last_payment_status,
+            next_billing_date=next_billing_date,
+            last_billing_date=last_billing_date,
+            provider=provider,
+            external_subscription_id=external_subscription_id,
+            external_customer_id=external_customer_id
         )
         
     def set_past_due(self):
