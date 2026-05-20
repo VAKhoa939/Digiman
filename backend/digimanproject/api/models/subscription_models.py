@@ -97,34 +97,46 @@ class ReaderSubscription(models.Model):
         ACTIVE = "active", "Active"
         INACTIVE = "inactive", "Inactive"
         PAST_DUE = "past_due", "Past Due"
+        ENDED = "ended", "Ended"
 
-    class LastPaymentStatusChoices(models.TextChoices):
-        PAID = "paid", "Paid"
+    class LastPurchaseStatusChoices(models.TextChoices):
+        SUCCESS = "success", "Success"
+        PENDING = "pending", "Pending"
         FAILED = "failed", "Failed"
         NONE = "none", "None"
 
     id = models.UUIDField(
         primary_key=True, editable=False, default=uuid.uuid4)
     reader: "Reader" = models.OneToOneField(
-        "Reader", on_delete=models.CASCADE, related_name="reader_subscription")
+        "Reader", on_delete=models.CASCADE, 
+        related_name="reader_subscription"
+    )
     subscription_plan: "SubscriptionPlan" = models.ForeignKey(
         "SubscriptionPlan", 
         on_delete=models.CASCADE, 
-        related_name="reader_subscription")
+        related_name="reader_subscription"
+    )
+    last_payment_transaction: "PaymentTransaction" = models.ForeignKey(
+        "PaymentTransaction", 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name="reader_subscription"
+    )
     
     start_date = models.DateTimeField(default=timezone.now)
     next_billing_date = models.DateTimeField(null=True, blank=True)
-    last_billing_date = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
 
     status = models.CharField(
         max_length=100, 
         choices=SubscriptionStatusChoices.choices, 
         default=SubscriptionStatusChoices.ACTIVE)
-    is_auto_renewal = models.BooleanField(default=True)
-    last_payment_status = models.CharField(
+    is_auto_renewal = models.BooleanField(default=False)
+    last_purchase_status = models.CharField(
         max_length=100, 
-        choices=LastPaymentStatusChoices.choices, 
-        default=LastPaymentStatusChoices.NONE
+        choices=LastPurchaseStatusChoices.choices, 
+        default=LastPurchaseStatusChoices.NONE
     )
 
     provider = models.CharField(
@@ -147,11 +159,52 @@ class ReaderSubscription(models.Model):
     def get_plan_name(self) -> str:
         return self.subscription_plan.get_name()
     
+    def get_plan_price_usd(self) -> float:
+        return self.subscription_plan.get_price_usd()
+    
     def get_is_auto_renewal(self) -> bool:
         return self.is_auto_renewal
     
+    def get_ended_at(self) -> datetime | None:
+        return self.ended_at
+    
+    def get_last_purchase_status(self) -> str:
+        return self.last_purchase_status
+    
+    @admin.display(
+        description="Last Payment Created At",
+    )
+    def get_last_payment_created_at(self) -> datetime | None:
+        if not self.last_payment_transaction:
+            return None
+        return self.last_payment_transaction.get_created_at()
+    
+    @admin.display(
+        description="Last Payment Status",
+    )
     def get_last_payment_status(self) -> str:
-        return self.last_payment_status
+        if not self.last_payment_transaction:
+            return "none"
+        return self.last_payment_transaction.get_status()
+    
+    @admin.display(
+        description="Last Payment Failed Reason",
+    )
+    def get_last_payment_failed_reason(self) -> str:
+        if not self.last_payment_transaction:
+            return "none"
+        return self.last_payment_transaction.get_failed_reason()
+    
+    @admin.display(
+        description="Last Billing Date",
+    )
+    def get_last_billing_date(self) -> datetime | None:
+        if not self.last_payment_transaction:
+            return None
+        return self.last_payment_transaction.get_paid_at()
+    
+    def get_last_payment_transaction(self) -> "PaymentTransaction" | None:
+        return self.last_payment_transaction
     
     def get_plan(self) -> "SubscriptionPlan":
         return self.subscription_plan
@@ -187,66 +240,34 @@ class ReaderSubscription(models.Model):
         return self.subscription_plan.check_access(feature)
     
     def update_metadata(self, **metadata: Any) -> None:
-        """Allowed fields: subscription_plan, status, is_auto_renewal,
-        start_date, next_billing_date, last_billing_date, provider,
-        external_subscription_id, external_customer_id, last_payment_status"""
+        """Allowed fields: 
+        subscription_plan, status, is_auto_renewal, last_purchase_status,
+        start_date, next_billing_date, ended_at, last_payment_transaction,
+        provider, external_subscription_id, external_customer_id"""
         allowed_fields = [
             "subscription_plan", 
             "status", 
             "is_auto_renewal",
-            "last_payment_status",
+            "last_purchase_status",
             "start_date", 
             "next_billing_date", 
-            "last_billing_date",
+            "ended_at",
+            "last_payment_transaction",
             "provider", 
             "external_subscription_id", 
             "external_customer_id",
         ]
         update_instance(self, allowed_fields, **metadata)
 
+    def start_purchase(self) -> None:
+        """Update last purchase status to pending"""
+        status = self.LastPurchaseStatusChoices.PENDING
+        self.update_metadata(last_purchase_status=status)
+
     def toggle_auto_renewal(self) -> None:
-        self.is_auto_renewal = not self.is_auto_renewal
-        self.save(update_fields=["is_auto_renewal"])
+        is_auto_renewal = not self.is_auto_renewal
+        self.update_metadata(is_auto_renewal=is_auto_renewal)
 
-    def change_plan(self, subscription_plan: SubscriptionPlan):
-        self.subscription_plan = subscription_plan
-        self.status = self.SubscriptionStatusChoices.ACTIVE
-        self.is_auto_renewal = True
-
-    def set_free_plan(self):
-        subscription_plan = SubscriptionPlan.objects.get(name="Free")
-        status = self.SubscriptionStatusChoices.ACTIVE
-        is_auto_renewal = False
-        start_date = timezone.now()
-        last_payment_status = self.LastPaymentStatusChoices.NONE
-        next_billing_date = None
-        last_billing_date = None
-        provider = PaymentProviderChoices.NONE
-        external_subscription_id = ""
-        external_customer_id = ""
-        self.update_metadata(
-            subscription_plan=subscription_plan,
-            status=status,
-            is_auto_renewal=is_auto_renewal,
-            start_date=start_date,
-            last_payment_status=last_payment_status,
-            next_billing_date=next_billing_date,
-            last_billing_date=last_billing_date,
-            provider=provider,
-            external_subscription_id=external_subscription_id,
-            external_customer_id=external_customer_id
-        )
-        
-    def set_past_due(self):
-        self.status = self.SubscriptionStatusChoices.PAST_DUE
-        self.save(update_fields=["status"])
-
-    def renew(self, last_billing_date, next_billing_date):
-        self.status = self.SubscriptionStatusChoices.ACTIVE
-        self.last_billing_date = last_billing_date
-        self.next_billing_date = next_billing_date
-        self.save(update_fields=["status", "last_billing_date", "next_billing_date"])
-        
 
 class PaymentTransaction(models.Model):
     class TransactionTypeChoices(models.TextChoices):
@@ -254,8 +275,17 @@ class PaymentTransaction(models.Model):
         AUTO_RENEWAL = "auto_renewal", "Auto Renewal"
 
     class StatusChoices(models.TextChoices):
-        SUCCESS = "success", "Success"
+        PAID = "paid", "Paid"
         FAILED = "failed", "Failed"
+
+    class FailedReasonChoices(models.TextChoices):
+        CARD_DECLINED = "card_declined", "Card Declined"
+        INSUFFICIENT_FUNDS = "insufficient_funds", "Insufficient Funds"
+        PROCESSING_ERROR = "processing_error", "Processing Error"
+        GENERIC_DECLINE = "generic_decline", "Generic Decline"
+        SERVER_ERROR = "server_error", "Server Error"
+        OTHER = "other", "Other"
+        NONE = "none", "None"
 
     id = models.UUIDField(
         primary_key=True, editable=False, default=uuid.uuid4)
@@ -274,10 +304,15 @@ class PaymentTransaction(models.Model):
     status = models.CharField(
         max_length=100, 
         choices=StatusChoices.choices, 
-        default=StatusChoices.SUCCESS)
+        default=StatusChoices.PAID)
     
     created_at = models.DateTimeField(default=timezone.now)
     paid_at = models.DateTimeField(null=True, blank=True)
+    failed_reason = models.TextField(
+        max_length=100,
+        choices=FailedReasonChoices.choices,
+        default=FailedReasonChoices.NONE
+    )
 
     provider = models.CharField(
         max_length=100,
@@ -318,8 +353,17 @@ class PaymentTransaction(models.Model):
     def get_created_at(self) -> datetime:
         return self.created_at
     
-    def get_paid_at(self) -> datetime:
+    def get_paid_at(self) -> datetime | None:
         return self.paid_at
+    
+    def get_status(self) -> str:
+        return self.status
+    
+    def get_failed_reason(self) -> str:
+        return self.failed_reason
+    
+    def get_failed_reason_display(self) -> str:
+        return self.FailedReasonChoices(self.failed_reason).label
     
     def get_provider(self) -> str:
         return self.provider
@@ -327,11 +371,6 @@ class PaymentTransaction(models.Model):
     def get_plan_name(self) -> str:
         return self.subscription_plan.get_name()
     
-    def check_success(self) -> bool:
-        return self.status == self.StatusChoices.SUCCESS
-    
-    def update_metadata(self, **metadata: Any) -> None:
-        """Allowed fields: reader, subscription_plan"""
-        allowed_fields = ["reader", "subscription_plan",]
-        update_instance(self, allowed_fields, **metadata)
+    def check_paid(self) -> bool:
+        return self.status == self.StatusChoices.PAID
     

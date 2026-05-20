@@ -13,8 +13,6 @@ const SUBSCRIPTION_STATUS = {
 
 const LAST_PAYMENT_STATUS = {
   "paid": "Paid",
-  "unpaid": "Unpaid",
-  "pending": "Pending",
   "failed": "Failed"
 }
 
@@ -44,9 +42,9 @@ function SubscriptionStatusPage() {
           {subscription.planName !== 'Free' ? <>
             <p>Status: {SUBSCRIPTION_STATUS[subscription.status]}</p>
             <p>Start Date: {subscription.startDate}</p>
-            {subscription.lastBillingDate && <>
-              <p>Last Payment Date: {subscription.lastBillingDate}</p>
-              <p>Last Payment Status: {LAST_PAYMENT_STATUS[subscription.lastPaymentStatus]}</p>
+            {subscription.lastPaymentTransaction && <>
+              <p>Last Payment Date: {subscription.lastPaymentTransaction.createdAt}</p>
+              <p>Last Payment Status: {LAST_PAYMENT_STATUS[subscription.lastPaymentTransaction.status]}</p>
             </>}
             <hr/>
             <p>Auto-renewal: {subscription.isAutoRenewal ? 'ON' : 'OFF'}</p>

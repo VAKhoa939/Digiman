@@ -10,6 +10,7 @@ from rest_framework import status
 from ..serializers.payment_serializers import CreateCheckoutSessionSerializer
 from ..models.user_models import User
 from ..models.subscription_models import SubscriptionPlan, ReaderSubscription, PaymentProviderChoices
+from ..services.stripe_service import StripeService
 from ..utils.stripe_client import stripe
 from ..utils.env_getters import env
 
@@ -45,7 +46,7 @@ class CreateCheckoutSession(APIView):
 
         # reset the subscription to default (free) plan
         subscription = ReaderSubscription.objects.get(reader_id=user.id)
-        subscription.set_free_plan()
+        subscription.start_purchase()
 
         if provider == PaymentProviderChoices.STRIPE:
             customer_email = user.get_email()
@@ -60,8 +61,9 @@ class CreateCheckoutSession(APIView):
         customer_email: str, price_id: str, metadata: Dict[str, str], frontend_url: str
     ) -> Response:
         try:
+            customer_id = StripeService.create_customer(customer_email)
             session = stripe.checkout.Session.create(
-                customer_email=customer_email,
+                customer=customer_id,
                 payment_method_types=["card"],
                 line_items=[{"price": price_id, "quantity": 1}],
                 mode="subscription",
@@ -73,6 +75,7 @@ class CreateCheckoutSession(APIView):
                 cancel_url=f"{frontend_url}/subscription/cancel",
             )
         except Exception as e:
+            print(e)
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return Response({"url": session.url, "id": session.id})

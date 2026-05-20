@@ -10,7 +10,7 @@ export function useSubscriptionSuccess(contextSubscription) {
 
 	function isSubscriptionPending(subscription) {
 		return !subscription 
-			|| subscription.lastPaymentStatus === "none";
+			|| subscription.lastPurchaseStatus === "pending";
 	}
 
 	const shouldFetch = isSubscriptionPending(contextSubscription);
@@ -50,11 +50,10 @@ export function useSubscriptionSuccess(contextSubscription) {
 			if (!shouldFetch) return "success";
 			if (isError) return "failed";
 			if (elapsedTime >= 1000 * 15) return "timeout";
+			if (!data) return "pending";
 			
 			const mappedData = mapReaderSubscription(data);
-			if (!mappedData || mappedData.lastPaymentStatus === "none") return "pending";
-			if (mappedData.lastPaymentStatus === "failed") return "failed";
-			return "success";
+			return mappedData.lastPurchaseStatus;
 		}
 
 		if (data || isError) setStatus(checkStatus(data, status, elapsedTime, shouldFetch));

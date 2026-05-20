@@ -84,6 +84,12 @@ export function mapInputCommentData(
 
 export function mapReaderSubscription(fetchedData) {
   if (!fetchedData) return null;
+  let lastPaymentTransaction = fetchedData.last_payment_transaction;
+  lastPaymentTransaction = lastPaymentTransaction && {
+    status: lastPaymentTransaction.status,
+    failedReason: lastPaymentTransaction.failed_reason,
+    createdAt: formatTime(lastPaymentTransaction.created_at),
+  };
   return {
     id: fetchedData.id,
     planName: fetchedData.plan_name,
@@ -91,10 +97,11 @@ export function mapReaderSubscription(fetchedData) {
     description: fetchedData.description,
     status: fetchedData.status,
     isActive: fetchedData.is_active,
-    lastPaymentStatus: fetchedData.last_payment_status,
+    lastPurchaseStatus: fetchedData.last_purchase_status,
     isAutoRenewal: fetchedData.is_auto_renewal,
     startDate: formatTime(fetchedData.start_date),
     nextBillingDate: formatTime(fetchedData.next_billing_date),
     lastBillingDate: formatTime(fetchedData.last_billing_date),
+    lastPaymentTransaction: lastPaymentTransaction,
   }
 }
