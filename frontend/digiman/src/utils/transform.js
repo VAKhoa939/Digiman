@@ -87,8 +87,9 @@ export function mapReaderSubscription(fetchedData) {
   let lastPaymentTransaction = fetchedData.last_payment_transaction;
   lastPaymentTransaction = lastPaymentTransaction && {
     status: lastPaymentTransaction.status,
-    failedReason: lastPaymentTransaction.failed_reason,
     createdAt: formatTime(lastPaymentTransaction.created_at),
+    paidAt: formatTime(lastPaymentTransaction.paid_at),
+    nextPaymentAttemptAt: formatTime(lastPaymentTransaction.next_payment_attempt_at),
   };
   return {
     id: fetchedData.id,
@@ -102,6 +103,8 @@ export function mapReaderSubscription(fetchedData) {
     startDate: formatTime(fetchedData.start_date),
     nextBillingDate: formatTime(fetchedData.next_billing_date),
     lastBillingDate: formatTime(fetchedData.last_billing_date),
+    endedAt: formatTime(fetchedData.ended_at),
+    provider: fetchedData.provider,
     lastPaymentTransaction: lastPaymentTransaction,
   }
 }

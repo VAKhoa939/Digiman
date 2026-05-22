@@ -6,41 +6,26 @@ from ..utils.helper_functions import format_datetime_long
 
 class SubscriptionEmailService:
     @staticmethod
-    def notify_first_payment(transaction: PaymentTransaction) -> None:
+    def notify_success_first_purchase(transaction: PaymentTransaction) -> None:
         reader = transaction.get_reader()
         created_at = format_datetime_long(transaction.get_created_at())
+        if not created_at:
+            raise Exception("Transaction created_at is null")
         recipient_list = [reader.get_email()]
+        subject = "Purchase Subscription Success"
+        message = f"""
+            Hello {reader.get_display_name()},
 
-        if transaction.check_paid():
-            paid_at = format_datetime_long(transaction.get_paid_at())
-
-            subject = "Purchase Subscription Success"
-            message = f"""
-                Hello {reader.get_display_name()},
-
-                We are writing to inform you that your recent payment for subscription has been confirmed, and your subscription has been successfully activated.
-                Your latest payment details are as follows:
-                
-                - Plan: {transaction.get_plan_name()}
-                - Price: ${transaction.get_amount_usd()}
-                - Provider: {transaction.get_provider()}
-                - Transaction created at: {created_at}
-                - Transaction paid at: {paid_at}
-            """
-        else:
-            subject = "Purchase Subscription Failed"
-            message = f"""
-                Hello {reader.get_display_name()},
-
-                We are writing to inform you that your recent payment for subscription has failed.
-                Your latest payment details are as follows:
-                
-                - Plan: {transaction.get_plan_name()}
-                - Price: ${transaction.get_amount_usd()}
-                - Transaction created at: {created_at}
-                - Transaction failed reason: {transaction.get_failed_reason_display()}
-                - Provider: {transaction.get_provider()}
-            """
+            We are writing to inform you that your recent payment for subscription has been confirmed, and your subscription has been successfully activated.
+            
+            Your latest payment details are as follows:
+            
+            - Plan: {transaction.get_plan_name()}
+            - Price: ${transaction.get_amount_usd()}
+            - Provider: {transaction.get_provider()}
+            - Transaction created at: {created_at}
+            - Transaction status: {transaction.get_status().capitalize()}
+        """
         send_mail(
             subject=subject,
             message=message,
@@ -52,18 +37,19 @@ class SubscriptionEmailService:
     def notify_ended_subscription(subscription: ReaderSubscription) -> None:
         reader = subscription.get_reader()
         recipient_list = [reader.get_email()]
-
-
         subject = "Subscription Expired"
         message = f"""
             Hello {reader.get_display_name()},
 
             We are writing to inform you that your subscription has ended.
             Please renew your subscription to continue using our service.
+            
             Your subscription details are as follows:
             
             - Plan: {subscription.get_plan_name()}
             - Price: ${subscription.get_plan_price_usd()}
+            - Provider: {subscription.get_provider()}
+            - Start date: {format_datetime_long(subscription.get_start_date())}
             - Ended at: {format_datetime_long(subscription.get_ended_at())}
         """
         send_mail(
@@ -74,39 +60,86 @@ class SubscriptionEmailService:
         )
 
     @staticmethod
-    def notify_auto_renewal_payment(transaction: PaymentTransaction) -> None:
+    def notify_success_auto_renewal_payment(transaction: PaymentTransaction) -> None:
         reader = transaction.get_reader()
         created_at = format_datetime_long(transaction.get_created_at())
+        if not created_at:
+            raise Exception("Transaction created_at is null")
         recipient_list = [reader.get_email()]
+        subject = "Auto Renewal Payment Success"
+        message = f"""
+            Hello {reader.get_display_name()},
 
-        if transaction.check_paid():
-            paid_at = format_datetime_long(transaction.get_paid_at())
-            subject = "Auto Renewal Payment Success"
+            We are writing to inform you that your recent auto renewal payment has been confirmed, and your subscription has been successfully extended.
+            
+            Your latest payment details are as follows:
+            
+            - Plan: {transaction.get_plan_name()}
+            - Price: ${transaction.get_amount_usd()}
+            - Provider: {transaction.get_provider()}
+            - Transaction created at: {created_at}
+            - Transaction status: {transaction.get_status().capitalize()}
+        """
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=None,
+            recipient_list=recipient_list,
+        )
+    
+    @staticmethod
+    def notify_failed_auto_renewal_payment(
+        transaction: PaymentTransaction, 
+        customer_portal_url: str = None
+    ) -> None:
+        reader = transaction.get_reader()
+        recipient_list = [reader.get_email()]
+        subject = "Auto Renewal Payment Failed"
+        created_at = format_datetime_long(transaction.get_created_at())
+        if not created_at:
+            raise Exception("Transaction created_at is null")
+        next_payment_attempt_at = format_datetime_long(transaction.get_next_payment_attempt_at())
+
+        if next_payment_attempt_at:
+            customer_portal_message = "" if not customer_portal_url else f"""
+
+                If you would like to change your payment method, you can do so by visiting the following link: 
+                {customer_portal_url}
+
+            """
             message = f"""
                 Hello {reader.get_display_name()},
 
-                We are writing to inform you that your recent auto renewal payment has been confirmed, and your subscription has been successfully extended.
+                We are writing to inform you that your recent auto renewal payment has failed, and your subscription status has been changed to "Past Due".
+                Please check your payment method to ensure that it is still valid and has sufficient funds before Stripe attempts to charge it again.
+                {customer_portal_message}
+                You can also go to the Pricing page of our website to subscribe a new plan again.
+
                 Your latest payment details are as follows:
                 
                 - Plan: {transaction.get_plan_name()}
                 - Price: ${transaction.get_amount_usd()}
                 - Provider: {transaction.get_provider()}
                 - Transaction created at: {created_at}
-                - Transaction paid at: {paid_at}
+                - Transaction status: {transaction.get_status().capitalize()}
+                - Next payment attempt at: {next_payment_attempt_at}
             """
         else:
-            subject = "Auto Renewal Payment Failed"
             message = f"""
                 Hello {reader.get_display_name()},
 
-                We are writing to inform you that your recent auto renewal payment has failed.
+                We are writing to inform you that your recent auto renewal payment has failed, and your subscription status has been changed to "Past Due".
+                All payment attempts have been exhausted.
+
+                Please go to the Pricing page of our website to subscribe a new plan again.
+
                 Your latest payment details are as follows:
                 
                 - Plan: {transaction.get_plan_name()}
                 - Price: ${transaction.get_amount_usd()}
-                - Transaction created at: {created_at}
-                - Transaction failed reason: {transaction.get_failed_reason_display()}
                 - Provider: {transaction.get_provider()}
+                - Transaction created at: {created_at}
+                - Transaction status: {transaction.get_status().capitalize()}
             """
         send_mail(
             subject=subject,

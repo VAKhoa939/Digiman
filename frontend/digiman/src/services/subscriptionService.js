@@ -26,3 +26,9 @@ export async function toggleAutoRenewal() {
     if (res.data.detail) throw new Error(res.data.detail);
     return res.data.results ?? res.data;
 }
+
+export async function createCustomerPortalSession() {
+    const res = await api.post('payments/create-customer-portal-session');
+    if (res.data.detail) throw new Error(res.data.detail);
+    return res.data.results ?? res.data;
+}

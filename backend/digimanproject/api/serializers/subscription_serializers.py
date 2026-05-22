@@ -21,10 +21,9 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
 class ReaderSubscriptionSerializer(serializers.ModelSerializer):
     """Fields for Reader Subscription: id, reader_id, subscription_plan_id, 
     start_date, next_billing_date, last_billing_date, provider, 
-    status, is_auto_renewal, last_payment_status, last_payment_failed_reason"""
+    status, is_auto_renewal, last_payment_status"""
     last_billing_date = serializers.SerializerMethodField()
     last_payment_status = serializers.SerializerMethodField()
-    last_payment_failed_reason = serializers.SerializerMethodField()
 
     class Meta:
         model = ReaderSubscription
@@ -46,14 +45,11 @@ class ReaderSubscriptionSerializer(serializers.ModelSerializer):
     def get_last_payment_status(self, obj: ReaderSubscription):
         return obj.get_last_payment_status()
 
-    def get_last_payment_failed_reason(self, obj: ReaderSubscription):
-        return obj.get_last_payment_failed_reason()
-
 
 class PaymentTransactionSerializer(serializers.ModelSerializer):
     """Fields for Payment Transaction: reader_id, subscription_plan_id, 
-    transaction_type, amount_usd, status, created_at, paid_at, failed_reason,
-    provider, external_transaction_id"""
+    transaction_type, amount_usd, status, created_at, paid_at,
+    next_payment_attempt_at, provider, external_transaction_id"""
 
     class Meta:
         model = PaymentTransaction
@@ -66,7 +62,7 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
             "status", 
             "created_at", 
             "paid_at", 
-            "failed_reason",
+            "next_payment_attempt_at",
             "provider", 
             "external_transaction_id"
         ]
@@ -95,14 +91,17 @@ class SubscriptionMeSerializer(serializers.Serializer):
                 "start_date": subscription.start_date,
                 "next_billing_date": subscription.next_billing_date, 
                 "last_billing_date": subscription.get_last_billing_date(),
+                "ended_at": subscription.ended_at,
+                "provider": subscription.provider,
             }
             
             last_payment_transaction = subscription.get_last_payment_transaction()
             if last_payment_transaction is not None:
                 reader_subscription["last_payment_transaction"] = {
                     "status": last_payment_transaction.get_status(),
-                    "failed_reason": last_payment_transaction.get_failed_reason_display(),
                     "created_at": last_payment_transaction.get_created_at(),
+                    "paid_at": last_payment_transaction.get_paid_at(),
+                    "next_payment_attempt_at": last_payment_transaction.get_next_payment_attempt_at(),
                 }
             return reader_subscription
         except ReaderSubscription.DoesNotExist:

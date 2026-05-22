@@ -64,6 +64,9 @@ class SubscriptionPlan(models.Model):
     def get_stripe_price_id(self) -> str:
         return self.stripe_price_id
     
+    def get_frequency(self) -> str:
+        return self.frequency
+    
     def get_features(self) -> Dict[str, Any]:
         return self.features
     
@@ -165,11 +168,17 @@ class ReaderSubscription(models.Model):
     def get_is_auto_renewal(self) -> bool:
         return self.is_auto_renewal
     
+    def get_start_date(self) -> datetime:
+        return self.start_date
+    
     def get_ended_at(self) -> datetime | None:
         return self.ended_at
     
     def get_last_purchase_status(self) -> str:
         return self.last_purchase_status
+    
+    def get_provider(self) -> str:
+        return self.provider
     
     @admin.display(
         description="Last Payment Created At",
@@ -186,14 +195,6 @@ class ReaderSubscription(models.Model):
         if not self.last_payment_transaction:
             return "none"
         return self.last_payment_transaction.get_status()
-    
-    @admin.display(
-        description="Last Payment Failed Reason",
-    )
-    def get_last_payment_failed_reason(self) -> str:
-        if not self.last_payment_transaction:
-            return "none"
-        return self.last_payment_transaction.get_failed_reason()
     
     @admin.display(
         description="Last Billing Date",
@@ -229,6 +230,12 @@ class ReaderSubscription(models.Model):
             return "None"
         n = len(self.external_customer_id)
         return self.external_customer_id[:4] + "*" * (n - 8) + self.external_customer_id[-4:]
+    
+    def get_external_subscription_id(self) -> str:
+        return self.external_subscription_id
+    
+    def get_external_customer_id(self) -> str:
+        return self.external_customer_id
 
     def check_plan_premium(self) -> bool:
         return self.subscription_plan.get_name() != "Free"
@@ -278,15 +285,6 @@ class PaymentTransaction(models.Model):
         PAID = "paid", "Paid"
         FAILED = "failed", "Failed"
 
-    class FailedReasonChoices(models.TextChoices):
-        CARD_DECLINED = "card_declined", "Card Declined"
-        INSUFFICIENT_FUNDS = "insufficient_funds", "Insufficient Funds"
-        PROCESSING_ERROR = "processing_error", "Processing Error"
-        GENERIC_DECLINE = "generic_decline", "Generic Decline"
-        SERVER_ERROR = "server_error", "Server Error"
-        OTHER = "other", "Other"
-        NONE = "none", "None"
-
     id = models.UUIDField(
         primary_key=True, editable=False, default=uuid.uuid4)
     reader: "Reader" = models.ForeignKey(
@@ -306,13 +304,9 @@ class PaymentTransaction(models.Model):
         choices=StatusChoices.choices, 
         default=StatusChoices.PAID)
     
-    created_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(null=True, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
-    failed_reason = models.TextField(
-        max_length=100,
-        choices=FailedReasonChoices.choices,
-        default=FailedReasonChoices.NONE
-    )
+    next_payment_attempt_at = models.DateTimeField(null=True, blank=True)
 
     provider = models.CharField(
         max_length=100,
@@ -350,20 +344,17 @@ class PaymentTransaction(models.Model):
     def get_amount_usd(self) -> float:
         return self.amount_usd
     
-    def get_created_at(self) -> datetime:
+    def get_created_at(self) -> datetime | None:
         return self.created_at
     
     def get_paid_at(self) -> datetime | None:
         return self.paid_at
     
+    def get_next_payment_attempt_at(self) -> datetime | None:
+        return self.next_payment_attempt_at
+
     def get_status(self) -> str:
         return self.status
-    
-    def get_failed_reason(self) -> str:
-        return self.failed_reason
-    
-    def get_failed_reason_display(self) -> str:
-        return self.FailedReasonChoices(self.failed_reason).label
     
     def get_provider(self) -> str:
         return self.provider

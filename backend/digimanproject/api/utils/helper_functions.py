@@ -66,11 +66,11 @@ def cast_user_to_subclass(user: "User"):
     else:
         return user
     
-def stripe_ts_to_datetime(ts: int) -> datetime:
-    return datetime.fromtimestamp(ts, tz=timezone.utc)
+def stripe_ts_to_datetime(ts: int | None) -> datetime | None:
+    return None if not ts else datetime.fromtimestamp(ts, tz=timezone.utc)
 
-def format_datetime_long(dt: datetime) -> str:
-    return dt.strftime("%Y-%m-%d %H:%M:%S")
+def format_datetime_long(dt: datetime | None) -> str:
+    return "" if not dt else dt.strftime("%Y-%m-%d %H:%M:%S")
 
 def format_datetime_short(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%d")

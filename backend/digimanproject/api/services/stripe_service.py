@@ -13,6 +13,30 @@ from uuid import UUID
 
 class StripeService:
     @staticmethod
+    def create_checkout_session(
+        customer_email: str, price_id: str, metadata: Dict[str, str], frontend_url: str
+    ) -> Dict:
+        try:
+            customer_id = StripeService.create_customer(customer_email)
+            session = stripe.checkout.Session.create(
+                customer=customer_id,
+                payment_method_types=["card"],
+                line_items=[{"price": price_id, "quantity": 1}],
+                mode="subscription",
+                metadata=metadata,
+                subscription_data={
+                    "metadata": metadata
+                },
+                success_url=f"{frontend_url}/subscription/success",
+                cancel_url=f"{frontend_url}/subscription/cancel",
+            )
+            return {"url": session.url, "id": session.id}
+        except Exception as e:
+            print("\nError creating Stripe checkout session\n")
+            print(e)
+            raise
+
+    @staticmethod
     @transaction.atomic
     def handle_checkout_session_completed_event(obj: Dict) -> None:
         """
@@ -22,21 +46,22 @@ class StripeService:
         """
         print("\nCheckout session completed event\n")
         pprint(obj)
-        metadata = obj["metadata"]
-        reader_id = metadata["reader_id"]
-        external_customer_id = obj["customer"]
-        external_subscription_id = obj["subscription"]
+        try:
+            metadata = obj["metadata"]
+            reader_id = metadata["reader_id"]
+            external_customer_id = obj["customer"]
+            external_subscription_id = obj["subscription"]
 
-        reader = Reader.objects.get(id=reader_id)
-        subscription = reader.get_subscription()
-        # If the reader already has a subscription (activated via invoice.paid event), 
-        # only update external_subscription_id and status,
-        # and send notification email
-        subscription.update_metadata(
-            external_subscription_id=external_subscription_id,
-            external_customer_id=external_customer_id,
-            provider=PaymentProviderChoices.STRIPE
-        )
+            reader = Reader.objects.get(id=reader_id)
+            subscription = reader.get_subscription()
+            subscription.update_metadata(
+                external_subscription_id=external_subscription_id,
+                external_customer_id=external_customer_id,
+                provider=PaymentProviderChoices.STRIPE
+            )
+        except:
+            print("\nError handling checkout session completed event\n")
+            raise
         
     @staticmethod
     @transaction.atomic
@@ -50,24 +75,44 @@ class StripeService:
         """
         print("\nInvoice paid event\n")
         pprint(obj)
-        external_transaction_id = obj["id"]
-        external_customer_id = obj["customer"]
-        created_at = obj["created"]
-        line_item_obj = obj["lines"]["data"][0]
-        start_date = line_item_obj["period"]["start"]
-        next_billing_date = line_item_obj["period"]["end"]
-        billing_reason = obj["billing_reason"]
 
-        match billing_reason:
-            case "subscription_create":
-                subscription_metadata = line_item_obj["metadata"]
+        try:
+            external_transaction_id = obj["id"]
+            external_customer_id = obj["customer"]
+            created_at = obj["created"]
+            billing_reason = obj["billing_reason"]
+
+            line_item_obj = obj["lines"]["data"][0]
+            start_date = line_item_obj["period"]["start"]
+            next_billing_date = line_item_obj["period"]["end"]
+            subscription_metadata = line_item_obj["metadata"]
+
+            if subscription_metadata:
                 reader_id = subscription_metadata["reader_id"]
                 plan_id = subscription_metadata["plan_id"]
-
                 reader = Reader.objects.get(id=reader_id)
                 plan = SubscriptionPlan.objects.get(id=plan_id)
+                subscription = reader.get_subscription()
+            else:
+                subscription = ReaderSubscription.objects.get(external_customer_id=external_customer_id)
+                reader = subscription.get_reader()
+                plan = subscription.get_plan()
+
+            if billing_reason == "subscription_create":
+                transaction_type = PaymentTransaction.TransactionTypeChoices.PURCHASE
+            elif billing_reason == "subscription_cycle":
+                transaction_type = PaymentTransaction.TransactionTypeChoices.AUTO_RENEWAL
+            else:
+                return
+        except:
+            print("\nError processing event object in invoice paid event\n")
+            raise
+
+        try:
+            if transaction_type == PaymentTransaction.TransactionTypeChoices.PURCHASE:
                 transaction, created = PaymentTransaction.objects.get_or_create(
                     external_transaction_id=external_transaction_id,
+                    status=PaymentTransaction.StatusChoices.PAID,
                     defaults={
                         "amount_usd": plan.get_price_usd(),
                         "created_at": stripe_ts_to_datetime(created_at),
@@ -75,14 +120,13 @@ class StripeService:
                         "status": PaymentTransaction.StatusChoices.PAID,
                         "provider": PaymentProviderChoices.STRIPE,
                         "external_customer_id": external_customer_id,
-                        "transaction_type": PaymentTransaction.TransactionTypeChoices.PURCHASE,
+                        "transaction_type": transaction_type,
                         "reader": reader,
-                        "subscription_plan": plan
+                        "subscription_plan": plan,
                     }
                 )
                 if not created:
                     return
-                subscription = reader.get_subscription()
                 subscription.update_metadata(
                     subscription_plan=plan,
                     status=ReaderSubscription.SubscriptionStatusChoices.ACTIVE,
@@ -90,14 +134,10 @@ class StripeService:
                     is_auto_renewal=True,
                     start_date=stripe_ts_to_datetime(start_date),
                     next_billing_date=stripe_ts_to_datetime(next_billing_date),
+                    ended_at=None,
                     last_payment_transaction=transaction
                 )
-                SubscriptionEmailService.notify_first_payment(transaction)
-            case "subscription_cycle":
-                external_subscription_id = line_item_obj["parent"]["subscription_item_details"]["subscription"]
-                subscription = ReaderSubscription.objects.get(external_subscription_id=external_subscription_id)
-                reader = subscription.get_reader()
-                plan = subscription.get_plan()
+            elif transaction_type == PaymentTransaction.TransactionTypeChoices.AUTO_RENEWAL:
                 transaction, created = PaymentTransaction.objects.get_or_create(
                     external_transaction_id=external_transaction_id,
                     defaults={
@@ -120,21 +160,43 @@ class StripeService:
                     next_billing_date=stripe_ts_to_datetime(next_billing_date),
                     last_payment_transaction=transaction
                 )
-                SubscriptionEmailService.notify_auto_renewal_payment(transaction)
-            case _:
+            else:
                 return
+        except:
+            print("\nError handling invoice paid event\n")
+            raise
+
+        try:
+            if transaction_type == PaymentTransaction.TransactionTypeChoices.PURCHASE:
+                SubscriptionEmailService.notify_success_first_purchase(transaction)
+            elif transaction_type == PaymentTransaction.TransactionTypeChoices.AUTO_RENEWAL:
+                SubscriptionEmailService.notify_success_auto_renewal_payment(transaction)
+            else:
+                return
+        except:
+            print("\nError sending email for invoice paid event\n")
 
     @staticmethod
     @transaction.atomic
     def handle_customer_subscription_updated_event(obj: dict) -> None:
+        print("\nCustomer subscription updated event\n")
         pprint(obj)
-        external_subscription_id = obj["id"]
-        cancel_at_period_end = obj["cancel_at_period_end"]
+        try:
+            external_subscription_id = obj["id"]
+            cancel_at_period_end = obj["cancel_at_period_end"]
 
-        subscription = ReaderSubscription.objects.get(external_subscription_id=external_subscription_id)
-        subscription.update_metadata(
-            is_auto_renewal=not cancel_at_period_end
-        )
+            subscription = ReaderSubscription.objects.get(external_subscription_id=external_subscription_id)
+
+            update_fields = {}
+            if subscription.is_auto_renewal == cancel_at_period_end:
+                update_fields["is_auto_renewal"] = not cancel_at_period_end
+            
+            if not update_fields:
+                return
+            subscription.update_metadata(**update_fields)
+        except:
+            print("\nError handling customer subscription updated event\n")
+            raise
 
     @staticmethod
     def toggle_cancel_at_period_end(user_id: UUID) -> None:
@@ -149,55 +211,65 @@ class StripeService:
     def handle_customer_subscription_deleted_event(obj: dict) -> None:
         print("\nCustomer subscription deleted event\n")
         pprint(obj)
-        external_subscription_id = obj["id"]
-        ended_at = obj["ended_at"]
+        try:
+            external_subscription_id = obj["id"]
+            ended_at = obj["ended_at"]
 
-        subscription = ReaderSubscription.objects.get(external_subscription_id=external_subscription_id)
-        subscription.update_metadata(
-            status=ReaderSubscription.SubscriptionStatusChoices.ENDED,
-            ended_at=stripe_ts_to_datetime(ended_at),
-            next_billing_date=None
-        )
+            subscription = ReaderSubscription.objects.get(external_subscription_id=external_subscription_id)
+            subscription.update_metadata(
+                status=ReaderSubscription.SubscriptionStatusChoices.ENDED,
+                ended_at=stripe_ts_to_datetime(ended_at),
+                next_billing_date=None,
+                external_subscription_id="",
+                external_customer_id=""
+            )
+
+            SubscriptionEmailService.notify_ended_subscription(subscription)
+        except:
+            print("\nError handling customer subscription deleted event\n")
+            raise
         
     @staticmethod
     @transaction.atomic
     def handle_invoice_payment_failed_event(obj: dict) -> None:
         print("\nInvoice payment failed event\n")
         pprint(obj)
-        # external_transaction_id = obj["id"]
-        # external_customer_id = obj["customer"]
-        # created_at = obj["created"]
-        # payment_intent_id = obj["payment_intent"]
-        # external_subscription_obj = obj["lines"]["data"][0]
+        try:
+            external_transaction_id = obj["id"]
+            external_customer_id = obj["customer"]
+            created_at = obj["created"]
+            next_payment_attempt_at = obj["next_payment_attempt"]
 
-        # payment_intent_obj = stripe.PaymentIntent.retrieve(payment_intent_id)
-        # if payment_intent_obj:
+            subscription = ReaderSubscription.objects.get(external_customer_id=external_customer_id)
+            reader = subscription.get_reader()
+            plan = subscription.get_plan()
 
+            transaction = PaymentTransaction.objects.create(
+                external_transaction_id=external_transaction_id,
+                amount_usd=plan.get_price_usd(),
+                created_at=stripe_ts_to_datetime(created_at),
+                next_payment_attempt_at=stripe_ts_to_datetime(next_payment_attempt_at),
+                status=PaymentTransaction.StatusChoices.FAILED,
+                provider=PaymentProviderChoices.STRIPE,
+                external_customer_id=external_customer_id,
+                transaction_type=PaymentTransaction.TransactionTypeChoices.AUTO_RENEWAL,
+                reader=reader,
+                subscription_plan=plan
+            )
+            subscription.update_metadata(
+                status=ReaderSubscription.SubscriptionStatusChoices.PAST_DUE,
+                last_payment_transaction=transaction
+            )
+        except:
+            print("\nError handling invoice payment failed event\n")
+            raise
 
-        # external_subscription_id = external_subscription_obj["id"]
-        # subscription = ReaderSubscription.objects.get(external_subscription_id=external_subscription_id)
-        # reader = subscription.get_reader()
-        # plan = subscription.get_plan()
-        # transaction, created = PaymentTransaction.objects.get_or_create(
-        #     external_transaction_id=external_transaction_id,
-        #     defaults={
-        #         "amount_usd": plan.get_price_usd(),
-        #         "created_at": stripe_ts_to_datetime(created_at),
-        #         "status": PaymentTransaction.StatusChoices.FAILED,
-        #         "provider": PaymentProviderChoices.STRIPE,
-        #         "external_customer_id": external_customer_id,
-        #         "transaction_type": PaymentTransaction.TransactionTypeChoices.AUTO_RENEWAL,
-        #         "reader": reader,
-        #         "subscription_plan": plan
-        #     }
-        # )
-        # if not created:
-        #     return
-        # subscription.update_metadata(
-        #     status=ReaderSubscription.SubscriptionStatusChoices.PAST_DUE,
-        #     last_payment_transaction=transaction
-        # )
-        # SubscriptionEmailService.notify_auto_renewal_payment(transaction)
+        try:
+            customer_portal_url = StripeService.create_customer_portal_session(reader.get_id())
+            SubscriptionEmailService.notify_failed_auto_renewal_payment(transaction, customer_portal_url)
+        except Exception as e:
+            print("\nError sending email for invoice payment failed event\n")
+            print(e)
 
     @staticmethod
     def create_customer(customer_email: str) -> str:
@@ -212,3 +284,12 @@ class StripeService:
             customer_data["test_clock"] = test_clock.id
         customer = stripe.Customer.create(**customer_data)
         return customer.id
+
+    @staticmethod
+    def create_customer_portal_session(user_id: UUID) -> str:
+        subscription = ReaderSubscription.objects.get(reader_id=user_id)
+        customer = subscription.get_external_customer_id()
+        if not customer:
+            raise Exception("Customer not found")
+        session = stripe.billing_portal.Session.create(customer=customer, return_url=env("FRONTEND_URL"))
+        return session.url
