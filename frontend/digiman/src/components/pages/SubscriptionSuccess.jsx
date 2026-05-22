@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 export default function SubscriptionSuccess() {
   const { subscription, refetchSubscription } = useAuth();
   const { status, restart } = useSubscriptionSuccess(subscription);
+  const [hasRefetched, setHasRefetched] = useState(false);
   const queryClient = useQueryClient();
   const [message, setMessage] = useState('Verifying subscription...');
   const navigate = useNavigate();
@@ -16,7 +17,9 @@ export default function SubscriptionSuccess() {
       switch (status) {
         case 'success':
           setMessage('Subscription active — thank you!');
+          if (hasRefetched) return;
           await refetchSubscription();
+          setHasRefetched(true);
           return;
         case 'timeout':
           setMessage('Subscription created, but payment verification is taking longer than expected.');
@@ -35,6 +38,7 @@ export default function SubscriptionSuccess() {
   }, [status, refetchSubscription]);
 
   const handleRetryVerification = () => {
+    setHasRefetched(false);
     restart(queryClient);
   }
 

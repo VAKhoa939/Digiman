@@ -35,7 +35,7 @@ export default function Pricing() {
             ...plan,
             buttonText: 'Go to Subscription Status',
             buttonDisabled: false,
-            onClick: () => navigate('/subscription-status'),
+            onClick: () => navigate('/subscription/status'),
           }
         }
         return {
