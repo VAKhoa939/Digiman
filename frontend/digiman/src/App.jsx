@@ -23,6 +23,7 @@ import useModalBackground from './customHooks/useModalBackground';
 import ChatWidget from './components/smallComponents/ChatWidget';
 import MangaRoute from './components/pages/MangaPage';
 import SubscriptionStatusPage from './components/pages/SubscriptionStatusPage';
+import InstallPrompt from './components/smallComponents/InstallPrompt';
 
 function AppContent() {
   const { location, background } = useModalBackground();
@@ -92,6 +93,7 @@ function AppContent() {
     <>
       <NavBar />
       <ChatWidget />
+      <InstallPrompt />
 
       <Container fluid style={{ paddingTop: '80px' }}>
         {/* Render the background routes. When a modal route is opened with
