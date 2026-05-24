@@ -1,17 +1,20 @@
-import React from 'react';
-import { useAuth } from '../../context/AuthContext';
+import React, { useEffect, useState } from 'react';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useNavigate } from 'react-router-dom';
 import { startDownload, isChapterDownloaded, loadDownloads, removeDownloadedChapter, getDownloadedChapterSize, removeDownload } from '../../utils/downloads';
 import CheckIcon from '@mui/icons-material/Check';
 import CircularProgress from '@mui/material/CircularProgress';
+import { toastError, toastInfo } from '../../utils/toast';
 
-export default function ChapterActions({ chapter, mangaId }) {
-  const { isAuthenticated } = useAuth();
+export default function ChapterActions({ 
+  chapter, 
+  mangaId,
+  subscription,
+  hasOfflineReadingAccess = () => false,
+}) {
   const navigate = useNavigate();
-
-  const [status, setStatus] = React.useState('idle'); // idle | downloading | downloaded | failed
-  const [progress, setProgress] = React.useState(0);
+  const [status, setStatus] = useState('idle'); // idle | downloading | downloaded | failed
+  const [progress, setProgress] = useState(0);
 
   async function refreshStatus() {
     try{
@@ -34,7 +37,7 @@ export default function ChapterActions({ chapter, mangaId }) {
     setProgress(0);
   }
 
-  React.useEffect(() => {
+  useEffect(() => {
     refreshStatus();
     function onChange(){ refreshStatus(); }
     window.addEventListener('digiman:downloadsChanged', onChange);
@@ -42,12 +45,15 @@ export default function ChapterActions({ chapter, mangaId }) {
   }, [mangaId, chapter?.id]);
 
   function handleDownload() {
+    // Check subscription access
+    if (!hasOfflineReadingAccess(subscription)) return;
+
     // Start backend download which will enqueue and fetch the chapter.
     setStatus('downloading');
     console.log('ChapterActions: download clicked', { mangaId, chapterId: chapter?.id });
     try{
       // immediate user feedback that download was queued
-      try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'Download queued' } })) }catch(_){ }
+      toastInfo('Download queued');
       startDownload(mangaId, chapter?.id || null, { chapterTitle: chapter?.title, mangaTitle: null })
         .then(()=> {
           // navigation to downloads page; UI will update via event listener
@@ -59,7 +65,7 @@ export default function ChapterActions({ chapter, mangaId }) {
           console.warn('startDownload failed (chapter)', err);
           setStatus('failed');
           try{ window.dispatchEvent(new CustomEvent('digiman:downloadsChanged')) }catch(_){ }
-          try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Failed to start download' } })) }catch(_){ }
+          toastError('Failed to start download');
           navigate('/downloads');
         })
     }catch(err){
@@ -86,11 +92,14 @@ export default function ChapterActions({ chapter, mangaId }) {
               try{ const q = loadDownloads(); const it = q.find(x=>String(x.mangaId)===String(mangaId) && String(x.chapterId)===String(chapter?.id)); if(it) removeDownload(it.id) }catch(_){ }
               try{ window.dispatchEvent(new CustomEvent('digiman:downloadsChanged')) }catch(_){ }
               refreshStatus()
-            }catch(e){ console.error('remove downloaded failed', e); try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Failed to remove download' } })) }catch(_){ } }
+            }catch(e){ 
+              console.error('remove downloaded failed', e); 
+              toastError('Failed to remove download');
+            }
           }}>Remove</button>
         </>
       ) : (
-        <button disabled={!isAuthenticated || status === 'downloading'} className="btn btn-sm btn-outline-light d-flex align-items-center" onClick={handleDownload}>
+        <button disabled={status === 'downloading'} className="btn btn-sm btn-outline-light d-flex align-items-center" onClick={handleDownload}>
           {status === 'downloading' ? (
             <>
               <CircularProgress size={16} thickness={5} style={{ marginRight: 6 }} />
@@ -103,13 +112,6 @@ export default function ChapterActions({ chapter, mangaId }) {
             </>
           )}
         </button>
-      )}
-      {isAuthenticated ? (
-        <>
-          <button className="btn btn-sm btn-warning">Bookmark</button>
-        </>
-      ) : (
-        <button className="btn btn-sm btn-outline-light" disabled>Bookmark (Login)</button>
       )}
     </div>
   );

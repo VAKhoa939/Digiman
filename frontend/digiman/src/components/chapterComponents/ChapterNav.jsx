@@ -1,13 +1,30 @@
 import React from 'react';
-import { useAuth } from '../../context/AuthContext';
 
-export default function ChapterNav({ chapters = [], currentId, onNavigate = () => {} }) {
-  const {isAuthenticated} = useAuth();
+export default function ChapterNav({ 
+  chapters = [], 
+  currentId, 
+  onNavigate = () => {},
+  subscription,
+  hasPremiumChapterAccess = () => false,
+}) {
+  const onSelectChange = (event) => {
+    event.preventDefault();
+
+    const chapterId = event.target.value;
+    const chapter = chapters.find((c) => c.id === chapterId);
+    if (!hasPremiumChapterAccess(subscription, chapter)) return;
+
+    onNavigate(chapterId);
+  } 
+
   return (
     <div className="chapter-nav">
-      <select disabled={!isAuthenticated} className="form-select" value={currentId} onChange={(e) => onNavigate(e.target.value)}>
+      <select disabled={!navigator.onLine} className="form-select" value={currentId} onChange={(e) => onSelectChange(e)}>
         {chapters.map((c) => (
-          <option key={c.id} value={c.id}>{c.number ? `Ch ${c.number}` : c.title}</option>
+          <option key={c.id} value={c.id}>
+            {(c.isPremium) ? "(Premium) " : "(Free) "} 
+            {c.title ? `Chapter ${c.number}: ${c.title}` : `Chapter ${c.number}`}
+          </option>
         ))}
       </select>
     </div>

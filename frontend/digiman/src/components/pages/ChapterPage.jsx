@@ -11,11 +11,13 @@ import ReaderSettings from '../chapterComponents/ReaderSettings';
 import useChapterPage from '../../customHooks/useChapterPage';
 import { useAuth } from '../../context/AuthContext';
 import { saveReadingProgress } from '../../services/readerService';
+import usePremiumModal from '../../customHooks/usePremiumModal';
+import PremiumModal from '../smallComponents/PremiumModal';
 
 export default function ChapterPage() {
   const { mangaId, chapterId } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, subscription } = useAuth();
   
   const [readerMode, setReaderMode] = useState('vertical'); // reader mode state: 'vertical' (continuous) or 'paged'
   const [swipeAxis, setSwipeAxis] = useState('vertical'); // swipe axis state: 'vertical' (up/down) or 'horizontal' (left/right)
@@ -31,6 +33,11 @@ export default function ChapterPage() {
   });
 
   const { chapter, chaptersList, loading, error } = useChapterPage(chapterId, mangaId);
+
+  const { 
+    showPremiumModal, clickedPremiumFeature, 
+    hasPremiumChapterAccess, hasOfflineReadingAccess, onClosePremiumModal 
+  } = usePremiumModal();
 
   // Save reading progress once the chapter data is loaded (authenticated readers only).
   // This also triggers the backend signal that marks is_reader_visited and is_reader_read.
@@ -71,8 +78,19 @@ export default function ChapterPage() {
       />
       <ChapterReader pages={chapter.pages || []} mode={readerMode} swipeAxis={swipeAxis} settings={readerSettings} />
       <div className="d-flex justify-content-between align-items-center mt-3">
-        <ChapterNav  chapters={chaptersList} currentId={chapter.id} onNavigate={(id) => navigate(`/manga/${mangaId}/chapter/${id}`)} />
-        <ChapterActions chapter={chapter} mangaId={mangaId} />
+        <ChapterNav  
+          chapters={chaptersList} 
+          currentId={chapter.id} 
+          onNavigate={(id) => navigate(`/manga/${mangaId}/chapter/${id}`)} 
+          subscription={subscription}
+          hasPremiumChapterAccess={hasPremiumChapterAccess}
+        />
+        <ChapterActions 
+          chapter={chapter} 
+          mangaId={mangaId} 
+          subscription={subscription}
+          hasOfflineReadingAccess={hasOfflineReadingAccess}
+        />
       </div>
 
       {/* Inline full comments section */}
@@ -87,6 +105,12 @@ export default function ChapterPage() {
         setReaderMode(s.enablePaged ? 'paged' : 'vertical');
         setSwipeAxis(s.swipeAxis || 'vertical');
       }} />
+
+      <PremiumModal
+        showPremiumModal={showPremiumModal}
+        clickedPremiumFeature={clickedPremiumFeature}
+        onClosePremiumModal={onClosePremiumModal}
+      />
     </div>
   );
 }
