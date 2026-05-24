@@ -15,6 +15,7 @@ import { useRecommendations } from '../../customHooks/useHomepage';
 import useMangaPage from '../../customHooks/useMangaPage';
 import usePremiumModal from '../../customHooks/usePremiumModal';
 import PremiumModal from '../smallComponents/PremiumModal';
+import { toastError, toastSuccess, toastInfo } from '../../utils/toast';
 
 const MangaRoute = () => {
   const { mangaId } = useParams();
@@ -40,7 +41,6 @@ const MangaRoute = () => {
         chaptersError={chaptersError}
         averageRating={mangaData.averageRating ?? 0}
         readCount={mangaData.readCount ?? 0}
-        onRequireLogin={() => navigate('/login', { state: { background: location } })}
       />}
     </>
   );
@@ -52,14 +52,11 @@ const MangaPage = ({
   averageRating = 0, readCount = 0,
   genres, genresIsLoading, genresError,
   chapters, chaptersIsLoading, chaptersError,
-  // If not logged in parent can provide this to open the login modal
-  onRequireLogin,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const {isAuthenticated, user, subscription} = useAuth();
   const [imgSrc, setImgSrc] = useState(coverUrl);
-  const [followed, setFollowed] = useState(false);
   const [downloadedSet, setDownloadedSet] = useState(new Set());
   const [statuses, setStatuses] = useState({}); // chapterId -> { status, progress }
   const [userRating, setUserRating] = useState(0);
@@ -96,9 +93,9 @@ const MangaPage = ({
       setUserRating(star);
       setLiveAvgRating(updated.average_rating ?? liveAvgRating);
       setLiveReadCount(updated.read_count ?? liveReadCount);
-      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: `Rated ${star} star${star > 1 ? 's' : ''}` } })); } catch (_) {}
+      toastSuccess(`Rated ${star} star${star > 1 ? 's' : ''}`);
     } catch (_) {
-      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Failed to save rating' } })); } catch (_e) {}
+      toastError('Failed to save rating');
     }
   }, [isAuthenticated, id, liveAvgRating, liveReadCount]);
 
@@ -151,72 +148,23 @@ const MangaPage = ({
 
     // optimistically mark as downloading
     console.log('MangaPage: download clicked', { mangaId: id, chapterId: chapter.id });
-    setStatuses(s => ({ ...s, [chapter.id]: { status: 'downloading', progress: 0 } }))
-    try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'Download queued' } })) }catch(_){ }
+    setStatuses(s => ({ ...s, [chapter.id]: { status: 'downloading', progress: 0 } }));
+    toastInfo('Download queued');
     startDownload(id, chapter.id, { chapterTitle: chapter.title || `Chapter ${chapter.number}`, mangaTitle: title })
       .then(() => {
         try{ window.dispatchEvent(new CustomEvent('digiman:downloadsChanged')) }catch(_){ }
-        navigate('/downloads')
+        navigate('/downloads');
       })
       .catch((err) => {
-        console.warn('startDownload failed (manga page)', err)
-        try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Failed to start download' } })) }catch(_){ }
-        navigate('/downloads')
+        console.warn('startDownload failed (manga page)', err);
+        toastError('Failed to start download');
       })
   }
 
 
-  const onFollowClick = (e) => {
-    e.preventDefault();
-    if (isAuthenticated) {
-      // Persist follow/unfollow to localStorage per-user so the Profile page
-      // can show followed manga in user's library. Keyed by user id.
-      try {
-        const key = `followed_mangas_${user && user.id ? user.id : 'guest'}`;
-        const raw = localStorage.getItem(key);
-        let arr = raw ? JSON.parse(raw) : [];
-        if (followed) {
-          // remove
-          arr = arr.filter(x => String(x.mangaId) !== String(id));
-          setFollowed(false);
-        } else {
-          // add
-          arr.push({ mangaId: id, title: title || '', coverUrl: coverUrl || '' });
-          setFollowed(true);
-        }
-        localStorage.setItem(key, JSON.stringify(arr));
-        try { window.dispatchEvent(new CustomEvent('digiman:followChanged', { detail: { userId: user && user.id ? user.id : null } })); } catch (_) {}
-        try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: followed ? 'Removed from your library' : 'Added to your library' } })) }catch(_){ }
-      } catch (err) {
-        console.warn('Failed to persist follow state', err);
-        setFollowed(!followed);
-      }
-    } else {
-      onRequireLogin();
-    }
-  };
-
-  // Initialize followed state from localStorage when user or id changes
-  useEffect(() => {
-    try {
-      const key = `followed_mangas_${user && user.id ? user.id : 'guest'}`;
-      const raw = localStorage.getItem(key);
-      const arr = raw ? JSON.parse(raw) : [];
-      const found = arr.find(x => String(x.mangaId) === String(id));
-      setFollowed(!!found);
-    } catch (err) {
-      // ignore
-    }
-  }, [user, id]);
-
-
   // Helper: call parent login handler if provided, otherwise navigate to login route
   const requireLogin = () => {
-    if (typeof onRequireLogin === 'function') {
-      try { onRequireLogin(); } catch (_) { /* ignore */ }
-    } else {
-      try { navigate('/login', { state: { background: location } }); } catch (_) { /* ignore */ }
-    }
+    try { navigate('/login', { state: { background: location } }); } catch (_) { /* ignore */ }
   };
 
 
@@ -349,13 +297,6 @@ const MangaPage = ({
                 }}
               >Read</button>
             )}
-            {/* Follow button */}
-            <button
-              className={followed ? 'btn btn-success btn-follow' : 'btn btn-outline-light btn-follow'}
-              onClick={onFollowClick}
-            >
-              {followed ? 'Following' : 'Follow'}
-            </button>
           </div>
 
           <div className="manga-synopsis bg-dark p-3 rounded">
@@ -387,7 +328,7 @@ const MangaPage = ({
                       </span>
                     </div>
                     <div className="small text-muted">{getTimeAgo(c.date)}</div>
-                    {(isPremium && c.isPremium) ?
+                    {(c.isPremium) ?
                       <span className="badge bg-warning text-dark">Premium</span>
                       : <span className="badge bg-white border text-dark">Free</span>
                     }
