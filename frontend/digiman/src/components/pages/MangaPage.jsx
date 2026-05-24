@@ -13,10 +13,8 @@ import { markMangaVisited, setStarRating } from '../../services/readerService';
 import RecommendationBlock from '../smallComponents/RecommendationBlock';
 import { useRecommendations } from '../../customHooks/useHomepage';
 import useMangaPage from '../../customHooks/useMangaPage';
-import { hasFeatureAccess } from '../../utils/subscriptionAccess';
+import { hasFeatureAccess, PREMIUM_FEATURES } from '../../utils/subscriptionAccess';
 import ConfirmModal from '../smallComponents/ConfirmModal';
-
-const PREMIUM_CHAPTER_FEATURE = 'premium_chapters';
 
 const MangaRoute = () => {
   const { mangaId } = useParams();
@@ -65,6 +63,7 @@ const MangaPage = ({
   const [downloadedSet, setDownloadedSet] = useState(new Set())
   const [statuses, setStatuses] = useState({}) // chapterId -> { status, progress }
   const [showPremiumModal, setShowPremiumModal] = useState(false)
+  const [clickedPremiumFeature, setClickedPremiumFeature] = useState(null)
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [liveAvgRating, setLiveAvgRating] = useState(averageRating);
@@ -143,6 +142,13 @@ const MangaPage = ({
     e.preventDefault();
     // If user not authenticated, require login first
     if (!isAuthenticated) { requireLogin(); return; }
+
+    if (!hasFeatureAccess(subscription, PREMIUM_FEATURES.OFFLINE_READING)) {
+      setClickedPremiumFeature(PREMIUM_FEATURES.OFFLINE_READING)
+      setShowPremiumModal(true)
+      return
+    }
+
     // optimistically mark as downloading
     console.log('MangaPage: download clicked', { mangaId: id, chapterId: chapter.id });
     setStatuses(s => ({ ...s, [chapter.id]: { status: 'downloading', progress: 0 } }))
@@ -229,7 +235,8 @@ const MangaPage = ({
     }
 
     // Check subscription access
-    if (chapter.isPremium && !hasFeatureAccess(subscription, PREMIUM_CHAPTER_FEATURE)) {
+    if (chapter.isPremium && !hasFeatureAccess(subscription, PREMIUM_FEATURES.PREMIUM_CHAPTERS)) {
+      setClickedPremiumFeature(PREMIUM_FEATURES.PREMIUM_CHAPTERS);
       setShowPremiumModal(true);
       return;
     }
@@ -324,7 +331,7 @@ const MangaPage = ({
                 <Link key={g.id} to={'#'/*`/search/advanced?genre=${encodeURIComponent(g)}`*/} 
                   className="text-decoration-none"
                 >
-                  <span className="badge bg-light text-dark me-1">{g.name}</span>
+                  <span className="badge bg-light text-dark border me-1">{g.name}</span>
                 </Link>
               )) : <span className="text-muted">No genres added.</span>)}
             </div>
@@ -360,9 +367,9 @@ const MangaPage = ({
             </button>
           </div>
 
-          <div className="manga-synopsis bg-dark p-3 rounded text-white-50">
+          <div className="manga-synopsis bg-dark p-3 rounded">
             <h5 className="mb-2">Description</h5>
-            <p className="mb-0">{synopsis}</p>
+            <p className="mb-0 text-white-50">{synopsis}</p>
           </div>
         </div>
       </div>
@@ -380,17 +387,18 @@ const MangaPage = ({
                 >
                   {/* Chapter info */}
                   <div>
-                    <div className="cursor-pointer fw-bold chapter-title">
+                    <div className="chapter-title">
                       <span
-                        className="cursor-pointer text-decoration-none text-white"
+                        role="button"
+                        className="fw-bold cursor-pointer"
                         onClick={(e) => onChapterClick(e, c)}
-                      >{c.title ? `${c.number}. ${c.title}` : `${c.number}. Chapter ${c.number}`}
+                      >{c.title ? `Chapter ${c.number}: ${c.title}` : `Chapter ${c.number}`}
                       </span>
                     </div>
                     <div className="small text-muted">{getTimeAgo(c.date)}</div>
                     {(isPremium && c.isPremium) ?
-                      <span className="badge bg-warning text-dark me-1">Premium</span>
-                      : <span className="badge bg-light text-dark me-1">Free</span>
+                      <span className="badge bg-warning text-dark">Premium</span>
+                      : <span className="badge bg-white border text-dark">Free</span>
                     }
                   </div>
                   {/* Download button */}
@@ -442,13 +450,17 @@ const MangaPage = ({
       </div>
       <ConfirmModal
         show={showPremiumModal}
-        onClose={() => setShowPremiumModal(false)}
+        onClose={() => {setShowPremiumModal(false); setClickedPremiumFeature(null);}}
         confirmLabel='Go To Pricing'
         onConfirm={() => navigate('/pricing')}
         title='Premium Subscription Required'
         body={
           <div>
-            <p>This chapter is premium and requires a premium subscription to read.</p>
+            <p>
+              {clickedPremiumFeature === PREMIUM_FEATURES.PREMIUM_CHAPTERS && 'This chapter '} 
+              {clickedPremiumFeature === PREMIUM_FEATURES.OFFLINE_READING && 'The download feature '}
+              is premium and requires an active subscription to read.
+            </p>
             <p>Do you want to go to the pricing page to subscribe?</p>
           </div>
         }
