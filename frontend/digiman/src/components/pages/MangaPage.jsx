@@ -13,8 +13,8 @@ import { markMangaVisited, setStarRating } from '../../services/readerService';
 import RecommendationBlock from '../smallComponents/RecommendationBlock';
 import { useRecommendations } from '../../customHooks/useHomepage';
 import useMangaPage from '../../customHooks/useMangaPage';
-import { hasFeatureAccess, PREMIUM_FEATURES } from '../../utils/subscriptionAccess';
-import ConfirmModal from '../smallComponents/ConfirmModal';
+import usePremiumModal from '../../customHooks/usePremiumModal';
+import PremiumModal from '../smallComponents/PremiumModal';
 
 const MangaRoute = () => {
   const { mangaId } = useParams();
@@ -60,16 +60,19 @@ const MangaPage = ({
   const {isAuthenticated, user, subscription} = useAuth();
   const [imgSrc, setImgSrc] = useState(coverUrl);
   const [followed, setFollowed] = useState(false);
-  const [downloadedSet, setDownloadedSet] = useState(new Set())
-  const [statuses, setStatuses] = useState({}) // chapterId -> { status, progress }
-  const [showPremiumModal, setShowPremiumModal] = useState(false)
-  const [clickedPremiumFeature, setClickedPremiumFeature] = useState(null)
+  const [downloadedSet, setDownloadedSet] = useState(new Set());
+  const [statuses, setStatuses] = useState({}); // chapterId -> { status, progress }
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [liveAvgRating, setLiveAvgRating] = useState(averageRating);
   const [liveReadCount, setLiveReadCount] = useState(readCount);
 
   const { recommendations, recommendationsIsLoading, recommendationsError } = useRecommendations(id);
+
+  const { 
+    showPremiumModal, clickedPremiumFeature, 
+		onClosePremiumModal, hasPremiumChapterAccess, hasOfflineReadingAccess
+  } = usePremiumModal();
 
   useEffect(() => {
     setImgSrc(coverUrl);
@@ -143,11 +146,8 @@ const MangaPage = ({
     // If user not authenticated, require login first
     if (!isAuthenticated) { requireLogin(); return; }
 
-    if (!hasFeatureAccess(subscription, PREMIUM_FEATURES.OFFLINE_READING)) {
-      setClickedPremiumFeature(PREMIUM_FEATURES.OFFLINE_READING)
-      setShowPremiumModal(true)
-      return
-    }
+    // Check subscription access
+    if (!hasOfflineReadingAccess(subscription)) return;
 
     // optimistically mark as downloading
     console.log('MangaPage: download clicked', { mangaId: id, chapterId: chapter.id });
@@ -235,18 +235,9 @@ const MangaPage = ({
     }
 
     // Check subscription access
-    if (chapter.isPremium && !hasFeatureAccess(subscription, PREMIUM_FEATURES.PREMIUM_CHAPTERS)) {
-      setClickedPremiumFeature(PREMIUM_FEATURES.PREMIUM_CHAPTERS);
-      setShowPremiumModal(true);
-      return;
-    }
+    if (!hasPremiumChapterAccess(subscription, chapter)) return;
     navigate(url);
   };
-
-  const onConfirmPremiumModel = (e) => {
-    e.preventDefault();
-    navigate('/pricing');
-  }
 
   return (
     <div className="manga-page container py-4">
@@ -448,22 +439,12 @@ const MangaPage = ({
       <div className="mt-4">
         <CommentsPage inline={true} />
       </div>
-      <ConfirmModal
-        show={showPremiumModal}
-        onClose={() => {setShowPremiumModal(false); setClickedPremiumFeature(null);}}
-        confirmLabel='Go To Pricing'
-        onConfirm={() => navigate('/pricing')}
-        title='Premium Subscription Required'
-        body={
-          <div>
-            <p>
-              {clickedPremiumFeature === PREMIUM_FEATURES.PREMIUM_CHAPTERS && 'This chapter '} 
-              {clickedPremiumFeature === PREMIUM_FEATURES.OFFLINE_READING && 'The download feature '}
-              is premium and requires an active subscription to read.
-            </p>
-            <p>Do you want to go to the pricing page to subscribe?</p>
-          </div>
-        }
+
+      {/* Premium feature access modal */}
+      <PremiumModal 
+        showPremiumModal={showPremiumModal} 
+        clickedPremiumFeature={clickedPremiumFeature} 
+        onClosePremiumModal={onClosePremiumModal} 
       />
     </div>
   );
