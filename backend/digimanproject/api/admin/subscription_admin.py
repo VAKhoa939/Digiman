@@ -58,10 +58,10 @@ class ReaderSubscriptionAdmin(LogUserMixin, admin.ModelAdmin):
         'subscription_plan',
         'start_date',
         'next_billing_date',
-        'last_billing_date',
+        'get_last_billing_date',
         'status',
         'is_auto_renewal',
-        'last_payment_status',
+        'get_last_payment_status',
         'provider',
         'get_masked_external_subscription_id',
         'get_masked_external_customer_id',
@@ -86,10 +86,9 @@ class PaymentTransactionAdmin(LogUserMixin, admin.ModelAdmin):
     list_display = [
         'get_display_name', 
         'created_at',
-        'paid_at',
         'transaction_type',
-        'amount_usd', 
         'status',
+        'amount_usd', 
         'provider',
     ]
     list_filter = ('transaction_type', 'status', 'provider',)

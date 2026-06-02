@@ -96,7 +96,7 @@ class ChapterSerializer(serializers.ModelSerializer):
         return None if next is None else next.id
     
     def get_is_premium(self, obj: Chapter) -> bool:
-        return obj.check_premium()
+        return obj.is_premium()
 
 
 class PageSerializer(serializers.ModelSerializer):
@@ -129,7 +129,8 @@ class CommentSerializer(serializers.ModelSerializer):
     """
     Fields for comment: id, owner_id, manga_title_id, chapter_id,
     parent_comment_id, text, attached_image_url, attached_image_upload,
-    created_at, status, hidden_reasons, is_edited, owner_name, owner_avatar
+    created_at, status, hidden_reasons, is_edited, moderation_status, last_moderated_at,
+    owner_name, owner_avatar
     """
     owner_name = serializers.SerializerMethodField()
     owner_avatar = serializers.SerializerMethodField()
@@ -160,6 +161,8 @@ class CommentSerializer(serializers.ModelSerializer):
             "status", 
             "hidden_reasons", 
             "is_edited", 
+            "moderation_status",
+            "last_moderated_at",
             "owner_name", 
             "owner_avatar",
             "manga_title", 

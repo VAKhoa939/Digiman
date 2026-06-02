@@ -13,10 +13,9 @@ import { markMangaVisited, setStarRating } from '../../services/readerService';
 import RecommendationBlock from '../smallComponents/RecommendationBlock';
 import { useRecommendations } from '../../customHooks/useHomepage';
 import useMangaPage from '../../customHooks/useMangaPage';
-import { hasFeatureAccess } from '../../utils/subscriptionAccess';
-import ConfirmModal from '../smallComponents/ConfirmModal';
-
-const PREMIUM_CHAPTER_FEATURE = 'premium_chapters';
+import usePremiumModal from '../../customHooks/usePremiumModal';
+import PremiumModal from '../smallComponents/PremiumModal';
+import { toastError, toastSuccess, toastInfo } from '../../utils/toast';
 
 const MangaRoute = () => {
   const { mangaId } = useParams();
@@ -42,7 +41,6 @@ const MangaRoute = () => {
         chaptersError={chaptersError}
         averageRating={mangaData.averageRating ?? 0}
         readCount={mangaData.readCount ?? 0}
-        onRequireLogin={() => navigate('/login', { state: { background: location } })}
       />}
     </>
   );
@@ -54,23 +52,24 @@ const MangaPage = ({
   averageRating = 0, readCount = 0,
   genres, genresIsLoading, genresError,
   chapters, chaptersIsLoading, chaptersError,
-  // If not logged in parent can provide this to open the login modal
-  onRequireLogin,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const {isAuthenticated, user, subscription} = useAuth();
   const [imgSrc, setImgSrc] = useState(coverUrl);
-  const [followed, setFollowed] = useState(false);
-  const [downloadedSet, setDownloadedSet] = useState(new Set())
-  const [statuses, setStatuses] = useState({}) // chapterId -> { status, progress }
-  const [showPremiumModal, setShowPremiumModal] = useState(false)
+  const [downloadedSet, setDownloadedSet] = useState(new Set());
+  const [statuses, setStatuses] = useState({}); // chapterId -> { status, progress }
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [liveAvgRating, setLiveAvgRating] = useState(averageRating);
   const [liveReadCount, setLiveReadCount] = useState(readCount);
 
   const { recommendations, recommendationsIsLoading, recommendationsError } = useRecommendations(id);
+
+  const { 
+    showPremiumModal, clickedPremiumFeature, 
+		onClosePremiumModal, hasPremiumChapterAccess, hasOfflineReadingAccess
+  } = usePremiumModal();
 
   useEffect(() => {
     setImgSrc(coverUrl);
@@ -94,9 +93,9 @@ const MangaPage = ({
       setUserRating(star);
       setLiveAvgRating(updated.average_rating ?? liveAvgRating);
       setLiveReadCount(updated.read_count ?? liveReadCount);
-      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: `Rated ${star} star${star > 1 ? 's' : ''}` } })); } catch (_) {}
+      toastSuccess(`Rated ${star} star${star > 1 ? 's' : ''}`);
     } catch (_) {
-      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Failed to save rating' } })); } catch (_e) {}
+      toastError('Failed to save rating');
     }
   }, [isAuthenticated, id, liveAvgRating, liveReadCount]);
 
@@ -143,74 +142,29 @@ const MangaPage = ({
     e.preventDefault();
     // If user not authenticated, require login first
     if (!isAuthenticated) { requireLogin(); return; }
+
+    // Check subscription access
+    if (!hasOfflineReadingAccess(subscription)) return;
+
     // optimistically mark as downloading
     console.log('MangaPage: download clicked', { mangaId: id, chapterId: chapter.id });
-    setStatuses(s => ({ ...s, [chapter.id]: { status: 'downloading', progress: 0 } }))
-    try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'Download queued' } })) }catch(_){ }
+    setStatuses(s => ({ ...s, [chapter.id]: { status: 'downloading', progress: 0 } }));
+    toastInfo('Download queued');
     startDownload(id, chapter.id, { chapterTitle: chapter.title || `Chapter ${chapter.number}`, mangaTitle: title })
       .then(() => {
         try{ window.dispatchEvent(new CustomEvent('digiman:downloadsChanged')) }catch(_){ }
-        navigate('/downloads')
+        navigate('/downloads');
       })
       .catch((err) => {
-        console.warn('startDownload failed (manga page)', err)
-        try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Failed to start download' } })) }catch(_){ }
-        navigate('/downloads')
+        console.warn('startDownload failed (manga page)', err);
+        toastError('Failed to start download');
       })
   }
 
 
-  const onFollowClick = (e) => {
-    e.preventDefault();
-    if (isAuthenticated) {
-      // Persist follow/unfollow to localStorage per-user so the Profile page
-      // can show followed manga in user's library. Keyed by user id.
-      try {
-        const key = `followed_mangas_${user && user.id ? user.id : 'guest'}`;
-        const raw = localStorage.getItem(key);
-        let arr = raw ? JSON.parse(raw) : [];
-        if (followed) {
-          // remove
-          arr = arr.filter(x => String(x.mangaId) !== String(id));
-          setFollowed(false);
-        } else {
-          // add
-          arr.push({ mangaId: id, title: title || '', coverUrl: coverUrl || '' });
-          setFollowed(true);
-        }
-        localStorage.setItem(key, JSON.stringify(arr));
-        try { window.dispatchEvent(new CustomEvent('digiman:followChanged', { detail: { userId: user && user.id ? user.id : null } })); } catch (_) {}
-        try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: followed ? 'Removed from your library' : 'Added to your library' } })) }catch(_){ }
-      } catch (err) {
-        console.warn('Failed to persist follow state', err);
-        setFollowed(!followed);
-      }
-    } else {
-      onRequireLogin();
-    }
-  };
-
-  // Initialize followed state from localStorage when user or id changes
-  useEffect(() => {
-    try {
-      const key = `followed_mangas_${user && user.id ? user.id : 'guest'}`;
-      const raw = localStorage.getItem(key);
-      const arr = raw ? JSON.parse(raw) : [];
-      const found = arr.find(x => String(x.mangaId) === String(id));
-      setFollowed(!!found);
-    } catch (err) {
-      // ignore
-    }
-  }, [user, id]);
-
-
   // Helper: call parent login handler if provided, otherwise navigate to login route
   const requireLogin = () => {
-    if (typeof onRequireLogin === 'function') {
-      try { onRequireLogin(); } catch (_) { /* ignore */ }
-    } else {
-      try { navigate('/login', { state: { background: location } }); } catch (_) { /* ignore */ }
-    }
+    try { navigate('/login', { state: { background: location } }); } catch (_) { /* ignore */ }
   };
 
 
@@ -229,17 +183,9 @@ const MangaPage = ({
     }
 
     // Check subscription access
-    if (chapter.isPremium && !hasFeatureAccess(subscription, PREMIUM_CHAPTER_FEATURE)) {
-      setShowPremiumModal(true);
-      return;
-    }
+    if (!hasPremiumChapterAccess(subscription, chapter)) return;
     navigate(url);
   };
-
-  const onConfirmPremiumModel = (e) => {
-    e.preventDefault();
-    navigate('/pricing');
-  }
 
   return (
     <div className="manga-page container py-4">
@@ -324,7 +270,7 @@ const MangaPage = ({
                 <Link key={g.id} to={'#'/*`/search/advanced?genre=${encodeURIComponent(g)}`*/} 
                   className="text-decoration-none"
                 >
-                  <span className="badge bg-light text-dark me-1">{g.name}</span>
+                  <span className="badge bg-light text-dark border me-1">{g.name}</span>
                 </Link>
               )) : <span className="text-muted">No genres added.</span>)}
             </div>
@@ -351,18 +297,11 @@ const MangaPage = ({
                 }}
               >Read</button>
             )}
-            {/* Follow button */}
-            <button
-              className={followed ? 'btn btn-success btn-follow' : 'btn btn-outline-light btn-follow'}
-              onClick={onFollowClick}
-            >
-              {followed ? 'Following' : 'Follow'}
-            </button>
           </div>
 
-          <div className="manga-synopsis bg-dark p-3 rounded text-white-50">
+          <div className="manga-synopsis bg-dark p-3 rounded">
             <h5 className="mb-2">Description</h5>
-            <p className="mb-0">{synopsis}</p>
+            <p className="mb-0 text-white-50">{synopsis}</p>
           </div>
         </div>
       </div>
@@ -380,17 +319,18 @@ const MangaPage = ({
                 >
                   {/* Chapter info */}
                   <div>
-                    <div className="cursor-pointer fw-bold chapter-title">
+                    <div className="chapter-title">
                       <span
-                        className="cursor-pointer text-decoration-none text-white"
+                        role="button"
+                        className="fw-bold cursor-pointer"
                         onClick={(e) => onChapterClick(e, c)}
-                      >{c.title ? `${c.number}. ${c.title}` : `${c.number}. Chapter ${c.number}`}
+                      >{c.title ? `Chapter ${c.number}: ${c.title}` : `Chapter ${c.number}`}
                       </span>
                     </div>
                     <div className="small text-muted">{getTimeAgo(c.date)}</div>
-                    {(isPremium && c.isPremium) ?
-                      <span className="badge bg-warning text-dark me-1">Premium</span>
-                      : <span className="badge bg-light text-dark me-1">Free</span>
+                    {(c.isPremium) ?
+                      <span className="badge bg-warning text-dark">Premium</span>
+                      : <span className="badge bg-white border text-dark">Free</span>
                     }
                   </div>
                   {/* Download button */}
@@ -440,18 +380,12 @@ const MangaPage = ({
       <div className="mt-4">
         <CommentsPage inline={true} />
       </div>
-      <ConfirmModal
-        show={showPremiumModal}
-        onClose={() => setShowPremiumModal(false)}
-        confirmLabel='Go To Pricing'
-        onConfirm={() => navigate('/pricing')}
-        title='Premium Subscription Required'
-        body={
-          <div>
-            <p>This chapter is premium and requires a premium subscription to read.</p>
-            <p>Do you want to go to the pricing page to subscribe?</p>
-          </div>
-        }
+
+      {/* Premium feature access modal */}
+      <PremiumModal 
+        showPremiumModal={showPremiumModal} 
+        clickedPremiumFeature={clickedPremiumFeature} 
+        onClosePremiumModal={onClosePremiumModal} 
       />
     </div>
   );

@@ -1,6 +1,4 @@
 import json
-from pprint import pprint
-from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.request import Request
@@ -41,16 +39,23 @@ class StripeWebhookView(APIView):
         event_type = event["type"]
         obj = event["data"]["object"]
 
-        match event_type:
-            case "checkout.session.completed":
-                StripeService.handle_checkout_session_completed_event(obj)
-            case "invoice.paid":
-                StripeService.handle_invoice_paid_event(obj)
-            case "customer.subscription.updated":
-                StripeService.handle_customer_subscription_updated_event(obj)
-            case _:
-                pass
-        # Additional events (invoice.payment_failed, customer.subscription.updated etc.)
+        try:
+            match event_type:
+                case "checkout.session.completed":
+                    StripeService.handle_checkout_session_completed_event(obj)
+                case "invoice.paid":
+                    StripeService.handle_invoice_paid_event(obj)
+                case "customer.subscription.updated":
+                    StripeService.handle_customer_subscription_updated_event(obj)
+                case "customer.subscription.deleted":
+                    StripeService.handle_customer_subscription_deleted_event(obj)
+                case "invoice.payment_failed":
+                    StripeService.handle_invoice_payment_failed_event(obj)
+                case _:
+                    pass
+        except Exception as e:
+            print(e)
+            return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response(status=status.HTTP_200_OK)
 

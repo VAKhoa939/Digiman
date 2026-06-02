@@ -30,22 +30,4 @@ class ReaderSubscriptionService:
             subscription_plan=free_plan
         )
         return
-
-    @staticmethod
-    def create_reader_subscription(
-        reader: Reader, 
-        subscription_plan: SubscriptionPlan,
-        next_billing_date: datetime,
-        last_billing_date: datetime,
-        provider: str,
-        external_subscription_id: str
-    ) -> ReaderSubscription:
-        reader_subscription = ReaderSubscription.objects.create(
-            reader=reader, 
-            subscription_plan=subscription_plan,
-            next_billing_date=next_billing_date,
-            last_billing_date=last_billing_date,
-            provider=provider,
-            external_subscription_id=external_subscription_id
-        )
         return reader_subscription

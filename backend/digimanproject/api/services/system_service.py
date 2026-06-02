@@ -2,17 +2,18 @@ import uuid
 from django.db import transaction
 
 from ..models.user_models import User, Reader, Administrator
-from ..models.manga_models import MangaTitle, Chapter, Page, Comment
-from ..models.system_models import LogEntry, FlaggedContent, LogEntryTargetObjectType
+from ..models.manga_models import Comment
+from ..models.system_models import LogEntry, FlaggedContent, ModerationThreshold, LogEntryTargetObjectType
 
 from ..utils.helper_functions import cast_user_to_subclass
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
+
+TypesInModeration = (
+    User, Reader, Administrator, Comment
+)
 
 class LogEntryDetailFactory:
-    TypesInModeration = (
-        User, Reader, Administrator, MangaTitle, Chapter, Page, Comment
-    )
 
     @staticmethod
     def get_moderation_detail(target_object) -> Dict[str, Any]:
@@ -42,42 +43,6 @@ class LogEntryDetailFactory:
                     {"attributeName": "username",
                         "isImage": "False",
                         "content": casted_user.username},
-                ],
-            }
-        elif isinstance(target_object, MangaTitle):
-            return {
-                'targetType': FlaggedContent.TargetObjectTypeChoices.MANGA_TITLE.value, 
-                'attributes' : [
-                    {"attributeName": "title",
-                        "isImage": "False",
-                        "content": target_object.title},
-                    {"attributeName": "alternativeTitle",
-                        "isImage": "False",
-                        "content": target_object.alternative_title},
-                    {"attributeName": "description",
-                        "isImage": "False",
-                        "content": target_object.description},
-                    {"attributeName": "coverImage",
-                        "isImage": "True",
-                        "content": target_object.cover_image},
-                ],
-            }
-        elif isinstance(target_object, Chapter):
-            return {
-                'targetType': FlaggedContent.TargetObjectTypeChoices.CHAPTER.value, 
-                'attributes' : [
-                    {"attributeName": "title",
-                        "isImage": "False",
-                        "content": target_object.title},
-                ],
-            }
-        elif isinstance(target_object, Page):
-            return {
-                'targetType': FlaggedContent.TargetObjectTypeChoices.PAGE.value, 
-                'attributes' : [
-                    {"attributeName": "imageUrl",
-                        "isImage": "True",
-                        "content": target_object.image_url},
                 ],
             }
         elif (isinstance(target_object, Comment) 
@@ -128,29 +93,31 @@ class LogEntryService:
             action_type in {
                 LogEntry.ActionTypeChoices.CREATE, 
                 LogEntry.ActionTypeChoices.UPDATE,
-                LogEntry.ActionTypeChoices.RESOLVE_FLAG,
             }
-            and isinstance(target_object, LogEntryDetailFactory.TypesInModeration)
+            and isinstance(target_object, TypesInModeration)
         ):
             details = LogEntryDetailFactory.get_moderation_detail(target_object)
 
-            
+        moderation_status = (
+            LogEntry.ModerationStatusChoices.PENDING if details 
+            else LogEntry.ModerationStatusChoices.SAFE
+        )
         return LogEntry.objects.create(
             user=user,
             action_type=action_type,
             target_object_type=target_object._meta.model_name,
             target_object_id=target_object.id,
             details=details,
-            is_moderated=not bool(details),
+            moderation_status=moderation_status,
         )
     
     @staticmethod
-    def log_object_save(instance: LogEntryTargetObjectType, created: bool):
+    def log_object_save(instance: LogEntryTargetObjectType, created: bool) -> LogEntry:
         user = getattr(instance, "_action_user", None)
         if created:
-            LogEntryService.create_log_entry(user, LogEntry.ActionTypeChoices.CREATE, instance)
+            return LogEntryService.create_log_entry(user, LogEntry.ActionTypeChoices.CREATE, instance)
         else:
-            LogEntryService.create_log_entry(user, LogEntry.ActionTypeChoices.UPDATE, instance)
+            return LogEntryService.create_log_entry(user, LogEntry.ActionTypeChoices.UPDATE, instance)
     
     @staticmethod
     def log_object_delete(instance: LogEntryTargetObjectType):
@@ -170,10 +137,16 @@ class FlaggedContentService:
     @staticmethod
     @transaction.atomic
     def create_flag(
-        log_entry: LogEntry, content_name: str, content: str, 
-        is_image: bool, result: Dict[str, float], reason: str,
-        dominant_attribute: str, severity_score: float
-    ):
+        log_entry: LogEntry, 
+        content_name: str, 
+        content: str, 
+        is_image: bool, 
+        result: Dict[str, float], 
+        moderation_status: str,
+        reason: str,
+        dominant_attribute: str, 
+        severity_score: float
+    ) -> FlaggedContent:
         """
         Creates a new flagged content.
         """
@@ -182,6 +155,7 @@ class FlaggedContentService:
             dominant_attribute=dominant_attribute,
             reason=reason,
             details=result,
+            moderation_status=moderation_status,
             content_name=content_name,
             content=content,
             is_content_image=is_image,
@@ -199,7 +173,7 @@ class FlaggedContentService:
     
     @staticmethod
     @transaction.atomic
-    def resolve_flag(flag: FlaggedContent, action_type: LogEntry.ActionTypeChoices):
+    def resolve_flag(flag: FlaggedContent, action_type: LogEntry.ActionTypeChoices) -> None:
         flag.resolve()
         LogEntryService.create_log_entry(None, action_type, flag)
 
@@ -208,7 +182,7 @@ class FlaggedContentService:
         target_object_type: LogEntry.TargetObjectTypeChoices,
         target_object_id: uuid.UUID,
         content_name: str
-    ):
+    ) -> None:
         """
         Resolves all old flags for a specific target object's content.
         """
@@ -228,3 +202,39 @@ class FlaggedContentService:
         return FlaggedContent.objects.filter(
             flagged_at__lte=flagged_content.flagged_at
         ).count()
+
+
+class ModerationThresholdService:
+    @staticmethod
+    def get_perspective_api_attributes_and_thresholds() -> Tuple[Dict[str, Dict], Dict[str, Tuple[float, float]]]:
+        """
+        Returns Perspective API attribute list and thresholds.
+        """
+        moderation_thresholds = ModerationThreshold.objects.filter(
+            service_api=ModerationThreshold.ServiceAPI.PERSPECTIVE_API,
+            is_active=True
+        )
+
+        attributes = {}
+        thresholds = {}
+        for threshold in moderation_thresholds:
+            attributes[threshold.attribute.upper()] = {}
+            thresholds[threshold.attribute] = (threshold.flag_threshold, threshold.ban_threshold)
+
+        return attributes, thresholds
+    
+    @staticmethod
+    def get_sightengine_thresholds() -> Dict[str, Tuple[float, float]]:
+        """
+        Returns Sightengine attribute list and thresholds.
+        """
+        moderation_thresholds = ModerationThreshold.objects.filter(
+            service_api=ModerationThreshold.ServiceAPI.SIGHTENGINE,
+            is_active=True
+        )
+
+        threshold_list = {}
+        for threshold in moderation_thresholds:
+            threshold_list[threshold.attribute] = (threshold.flag_threshold, threshold.ban_threshold)
+
+        return threshold_list

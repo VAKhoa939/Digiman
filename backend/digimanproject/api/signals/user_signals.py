@@ -1,16 +1,31 @@
 from django.db.models.signals import post_save, post_delete, pre_save
+from django.db import transaction
 from django.dispatch import receiver
 from ..models.user_models import User
 from ..services.system_service import LogEntryService
+from ..tasks import run_moderation_pipeline_task
 
 
 @receiver(post_save, sender=User)
 def log_user_save(sender, instance: User, created: bool, **kwargs):
+    # Skip logging when an internal user update only changes last_login
     if getattr(instance, "_skip_logging", True):
         return
-    if getattr(instance, "_action_user", None) is None:
-        instance._action_user = instance
-    LogEntryService.log_object_save(instance, created)
+    
+    # For internal user account creation/update via Django admin
+    if getattr(instance, "_action_user", None) is not None:
+        LogEntryService.log_object_save(instance, created)
+        return
+    
+    # For normal user account creation/update, add the action user to the object
+    # and run AI moderation pipeline
+    instance._action_user = instance
+    with transaction.atomic():
+        entry = LogEntryService.log_object_save(instance, created)
+
+        transaction.on_commit(
+            lambda: run_moderation_pipeline_task.delay(str(entry.id))
+        )
 
 
 @receiver(post_delete, sender=User)
