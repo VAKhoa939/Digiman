@@ -73,7 +73,7 @@ class SubscriptionPlan(models.Model):
     def get_description(self) -> List[str]:
         return self.description
 
-    def check_access(self, feature: str) -> bool:
+    def has_access(self, feature: str) -> bool:
         return feature in self.features and self.features[feature].lower() == "true"
 
     def save(self, *args, **kwargs):
@@ -240,11 +240,11 @@ class ReaderSubscription(models.Model):
     def check_plan_premium(self) -> bool:
         return self.subscription_plan.get_name() != "Free"
     
-    def check_active(self) -> bool:
+    def is_active(self) -> bool:
         return self.status == self.SubscriptionStatusChoices.ACTIVE
     
-    def check_access(self, feature: str) -> bool:
-        return self.subscription_plan.check_access(feature)
+    def has_access(self, feature: str) -> bool:
+        return self.subscription_plan.has_access(feature)
     
     def update_metadata(self, **metadata: Any) -> None:
         """Allowed fields: 

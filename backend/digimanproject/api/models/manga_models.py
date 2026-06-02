@@ -82,6 +82,7 @@ class MangaTitle(models.Model):
     cover_image: str = models.URLField(blank=True, null=True, default="")
 
     publication_status: str = models.CharField(
+        max_length=20,
         choices=PublicationStatusChoices.choices,
         default=PublicationStatusChoices.ONGOING)
     publication_date: datetime = models.DateTimeField(default=timezone.now)
@@ -272,7 +273,7 @@ class Chapter(models.Model):
         description="Is premium",
         boolean=True
     )
-    def check_premium(self) -> bool:
+    def is_premium(self) -> bool:
         return self.manga_title.check_chapter_number_premium(self.chapter_number)
 
 
@@ -310,6 +311,14 @@ class Comment(models.Model):
         DELETED = "deleted", "Deleted"
         HIDDEN = "hidden", "Hidden"
 
+    class ModerationStatusChoices(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PROCESSING = "processing", "Processing"
+        SAFE = "safe", "Safe"
+        FLAGGED = "flagged", "Flagged"
+        BANNED = "banned", "Banned"
+        FAILED = "failed", "Failed"
+
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     owner: Optional["User"] = models.ForeignKey(
@@ -326,14 +335,25 @@ class Comment(models.Model):
     created_at: datetime = models.DateTimeField(default=timezone.now)
     
     status: str = models.CharField(
+        max_length=20,
         choices=StatusChoices.choices, 
         default=StatusChoices.ACTIVE
     )
     hidden_reasons: str = models.TextField(blank=True)
     is_edited: bool = models.BooleanField(default=False)
 
+    moderation_status: str = models.CharField(
+        max_length=20,
+        choices=ModerationStatusChoices.choices,
+        default=ModerationStatusChoices.PENDING
+    )
+    last_moderated_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
     def __str__(self) -> str:
-        index = Comment.get_comment_index(self)
+        index = self.get_comment_index()
         where = self.manga_title if self.manga_title else self.chapter
         if index is not None:
             return f"Comment #{index} in {where}"
@@ -347,6 +367,17 @@ class Comment(models.Model):
     def get_owner_avatar(self) -> str:
         return (cast_user_to_subclass(self.owner).get_avatar() 
                 if self.owner else "")
+    
+    def get_comment_index(self) -> int:
+        if self.moderation_status != Comment.ModerationStatusChoices.SAFE:
+            return 0
+        if self.manga_title:
+            comments = self.manga_title.get_comments().order_by("created_at")
+        elif self.chapter:
+            comments = self.chapter.get_comments().order_by("created_at")
+        else:
+            return 0
+        return comments.filter(created_at__lte=self.created_at).count()
 
     def toggle_hidden(self, hidden_reasons: str = "") -> None:
         self.status = (
@@ -362,23 +393,34 @@ class Comment(models.Model):
         self.save(update_fields=["status"])
 
     def update_metadata(self, **metadata: Any) -> None:
-        """Allowed fields: text, attached_image_url, status, hidden_reasons"""
-        allowed_fields = {"text", "attached_image_url", "status", "hidden_reasons"}
+        """
+        Allowed fields: text, attached_image_url, status, hidden_reasons, moderation_status, last_moderated_at
+        
+        Only set is_edited to True if any content field (text or attached_image_url) is updated
+        """
+        allowed_fields = {
+            "text", 
+            "attached_image_url", 
+            "status", 
+            "hidden_reasons", 
+            "moderation_status", 
+            "last_moderated_at"
+        }
 
-        # set is_edited to True if any of the allowed fields are changed
-        if not self.is_edited and any(field in allowed_fields for field in metadata.keys()):
-            metadata["is_edited"] = True
-            allowed_fields.add("is_edited")
+        # set is_edited to True (if not already) and moderation_status to PENDING
+        # if any content field (text or attached_image_url) is updated
+        content_fields = {"text", "attached_image_url"}
+        if any(field in content_fields for field in metadata.keys()):
+            if not self.is_edited:
+                metadata["is_edited"] = True
+                allowed_fields.add("is_edited")
+            metadata["moderation_status"] = Comment.ModerationStatusChoices.PENDING
             
         update_instance(self, allowed_fields, **metadata)
 
-    @staticmethod
-    def get_comment_index(comment: Comment) -> Optional[int]:
-        if comment.manga_title:
-            comments = comment.manga_title.get_comments().order_by("created_at")
-        elif comment.chapter:
-            comments = comment.chapter.get_comments().order_by("created_at")
-        else:
-            return None
-        return comments.filter(created_at__lte=comment.created_at).count()
+    def set_moderation_status(self, status: str) -> None:
+        self.update_metadata(
+            moderation_status=status,
+            last_moderated_at=timezone.now(),
+        )
         

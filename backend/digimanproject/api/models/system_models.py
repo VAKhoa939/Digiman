@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 ReportTargetContentType = Union["MangaTitle", "Chapter", "Comment", "User"]
 
 FlaggedContentTargetObjectType = Union[
-    "MangaTitle", "Chapter", "Page", "Comment", "User", "Reader", "Administrator",
+    "Comment", "User", "Reader", "Administrator",
 ]
 
 LogEntryTargetObjectType = Union[
@@ -72,10 +72,8 @@ class Report(models.Model):
             self.TargetContentTypeChoices.COMMENT.value: Comment,
             self.TargetContentTypeChoices.USER.value: User,
         }
-        return get_target_object(self.target_content_id,
-                    self.target_content_type, mapping)
-        
-    
+        return get_target_object(self.target_content_id, self.target_content_type, mapping)
+            
     def update_status(self, status: str) -> None:
         self.status = status
         self.save(update_fields=["status"])
@@ -101,13 +99,14 @@ class Penalty(models.Model):
 
 class FlaggedContent(models.Model):
     class TargetObjectTypeChoices(models.TextChoices):
-        MANGA_TITLE = "mangatitle", "MangaTitle"
-        CHAPTER = "chapter", "Chapter"
-        PAGE = "page", "Page"
         COMMENT = "comment", "Comment"
         USER = "user", "User"
         READER = "reader", "Reader"
         ADMINISTRATOR = "administrator", "Administrator"
+
+    class ModerationStatusChoices(models.TextChoices):
+        FLAGGED = "flagged", "Flagged"
+        BANNED = "banned", "Banned"
     
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
@@ -116,6 +115,11 @@ class FlaggedContent(models.Model):
     reason: str = models.TextField()
     details: dict[str, Any] = models.JSONField(null=False, default=dict)
 
+    moderation_status: str = models.CharField(
+        max_length=20,
+        choices=ModerationStatusChoices.choices,
+        default=ModerationStatusChoices.FLAGGED
+    )
     flagged_at: datetime = models.DateTimeField(default=timezone.now)
     is_resolved: bool = models.BooleanField(default=False)
 
@@ -138,24 +142,67 @@ class FlaggedContent(models.Model):
         return f"Flagged Content #{index} on {self.target_object_type}'s {self.content_name}"
     
     def get_target_object(self) -> Optional[FlaggedContentTargetObjectType]:
-        from .manga_models import MangaTitle, Chapter, Page, Comment
+        from .manga_models import Comment
         from .user_models import User, Reader, Administrator
         
         mapping: Dict[str, FlaggedContentTargetObjectType] = {
-            self.TargetObjectTypeChoices.MANGA_TITLE.value: MangaTitle,
-            self.TargetObjectTypeChoices.CHAPTER.value: Chapter,
-            self.TargetObjectTypeChoices.PAGE.value: Page,
             self.TargetObjectTypeChoices.COMMENT.value: Comment,
             self.TargetObjectTypeChoices.USER.value: User,
             self.TargetObjectTypeChoices.READER.value: Reader,
             self.TargetObjectTypeChoices.ADMINISTRATOR.value: Administrator,
         }
-        return get_target_object(self.target_object_id,
-                    self.target_object_type, mapping)
+        return get_target_object(self.target_object_id, self.target_object_type, mapping)
     
     def resolve(self) -> None:
         self.is_resolved = True
         self.save(update_fields=["is_resolved"])
+        
+
+class ModerationThreshold(models.Model):
+    class ServiceType(models.TextChoices):
+        TEXT = "text"
+        IMAGE = "image"
+
+    class ServiceAPI(models.TextChoices):
+        PERSPECTIVE_API = "perspective_api", "Perspective API"
+        SIGHTENGINE = "sightengine", "Sightengine"
+    
+    id: uuid.UUID = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False
+    )
+    service_type: str = models.CharField(
+        max_length=10,
+        choices=ServiceType.choices,
+        default=ServiceType.TEXT
+    )
+    attribute: str = models.CharField(max_length=100)
+    flag_threshold: float = models.FloatField(default=0.0)
+    ban_threshold: float = models.FloatField(default=1.0)
+    is_active: bool = models.BooleanField(default=True)
+    service_api: str = models.CharField(
+        max_length=50,
+        choices=ServiceAPI.choices,
+        default=ServiceAPI.PERSPECTIVE_API
+    )
+    updated_at: datetime = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Moderation Threshold"
+        verbose_name_plural = "Moderation Thresholds"
+
+    def __str__(self) -> str:
+        return f"{self.service_api} - {self.service_type} - {self.attribute}"
+    
+    def save(self, *args, **kwargs):
+        self.updated_at = timezone.now()
+        super(ModerationThreshold, self).save(*args, **kwargs)
+
+    def update_metadata(self, **metadata: Any) -> None:
+        """Allowed fields: flag_threshold, ban_threshold, is_active"""
+        allowed_fields = [
+            "flag_threshold", "ban_threshold", "is_active"
+        ]
+        update_instance(self, allowed_fields, **metadata)
 
 
 class LogEntry(models.Model):
@@ -181,6 +228,15 @@ class LogEntry(models.Model):
         REPORT = "report", "Report"
         FLAGGED_CONTENT = "flaggedcontent", "FlaggedContent"
         PENALTY = "penalty", "Penalty"
+        MODERATION_THRESHOLD = "moderationthreshold", "ModerationThreshold"
+
+    class ModerationStatusChoices(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PROCESSING = "processing", "Processing"
+        SAFE = "safe", "Safe"
+        FLAGGED = "flagged", "Flagged"
+        BANNED = "banned", "Banned"
+        FAILED = "failed", "Failed"
 
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
@@ -193,10 +249,16 @@ class LogEntry(models.Model):
         choices=ActionTypeChoices.choices)
     timestamp: datetime = models.DateTimeField(default=timezone.now)
 
-    target_object_type: str = models.CharField(
-        choices=TargetObjectTypeChoices.choices)
+    moderation_status: str = models.CharField(
+        max_length=20,
+        choices=ModerationStatusChoices.choices,
+        default=ModerationStatusChoices.SAFE
+    )
+    retry_count: int = models.PositiveSmallIntegerField(default=0)
+    last_error: str = models.TextField(null=True, blank=True)
+
+    target_object_type: str = models.CharField(choices=TargetObjectTypeChoices.choices)
     target_object_id: uuid.UUID = models.UUIDField()
-    is_moderated: bool = models.BooleanField(default=False)
     details: dict[str, Any] = models.JSONField(null=False, default=dict)
 
     class Meta:
@@ -216,6 +278,12 @@ class LogEntry(models.Model):
         user = cast_user_to_subclass(self.user)
         return user.get_display_name()
     
+    def get_moderation_status(self) -> str:
+        return self.moderation_status
+    
+    def get_details(self) -> dict[str, Any]:
+        return self.details
+    
     def get_target_object(self) -> Optional[LogEntryTargetObjectType]:
         from .manga_models import MangaTitle, Chapter, Genre, Author, Page, Comment
         from .user_models import User, Reader, Administrator
@@ -233,12 +301,26 @@ class LogEntry(models.Model):
             self.TargetObjectTypeChoices.REPORT.value: Report,
             self.TargetObjectTypeChoices.FLAGGED_CONTENT.value: FlaggedContent,
             self.TargetObjectTypeChoices.PENALTY.value: Penalty,
+            self.TargetObjectTypeChoices.MODERATION_THRESHOLD.value: ModerationThreshold
         }
-        return get_target_object(self.target_object_id,
-                    self.target_object_type, mapping)
+        return get_target_object(self.target_object_id, self.target_object_type, mapping)
 
-    def moderate(self) -> None:
-        """Mark the log entry as moderated."""
-        self.is_moderated = True
-        self.save(update_fields=["is_moderated"])
-        
+    def set_moderation_status(self, status: str) -> None:
+        self.moderation_status = status
+        self.save(update_fields=["moderation_status"])
+
+    def update_metadata(self, **metadata: Any) -> None:
+        """Allowed fields: moderation_status, retry_count, last_error"""
+        allowed_fields = [
+            "moderation_status", 
+            "retry_count", 
+            "last_error"
+        ]
+        update_instance(self, allowed_fields, **metadata)
+
+    def set_failed_moderation_attempt(self, last_error: str) -> None:
+        self.update_metadata(
+            moderation_status=self.ModerationStatusChoices.FAILED,
+            retry_count=self.retry_count + 1,
+            last_error=last_error
+        )
