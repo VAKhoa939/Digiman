@@ -58,11 +58,13 @@ class ReaderSubscriptionAdmin(LogUserMixin, admin.ModelAdmin):
         'subscription_plan',
         'start_date',
         'next_billing_date',
-        'last_billing_date',
-        'is_auto_renewal',
+        'get_last_billing_date',
         'status',
+        'is_auto_renewal',
+        'get_last_payment_status',
         'provider',
         'get_masked_external_subscription_id',
+        'get_masked_external_customer_id',
     )
 
     def get_display_name(self, obj: ReaderSubscription) -> str:
@@ -75,18 +77,18 @@ class ReaderSubscriptionAdmin(LogUserMixin, admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
     
-    def has_delete_permission(self, request, obj=None):
-        return False
+    # def has_delete_permission(self, request, obj=None):
+    #     return False
+
 
 @admin.register(PaymentTransaction)
 class PaymentTransactionAdmin(LogUserMixin, admin.ModelAdmin):
     list_display = [
         'get_display_name', 
         'created_at',
-        'paid_at',
         'transaction_type',
-        'amount_usd', 
         'status',
+        'amount_usd', 
         'provider',
     ]
     list_filter = ('transaction_type', 'status', 'provider',)
@@ -101,7 +103,8 @@ class PaymentTransactionAdmin(LogUserMixin, admin.ModelAdmin):
         'created_at',
         'paid_at',
         'provider',
-        'external_transaction_id',
+        'get_masked_external_transaction_id',
+        'get_masked_external_customer_id',
     )
 
     def get_display_name(self, obj: PaymentTransaction) -> str:
@@ -114,5 +117,5 @@ class PaymentTransactionAdmin(LogUserMixin, admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
     
-    def has_delete_permission(self, request, obj=None):
-        return False
+    # def has_delete_permission(self, request, obj=None):
+    #     return False

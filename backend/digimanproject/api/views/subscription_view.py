@@ -1,3 +1,5 @@
+from typing import Optional
+
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.request import Request
@@ -6,7 +8,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from ..models.subscription_models import SubscriptionPlan, ReaderSubscription, PaymentTransaction
-from ..serializers.subscription_model_serializers import SubscriptionPlanSerializer, ReaderSubscriptionSerializer, PaymentTransactionSerializer
+from ..serializers.subscription_serializers import SubscriptionPlanSerializer, ReaderSubscriptionSerializer, PaymentTransactionSerializer, SubscriptionMeSerializer
+from ..services.subscription_service import ReaderSubscriptionService
+from ..services.stripe_service import StripeService
 
 from ..permissions.admin_permissions import AdminWriteOnly
 
@@ -28,23 +32,38 @@ class PaymentTransactionViewSet(viewsets.ModelViewSet):
     serializer_class = PaymentTransactionSerializer
     permission_classes = [AdminWriteOnly]
 
+
 class SubscriptionMeView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
     def get(self, request: Request) -> Response:
-        from ..models.user_models import Reader
+        from ..models.user_models import User
 
-        reader = request.user
-        if not reader or not isinstance(reader, Reader):
+        user = request.user
+        if not user or not isinstance(user, User):
             return Response({"detail": "Invalid user."}, status=status.HTTP_400_BAD_REQUEST)
 
-        subscription = ReaderSubscription.objects.filter(reader=reader).first()
-        if not subscription:
-            # Every user has a ReaderSubscription object.
-            return Response({"detail": "Invalid user."}, status=status.HTTP_400_BAD_REQUEST)
-        
+        ReaderSubscriptionService.check_or_create_reader_subscription(user.get_id())
+
         return Response(
-            ReaderSubscriptionSerializer(subscription).data, 
+            SubscriptionMeSerializer(user.get_id()).data.get
+            ("reader_subscription"), 
             status=status.HTTP_200_OK
         )
+
+
+class ToggleAutoRenewalView(APIView):
+    def post(self, request: Request) -> Response:
+        from ..models.user_models import User
+
+        user = request.user
+        if not user or not isinstance(user, User):
+            return Response({"detail": "Invalid user."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            StripeService.toggle_cancel_at_period_end(user.get_id())
+
+            return Response(data={}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(e)
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

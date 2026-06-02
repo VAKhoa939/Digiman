@@ -34,9 +34,9 @@ export default function AdvancedSearchPage() {
     let mounted = true;
     (async () => {
       try {
-        const res = await fetchGenres();
+        const data = await fetchGenres();
         if (!mounted) return;
-        const list = Array.isArray(res) ? res : (res && Array.isArray(res.results) ? res.results : []);
+        const list = data || [];
         setAllGenres(list);
       } catch (err) {
         // ignore
@@ -105,9 +105,8 @@ export default function AdvancedSearchPage() {
       // If ordering requests the latest updated list, prefer the paginated "all titles" API
       if (String(backendParams.ordering) === '-updated_at') {
         try {
-          const res = await fetchAllMangaTitles({ ordering: backendParams.ordering }, 1);
-          if (Array.isArray(res)) return res.map(mapMangaTitle);
-          if (res && Array.isArray(res.results)) return res.results.map(mapMangaTitle);
+          const data = await fetchAllMangaTitles({ ordering: backendParams.ordering }, 1);
+          if (data) return data.map(mapMangaTitle);
           return [];
         } catch (err) {
           return [];
@@ -115,7 +114,7 @@ export default function AdvancedSearchPage() {
       }
 
       // Serialize genre_names array as comma-separated list (backend may expect this)
-      if (Array.isArray(backendParams.genre_names)) backendParams.genre_names = backendParams.genre_names.join(',');
+      backendParams.genre_names = backendParams.genre_names.join(',');
       // Only include search/q when a non-empty term is provided — sending an empty search param
       // can cause some backends to ignore filters and return all results.
       if (term && String(term).trim()) {
@@ -123,9 +122,8 @@ export default function AdvancedSearchPage() {
         backendParams.q = term; // include alternative key in case backend expects `q`
       }
 
-      const res = await fetchAllMangaTitles(backendParams, 1);
-      if (Array.isArray(res)) return res.map(mapMangaTitle);
-      if (res && Array.isArray(res.results)) return res.results.map(mapMangaTitle);
+      const data = await fetchAllMangaTitles(backendParams, 1);
+      if (data) return data.map(mapMangaTitle);
       return [];
     } catch (err) {
       // backend unavailable — return empty result set
@@ -140,7 +138,7 @@ export default function AdvancedSearchPage() {
     if (local.q && String(local.q).trim()) params.set('q', String(local.q).trim());
     if (local.ordering) params.set('ordering', local.ordering);
     if (local.publication_status && local.publication_status !== '') params.set('publication_status', local.publication_status);
-    if (Array.isArray(genres) && genres.length) {
+    if (genres.length) {
       // Map normalized keys back to display names when serializing
       const displayNames = genres.map(key => {
         const match = allGenres.find(g => normalizeName(g && g.name ? g.name : String(g)) === key);

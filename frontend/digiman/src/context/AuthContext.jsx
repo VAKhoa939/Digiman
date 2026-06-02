@@ -3,49 +3,59 @@ import {
   login as apiLogin, logout as apiLogout, fetchUser as apiFetchUser,
   register as apiRegister
 } from "../services/auth";
+import { fetchMySubscription } from "../services/subscriptionService";
+import { emitToast } from "../utils/toast";
+import { mapReaderSubscription } from "../utils/transform";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null); 
+  const [subscription, setSubscription] = useState(null);
   const [fetchUserLoading, setfetchUserLoading] = useState(true);
+  const [isErrorFetchingUser, setIsErrorFetchingUser] = useState(false);
 
   const fetchUser = useCallback(async () => {
     try {
       const data = await apiFetchUser();
       setUser(data);
       setIsAuthenticated(true);
-      console.log("fetchUser successful", data);
+
+      const fetchedSubscription = await fetchMySubscription();
+      setSubscription(mapReaderSubscription(fetchedSubscription));
+
+      console.log("fetchUser successful", data, fetchedSubscription);
+
       return true;
     } catch (err) {
       setUser(null);
+      setSubscription(null);
       setIsAuthenticated(false);
+      setIsErrorFetchingUser(true);
       console.error("fetchUser failed\nMessage: " + err.message);
       return false;
+    } finally {
+      setfetchUserLoading(false);
     }
   }, []);
 
   const login = useCallback(async (identifier, password, remember) => {
     try {
       const data = await apiLogin(identifier, password, remember);
-      if (data) {
-        const result = await fetchUser();
-        if (result) {
-          console.log("Login successful");
-          try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: 'Login successful' } })); } catch (e) { /* fallback */ }
-          return true;
-        }
-        else {
-          console.log("Login failed");
-          try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Login failed. Please try again.' } })); } catch (e) { /* fallback */ }
-          return false;
-        }
+      if (!data) return false;
+      const result = await fetchUser();
+      if (result) {
+        emitToast('success', 'Login successful');
+        return true;
       }
-      return false;
+      else {
+        emitToast('error', 'Login failed. Please try again.');
+        return false;
+      }
     } catch (err) {
       console.error("Login failed\nMessage: " + err.message);
-      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: `Login failed: ${err.message}` } })); } catch (e) { /* fallback */ }
+      emitToast('error', 'Login failed. Please try again.');
       return false;
     }
   }, [fetchUser]);
@@ -53,23 +63,19 @@ export function AuthProvider({ children }) {
   const register = useCallback(async (username, email, password, remember) => {
     try {
       const data = await apiRegister(username, email, password, remember);
-      if (data) {
-        const result = await fetchUser();
-        if (result) {
-          console.log("Registration successful");
-          try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'success', message: 'Registration successful' } })); } catch (e) { /* fallback */ }
-          return true;
-        }
-        else {
-          console.log("Registration failed");
-          try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: 'Registration failed. Please try again.' } })); } catch (e) { /* fallback */ }
-          return false;
-        }
+      if (!data) return false;
+      const result = await fetchUser();
+      if (result) {
+        emitToast('success', 'Registration successful');
+        return true;
+      }
+      else {
+        emitToast('error', 'Registration failed. Please try again.');
+        return false;
       }
       return false;
     } catch (err) {
-      console.error("Registration failed\nMessage: " + err.message);
-      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'error', message: `Registration failed: ${err.message}` } })); } catch (e) { /* fallback */ }
+      emitToast('error', 'Registration failed. Please try again.');
       return false;
     }
   }, [fetchUser]);
@@ -81,11 +87,24 @@ export function AuthProvider({ children }) {
       console.warn('Logout API call failed, clearing local auth state', err);
     } finally {
       setUser(null);
+      setSubscription(null);
       setIsAuthenticated(false);
-      console.log("Logout successful");
-      try { window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'You have been logged out.' } })); } catch (e) { /* fallback */ }
+      emitToast('info', 'You have been logged out.');
     }
   }, [fetchUser]);
+
+  const refetchSubscription = useCallback(async () => {
+    try {
+      const newSubscription = await fetchMySubscription();
+      const mappedSubscription = mapReaderSubscription(newSubscription);
+      setSubscription(mappedSubscription);
+      console.log("refetchSubscription successful", mappedSubscription);
+      return mappedSubscription;
+    } catch (err) {
+      console.error("refetchSubscription failed\nMessage: " + err.message);
+      return subscription;
+    }
+  }, [subscription]);
   
   // Auto-login on page refresh (using refresh cookie)
   useEffect(() => {
@@ -100,14 +119,14 @@ export function AuthProvider({ children }) {
       const result = await fetchUser();
       if (result) console.log("Auto-login successful");
       else console.log("Auto-login failed");
-      setfetchUserLoading(false);
     }
     tryAutoLogin();
   }, []);
 
   return (
     <AuthContext.Provider value={{ 
-      user, isAuthenticated, fetchUserLoading, login, logout, register
+      user, isAuthenticated, fetchUserLoading, subscription,
+      login, logout, register, refetchSubscription
     }}>
       {children}
     </AuthContext.Provider>

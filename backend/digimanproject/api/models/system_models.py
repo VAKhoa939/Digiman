@@ -53,6 +53,11 @@ class Report(models.Model):
         choices=TargetContentTypeChoices.choices)
     target_content_id: uuid.UUID = models.UUIDField()
 
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Report"
+        verbose_name_plural = "Reports"
+
     def __str__(self) -> str:
         return f"Report {self.id} - by {self.reporter.get_display_name()}\
             - category {self.category}"
@@ -85,6 +90,11 @@ class Penalty(models.Model):
     duration_hours: int = models.IntegerField(default=0)
     timestamp: datetime = models.DateTimeField(default=timezone.now)
 
+    class Meta:
+        ordering = ["-timestamp"]
+        verbose_name = "Penalty"
+        verbose_name_plural = "Penalties"
+
     def __str__(self) -> str:
         return f"Penalty for {self.user.get_display_name()} - at {self.timestamp}"
 
@@ -116,6 +126,11 @@ class FlaggedContent(models.Model):
     target_object_type: str = models.CharField(
         choices=TargetObjectTypeChoices.choices)
     target_object_id: uuid.UUID = models.UUIDField()
+
+    class Meta:
+        ordering = ["-flagged_at"]
+        verbose_name = "Flagged Content"
+        verbose_name_plural = "Flagged Contents"
 
     def __str__(self) -> str:
         from ..services.system_service import FlaggedContentService
@@ -183,6 +198,11 @@ class LogEntry(models.Model):
     target_object_id: uuid.UUID = models.UUIDField()
     is_moderated: bool = models.BooleanField(default=False)
     details: dict[str, Any] = models.JSONField(null=False, default=dict)
+
+    class Meta:
+        ordering = ["-timestamp"]
+        verbose_name = "Log Entry"
+        verbose_name_plural = "Log Entries"
 
     def __str__(self) -> str:
         if self.action_type in {self.ActionTypeChoices.LOGIN, self.ActionTypeChoices.LOGOUT}:

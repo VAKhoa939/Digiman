@@ -110,9 +110,18 @@ export default function DownloadsPage(){
 
   return (
     <div className="container py-4">
-      <h3>Download chapter(s)</h3>
+      <h3>Downloads</h3>
 
-      <section className="mt-3">
+      <hr/>
+      <section className="mt-4">
+        <p>The chapter downloads and offline reading features are premium and require an active subscription.</p>
+        <p>To download a chapter, please go to the <Link to="/pricing">Pricing page</Link> and subscribe to a plan first.</p>
+        <p>However, you can still read your downloaded chapters offline without a subscription.</p>
+        <p>Notes: The downloaded chapters are stored locally on your browser.</p>
+      </section>
+      <hr/>
+
+      <section className="mt-4">
         <h5>Downloading</h5>
         {downloading.length===0 ? <div className="text-muted">No active downloads.</div> : (
           downloading.map(d => (

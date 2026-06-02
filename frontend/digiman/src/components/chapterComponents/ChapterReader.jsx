@@ -229,17 +229,13 @@ export default function ChapterReader({
           role="button"
           aria-label="Left page edge"
           style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '18%', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', pointerEvents: 'auto', background: 'linear-gradient(90deg, rgba(0,0,0,0.06), transparent)' }}
-        >
-          <div style={{ fontSize: 34, color: 'rgba(255,255,255,0.9)', textShadow: '0 2px 6px rgba(0,0,0,0.6)' }}>{isMangadexRTL ? '›' : '‹'}</div>
-        </div>
+        />
         <div
           onClick={onRightEdgeClick}
           role="button"
           aria-label="Right page edge"
           style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '18%', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', pointerEvents: 'auto', background: 'linear-gradient(270deg, rgba(0,0,0,0.06), transparent)' }}
-        >
-          <div style={{ fontSize: 34, color: 'rgba(255,255,255,0.9)', textShadow: '0 2px 6px rgba(0,0,0,0.6)' }}>{isMangadexRTL ? '‹' : '›'}</div>
-        </div>
+        />
         <div className="chapter-reader-track" style={{ transform: `translateX(-${frameIndex * 100}vw)` }}>
           {displayFrames.map((frame, fi) => (
             <div key={fi} className="chapter-reader-page d-flex justify-content-center align-items-start gap-3" style={{ width: '100vw', padding: '1rem' }}>
@@ -292,12 +288,8 @@ export default function ChapterReader({
         onTouchEnd={onTouchEnd}
       >
         {/* Edge hotspots for vertical paged view */}
-        <div onClick={onLeftEdgeClick} role="button" aria-label="Left page edge" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '20%', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'linear-gradient(90deg, rgba(0,0,0,0.06), transparent)' }}>
-          <div style={{ fontSize: 34, color: 'rgba(255,255,255,0.9)', textShadow: '0 2px 6px rgba(0,0,0,0.6)' }}>{isMangadexRTL ? '›' : '‹'}</div>
-        </div>
-        <div onClick={onRightEdgeClick} role="button" aria-label="Right page edge" style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '20%', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'linear-gradient(270deg, rgba(0,0,0,0.06), transparent)' }}>
-          <div style={{ fontSize: 34, color: 'rgba(255,255,255,0.9)', textShadow: '0 2px 6px rgba(0,0,0,0.6)' }}>{isMangadexRTL ? '‹' : '›'}</div>
-        </div>
+        <div onClick={onLeftEdgeClick} role="button" aria-label="Left page edge" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '20%', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'linear-gradient(90deg, rgba(0,0,0,0.06), transparent)' }}/>
+        <div onClick={onRightEdgeClick} role="button" aria-label="Right page edge" style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '20%', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'linear-gradient(270deg, rgba(0,0,0,0.06), transparent)' }}/>
         <div className="d-flex justify-content-between mb-2">
           {isRTL ? (
             <>

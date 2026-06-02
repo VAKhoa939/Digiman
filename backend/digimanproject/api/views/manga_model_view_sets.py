@@ -10,6 +10,7 @@ from ..services.manga_service import CommentService
 
 from ..filters.manga_filters import MangaTitleFilter, ChapterFilter, CommentFilter
 from ..permissions.admin_permissions import AdminWriteOnly
+from ..permissions.subscription_permissions import PremiumChaptersPermission
 from django.db.models import Max
 
 
@@ -55,7 +56,7 @@ class MangaTitleViewSet(viewsets.ModelViewSet):
 class ChapterViewSet(viewsets.ModelViewSet):
     queryset = Chapter.objects.all()
     serializer_class = ChapterSerializer
-    permission_classes = [AdminWriteOnly]
+    permission_classes = [AdminWriteOnly, PremiumChaptersPermission]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = ChapterFilter
     ordering_fields = ["upload_date", "title", "chapter_number"]
@@ -72,7 +73,7 @@ class PageViewSet(viewsets.ModelViewSet):
     queryset = Page.objects.all()
     pagination_class = None
     serializer_class = PageSerializer
-    permission_classes = [AdminWriteOnly]
+    permission_classes = [AdminWriteOnly, PremiumChaptersPermission]
 
     def get_queryset(self):
         queryset = super().get_queryset()

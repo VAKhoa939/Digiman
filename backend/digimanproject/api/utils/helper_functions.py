@@ -56,13 +56,21 @@ def get_dominant_attribute_and_score(scores: Dict[str, float], thresholds: Dict[
     return dominant_key, dominant_score
 
 def cast_user_to_subclass(user: "User"):
-    from ..models.user_models import User, Reader, Administrator
-    if user.role == User.RoleChoices.READER:
+    from ..models.user_models import Reader, Administrator, RoleChoices
+
+    role = user.get_role()
+    if role == RoleChoices.READER:
         return Reader.objects.get(pk=user.pk)
-    elif user.role == User.RoleChoices.ADMIN:
+    elif role == RoleChoices.ADMIN:
         return Administrator.objects.get(pk=user.pk)
     else:
         return user
     
-def stripe_ts_to_datetime(ts: int) -> datetime:
-    return datetime.fromtimestamp(ts, tz=timezone.utc)
+def stripe_ts_to_datetime(ts: int | None) -> datetime | None:
+    return None if not ts else datetime.fromtimestamp(ts, tz=timezone.utc)
+
+def format_datetime_long(dt: datetime | None) -> str:
+    return "" if not dt else dt.strftime("%Y-%m-%d %H:%M:%S")
+
+def format_datetime_short(dt: datetime) -> str:
+    return dt.strftime("%Y-%m-%d")

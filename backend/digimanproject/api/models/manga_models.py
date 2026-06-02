@@ -18,6 +18,10 @@ class Author(models.Model):
         primary_key=True, default=uuid.uuid4, editable=False)
     name: str = models.CharField(max_length=100, unique=True)
 
+    class Meta:
+        verbose_name = "Author"
+        verbose_name_plural = "Authors"
+
     def __str__(self) -> str:
         return self.name
     
@@ -38,6 +42,10 @@ class Genre(models.Model):
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     name: str = models.CharField(max_length=50, unique=True)
+
+    class Meta:
+        verbose_name = "Genre"
+        verbose_name_plural = "Genres"
 
     def __str__(self) -> str:
         return self.name
@@ -85,6 +93,10 @@ class MangaTitle(models.Model):
     first_free_chapter_amount: int = models.IntegerField(default=0)
     last_free_chapter_amount: int = models.IntegerField(default=0)
 
+    class Meta:
+        verbose_name = "Manga Title"
+        verbose_name_plural = "Manga Titles"
+
     def __str__(self) -> str:
         return self.title
     
@@ -131,6 +143,14 @@ class MangaTitle(models.Model):
     def get_comments(self) -> models.QuerySet["Comment"]:
         comments: models.Manager["Comment"] = self.comments
         return comments.all()
+    
+    def get_previous_chapter(self, chapter: "Chapter") -> Optional["Chapter"]:
+        chapters: models.Manager["Chapter"] = self.chapters
+        return chapters.order_by("chapter_number").filter(chapter_number__lt=chapter.chapter_number).last()
+    
+    def get_next_chapter(self, chapter: "Chapter") -> Optional["Chapter"]:
+        chapters: models.Manager["Chapter"] = self.chapters
+        return chapters.order_by("chapter_number").filter(chapter_number__gt=chapter.chapter_number).first()
 
     def update_metadata(self, **metadata: Any) -> None:
         """allowed_fields: title, alternative_title, author, description, 
@@ -163,6 +183,14 @@ class MangaTitle(models.Model):
     def clear_genres(self) -> None:
         self.genres.clear()
 
+    def check_chapter_number_premium(self, chapter_number: int) -> bool:
+        if not self.is_premium:
+            return False
+        chapter_count = self.get_chapter_count()
+        first_premium_chapter_number = self.first_free_chapter_amount + 1
+        last_premium_chapter_number = chapter_count - self.last_free_chapter_amount
+        return first_premium_chapter_number <= chapter_number <= last_premium_chapter_number
+
 
 class Chapter(models.Model):
     id: uuid.UUID = models.UUIDField(
@@ -194,6 +222,19 @@ class Chapter(models.Model):
     def get_chapter_number(self) -> int:
         return self.chapter_number
     
+    
+    @admin.display(
+        description="Previous chapter"
+    )
+    def get_previous_chapter(self) -> Optional["Chapter"]:
+        return self.manga_title.get_previous_chapter(self)
+    
+    @admin.display(
+        description="Next chapter"
+    )
+    def get_next_chapter(self) -> Optional["Chapter"]:
+        return self.manga_title.get_next_chapter(self)
+    
     @admin.display(
         description="Number of pages"
     )
@@ -202,7 +243,7 @@ class Chapter(models.Model):
         return pages.count()
     
     @admin.display(
-        description="Number of of comments"
+        description="Number of comments"
     )
     def get_comment_count(self) -> int:
         comments: models.Manager["Comment"] = self.comments
@@ -227,6 +268,13 @@ class Chapter(models.Model):
             pages.aggregate(models.Max("page_number"))["page_number__max"] or 0
         )
 
+    @admin.display(
+        description="Is premium",
+        boolean=True
+    )
+    def check_premium(self) -> bool:
+        return self.manga_title.check_chapter_number_premium(self.chapter_number)
+
 
 class Page(models.Model):
     id: uuid.UUID = models.UUIDField(
@@ -246,6 +294,9 @@ class Page(models.Model):
 
     def __str__(self) -> str:
         return f"{self.chapter} - Page {self.page_number}"
+    
+    def get_chapter(self) -> "Chapter":
+        return self.chapter
     
     def update_metadata(self, **metadata: Any) -> None:
         """allowed_fields: page_number, image_url"""

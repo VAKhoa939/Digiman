@@ -1,4 +1,7 @@
+import { formatTime } from "./formatTime";
+
 export function mapMangaTitle(fetchedData) {
+  if (!fetchedData) return null;
   return {
     id: fetchedData.id,
     title: fetchedData.title,
@@ -11,11 +14,14 @@ export function mapMangaTitle(fetchedData) {
     chapterCount: fetchedData.chapter_count,
     dateUpdated: fetchedData.latest_chapter_date,
     publicationDate: fetchedData.publication_date,
-    previewChapterId: fetchedData.preview_chapter_id,
+    isPremium: fetchedData.is_premium,
+    averageRating: fetchedData.average_rating ?? 0,
+    readCount: fetchedData.read_count ?? 0,
   };
 }
 
 export function mapChapter(fetchedData) {
+  if (!fetchedData) return null;
   return {
     id: fetchedData.id,
     number: fetchedData.chapter_number,
@@ -26,10 +32,12 @@ export function mapChapter(fetchedData) {
     pageCount: fetchedData.page_count,
     prevChapterId: fetchedData.previous_chapter_id,
     nextChapterId: fetchedData.next_chapter_id,
+    isPremium: fetchedData.is_premium,
   };
 }
 
 export function mapPage(fetchedData) {
+  if (!fetchedData) return null;
   return {
     id: fetchedData.id,
     index: fetchedData.page_number,
@@ -39,6 +47,7 @@ export function mapPage(fetchedData) {
 }
 
 export function mapComment(fetchedData) {
+  if (!fetchedData) return null;
   return {
     id: fetchedData.id,
     name: fetchedData.owner_name,
@@ -71,4 +80,31 @@ export function mapInputCommentData(
     chapter: chapterId ?? null,
     attached_image_url: attached_image_url
   };
+}
+
+export function mapReaderSubscription(fetchedData) {
+  if (!fetchedData) return null;
+  let lastPaymentTransaction = fetchedData.last_payment_transaction;
+  lastPaymentTransaction = lastPaymentTransaction && {
+    status: lastPaymentTransaction.status,
+    createdAt: formatTime(lastPaymentTransaction.created_at),
+    paidAt: formatTime(lastPaymentTransaction.paid_at),
+    nextPaymentAttemptAt: formatTime(lastPaymentTransaction.next_payment_attempt_at),
+  };
+  return {
+    id: fetchedData.id,
+    planName: fetchedData.plan_name,
+    features: fetchedData.features,
+    description: fetchedData.description,
+    status: fetchedData.status,
+    isActive: fetchedData.is_active,
+    lastPurchaseStatus: fetchedData.last_purchase_status,
+    isAutoRenewal: fetchedData.is_auto_renewal,
+    startDate: formatTime(fetchedData.start_date),
+    nextBillingDate: formatTime(fetchedData.next_billing_date),
+    lastBillingDate: formatTime(fetchedData.last_billing_date),
+    endedAt: formatTime(fetchedData.ended_at),
+    provider: fetchedData.provider,
+    lastPaymentTransaction: lastPaymentTransaction,
+  }
 }
