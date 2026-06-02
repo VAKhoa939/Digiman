@@ -46,7 +46,12 @@ export default defineConfig (({ mode}) => {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
           runtimeCaching: [
             {
-              urlPattern: ({ request }) => request.destination === 'image',
+              // Only cache same-origin images (app icons, static assets).
+              // Cross-origin images (manga covers from the API) are excluded
+              // so the SW does not intercept them.
+              urlPattern: ({ request, url }) =>
+                request.destination === 'image' &&
+                url.origin === self.location.origin,
               handler: 'CacheFirst',
               options: { cacheName: 'image-cache' }
             },
