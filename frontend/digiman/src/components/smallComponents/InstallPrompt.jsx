@@ -9,6 +9,7 @@ export default function InstallPrompt() {
     typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
 
   if ((!isInstallable && !isIOS) || !isMobileWidth) return null;
+  // if (!isInstallable && !isIOS) return null; Te
 
   return (
     <div
