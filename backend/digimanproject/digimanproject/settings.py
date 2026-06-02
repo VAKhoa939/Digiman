@@ -277,12 +277,13 @@ JAZZMIN_SETTINGS = {
         "api.Author",
         "api.Genre",
 
-        "api.FlaggedContent",
-        "api.LogEntry",
-
         "api.SubscriptionPlan",
         "api.ReaderSubscription",
         "api.PaymentTransaction",
+
+        "api.FlaggedContent",
+        "api.LogEntry",
+        "api.ModerationThreshold",
     ],
 
     # --- Optional visuals ---
@@ -298,12 +299,13 @@ JAZZMIN_SETTINGS = {
         "api.Page": "fas fa-image",
         "api.Comment": "fas fa-comments",
 
-        "api.LogEntry": "fas fa-history",
-        "api.FlaggedContent": "fas fa-flag",
-
         "api.SubscriptionPlan" : "fas fa-credit-card",
         "api.ReaderSubscription" : "fas fa-user-tag",
         "api.PaymentTransaction" : "fas fa-arrows-alt-h",
+
+        "api.LogEntry": "fas fa-history",
+        "api.FlaggedContent": "fas fa-flag",
+        "api.ModerationThreshold": "fas fa-balance-scale",
     },
 }
 
