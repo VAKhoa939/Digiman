@@ -18,4 +18,4 @@ class AdminWriteOnly(BasePermission):
         user = request.user
         if not user or not isinstance(user, User) or not user.is_authenticated:
             return False
-        return user.check_admin_access()
+        return user.has_admin_access()

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Optional, Tuple
 from django.conf import settings
 from sightengine.client import SightengineClient
-from ..utils.helper_functions import get_dominant_attribute_and_score
 
+from .system_service import ModerationThresholdService
+
+from ..utils.helper_functions import get_dominant_attribute_and_score
 from ..utils.env_getters import env
 
 logger = logging.getLogger(__name__)
@@ -15,23 +17,6 @@ class SightengineService:
     Uses Sightengine to evaluate images for nudity, gore,
     offensive content, etc.
     """
-
-    MODEL_THRESHOLDS = {
-        "sexual_activity": 0.3,
-        "sexual_display": 0.3,
-        "erotica": 0.4,
-
-        # Suggestive classes
-        "suggestive_lingerie": 0.35,
-        "suggestive_bikini": 0.35,
-        "suggestive_cleavage": 0.35,
-        "suggestive_other": 0.35,
-
-        # Gore & Offensive
-        "gore": 0.4,
-        "offensive": 0.4,
-    }
-
     _client: SightengineClient | None = None
 
     @staticmethod
@@ -57,25 +42,23 @@ class SightengineService:
             "offensive": 0.22,
             "context_pool": 0.31
         }
-
-        If the API call fails, returns {}.
         """
 
         if not image_url:
-            return {}
+            raise ValueError("Image URL is empty.")
 
         client = SightengineService.get_client()
 
         try:
-            # Sightengine content moderation presets
+            # Sightengine content moderation API models
             result = client.check(
-                "nudity-2.0", "gore", "offensive"
+                "nudity-2.0", 
+                "gore", 
+                "offensive"
             ).set_url(image_url)
         except Exception as e:
-            logger.error(f"Sightengine API error: {e}")
-            return {}
-
-        return SightengineService.parse_response(result)
+            logger.error(f"Sightengine API request failed: {e}")
+            raise RuntimeError(f"Sightengine API request failed: {e}")
     
     @staticmethod
     def parse_response(response: Dict[str, Any]) -> Dict[str, float]:
@@ -86,125 +69,103 @@ class SightengineService:
 
         scores = {}
 
-        # Nudity (nudity-2.0)
-        nudity = response.get("nudity", {})
+        try:
+                
+            # Nudity (nudity-2.0)
+            nudity = response.get("nudity", {})
 
-        # Explicit classes
-        for key in ["sexual_activity", "sexual_display", "erotica"]:
-            if key in nudity:
-                scores[key] = float(nudity.get(key, 0.0))
+            # Explicit classes
+            for key in ["sexual_activity", "sexual_display", "erotica"]:
+                if key in nudity:
+                    scores[key] = float(nudity.get(key, 0.0))
 
-        # Suggestive classes (dynamic flattening)
-        suggestive = nudity.get("suggestive_classes", {})
-        
-        MAPPING = {
-            "lingerie": "suggestive_lingerie",
-            "bikini": "suggestive_bikini",
-            "cleavage": "suggestive_cleavage",
-            "other": "suggestive_other",
-        }
+            # Suggestive classes (dynamic flattening)
+            suggestive = nudity.get("suggestive_classes", {})
+            
+            MAPPING = {
+                "lingerie": "suggestive_lingerie",
+                "bikini": "suggestive_bikini",
+                "cleavage": "suggestive_cleavage",
+                "other": "suggestive_other",
+            }
 
-        for raw_key, mapped_key in MAPPING.items():
-            value = suggestive.get(raw_key)
-            if value is not None:
-                scores[mapped_key] = float(value)
-            else:
-                scores[mapped_key] = 0.0  # ensure key always exists
+            for raw_key, mapped_key in MAPPING.items():
+                value = suggestive.get(raw_key)
+                if value is not None:
+                    scores[mapped_key] = float(value)
+                else:
+                    scores[mapped_key] = 0.0  # ensure key always exists
 
-        # Context classes (optional: not thresholded, admins interpret)
-        context = nudity.get("context", {})
-        for name, value in context.items():
-            scores[f"context_{name}"] = float(value)
+            # Context classes (optional: not thresholded, admins interpret)
+            context = nudity.get("context", {})
+            for name, value in context.items():
+                scores[f"context_{name}"] = float(value)
 
-        # Gore
-        gore = response.get("gore", {})
-        if "probability" in gore:
-            scores["gore"] = float(gore["probability"])
+            # Gore
+            gore = response.get("gore", {})
+            if "probability" in gore:
+                scores["gore"] = float(gore["probability"])
 
-        # Offensive
-        offensive = response.get("offensive", {})
-        if "prob" in offensive:
-            scores["offensive"] = float(offensive["prob"])
+            # Offensive
+            offensive = response.get("offensive", {})
+            if "prob" in offensive:
+                scores["offensive"] = float(offensive["prob"])
 
-        return scores
+            return scores
 
-    @staticmethod
-    def is_unsafe(scores: Dict[str, float]) -> bool:
-        adjusted = SightengineService.apply_context_adjustments(scores)
-        for attribute, score in adjusted.items():
-            threshold = SightengineService.MODEL_THRESHOLDS.get(attribute)
-            if threshold is not None and score >= threshold:
-                return True
-        return False
+        except Exception as e:
+            logger.error(f"Sightengine API parsing error: {e}")
+            raise RuntimeError(f"Sightengine API parsing error: {e}") from e
     
     @staticmethod
-    def apply_context_adjustments(scores: Dict[str, float]) -> Dict[str, float]:
-        adjusted = dict(scores)
-
-        pool = scores.get("context_sea_lake_pool", 0.0)
-
-        # RULE: reduce bikini/suggestive-other false positives in pool/beach scene
-        if pool >= 0.5:
-            for key in scores:
-                if key.startswith("suggestive_bikini") or key.startswith("suggestive_other"):
-                    adjusted[key] = adjusted[key] * 0.7  # reduce by 30%
-
-        return adjusted
-    
-    @staticmethod
-    def summarize_result(scores: dict) -> str:
+    def generate_reason(dominant_attribute: str) -> str:
         """
-        Convert Sightengine nudity/gore/offensive scores into a clean human-readable summary.
-        It picks the dominant score (highest value among relevant classes) and returns
-        the appropriate label.
+        Convert Sightengine dominant attribute into a clean human-readable reason.
         """
-
-        if not scores:
-            return "Image flagged for review by automated moderation."
-
-        # Select only meaningful problem classes (ignore context_x)
-        meaningful_scores = {
-            key: value for key, value in scores.items()
-            if not key.startswith("context_")
-        }
-
-        if not meaningful_scores:
-            return "Image flagged for review by automated moderation."
-
-        # Pick the highest-scoring attribute
-        dominant_key, dominant_score = get_dominant_attribute_and_score(
-            meaningful_scores, SightengineService.MODEL_THRESHOLDS
-        )
-
         # ----- Explicit nudity -----
-        if dominant_key in ("sexual_activity", "sexual_display", "erotica"):
-            label = dominant_key.replace("_", " ").title()
-            return f"Explicit content detected: {label} (score {dominant_score:.2f})."
+        if dominant_attribute in ("sexual_activity", "sexual_display", "erotica"):
+            label = dominant_attribute.replace("_", " ").title()
+            return f"{label} content detected."
 
         # ----- Suggestive nudity -----
-        if dominant_key.startswith("suggestive_"):
-            subclass = dominant_key.replace("suggestive_", "").replace("_", " ").title()
-            return f"Suggestive content detected: {subclass} (score {dominant_score:.2f})."
+        if dominant_attribute.startswith("suggestive_"):
+            subclass = dominant_attribute.replace("suggestive_", "").replace("_", " ").title()
+            return f"Suggestive content detected - {subclass}."
 
-        # ----- Gore -----
-        if dominant_key == "gore":
-            return f"Gore detected (score {dominant_score:.2f})."
+        # "Safe" & Other simple classes
+        if dominant_attribute == "gore":
+            return "Gore content detected."
 
-        # ----- Offensive -----
-        if dominant_key == "offensive":
-            return f"Offensive content detected (score {dominant_score:.2f})."
+        if dominant_attribute == "offensive":
+            return "Offensive content detected."
+        
+        if dominant_attribute == "safe":
+            return "Image is safe to display."
 
         # Fallback
-        return f"Image flagged due to {dominant_key.replace('_', ' ')} (score {dominant_score:.2f})."
+        return f"Image flagged due to {dominant_attribute.replace('_', ' ')}."
 
     @staticmethod
-    def call_service(image_url: str) -> Tuple[Dict[str, float], bool, str, str, float]:
+    def call_service(image_url: str) -> Optional[Tuple[Dict[str, float], bool, bool, str, str, float]]:
+        """
+        Main function to run image moderation via Sightengine.
+        
+        Outputs: 
+        - parsed_scores: Dictionary of attribute scores, e.g. {"sexual_display": 0.12, "suggestive_bikini": 0.44, "context_pool": 0.31, ...}
+        - is_flagged: True if image is flagged, False otherwise
+        - is_banned: True if image is banned, False otherwise
+        - reason: Human-readable reason for moderation decision
+        - dominant_attribute: Attribute with highest score
+        - severity_score: Severity score
+        """
+        model_thresholds = ModerationThresholdService.get_sightengine_thresholds()
         scores = SightengineService.moderate(image_url)
-        if not scores:
-            return {}, False, "Text flagged for review by automated moderation.", "", 0.0
-        is_unsafe = SightengineService.is_unsafe(scores)
-        summary = SightengineService.summarize_result(scores)
-        dominant_attribute, severity_score = get_dominant_attribute_and_score(
-            scores, SightengineService.MODEL_THRESHOLDS
-        )
-        return scores, is_unsafe, summary, dominant_attribute, severity_score
+        parsed_scores = SightengineService.parse_response(scores)
+        dominant_attribute_results = get_dominant_attribute_and_score(parsed_scores, model_thresholds)
+        if not dominant_attribute_results:
+            error_message = "Sightengine failed to get dominant attribute and score."
+            logger.error(error_message)
+            raise ValueError(error_message)
+        dominant_attribute, severity_score, is_flagged, is_banned = dominant_attribute_results
+        reason = SightengineService.generate_reason(dominant_attribute)
+        return parsed_scores, is_flagged, is_banned, reason, dominant_attribute, severity_score

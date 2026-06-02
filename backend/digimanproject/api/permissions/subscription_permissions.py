@@ -28,7 +28,7 @@ class PremiumChaptersPermission(permissions.BasePermission):
         else:
             return False
 
-        if not chapter.check_premium():
+        if not chapter.is_premium():
             return True
         
         # Check if the user is a premium user 
@@ -40,14 +40,14 @@ class PremiumChaptersPermission(permissions.BasePermission):
         
         user = cast_user_to_subclass(user)
         
-        if user.check_admin_access():
+        if user.has_admin_access():
             return True
         
         # If this account is not a Reader or higher one, deny access
         if not isinstance(user, Reader):
             return False
         
-        return user.check_subscription_feature_access(SubscriptionFeatureChoices.PREMIUM_CHAPTERS)
+        return user.has_subscription_feature_access(SubscriptionFeatureChoices.PREMIUM_CHAPTERS)
     
     def has_permission(self, request: Request, view: View) -> bool:
         """

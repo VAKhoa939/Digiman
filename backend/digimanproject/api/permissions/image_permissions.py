@@ -23,7 +23,7 @@ class CanManageImage(BasePermission):
             return False
 
         # Only admins can manage manga-content
-        if bucket == "manga-content" and not user.check_admin_access():
+        if bucket == "manga-content" and not user.has_admin_access():
             return False
 
         return True

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from ..models.system_models import Report, Penalty, FlaggedContent, LogEntry
+from ..models.system_models import Report, Penalty, FlaggedContent, LogEntry, ModerationThreshold
 
 
 class ReportSerializer(serializers.ModelSerializer):
@@ -46,6 +46,21 @@ class FlaggedContentSerializer(serializers.ModelSerializer):
             "target_object_type", 
             "target_object_id"
         ]
+        
+
+class ModerationThresholdSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ModerationThreshold
+        fields = [
+            "id", 
+            "service_type",
+            "attribute", 
+            "flag_threshold", 
+            "ban_threshold", 
+            "is_active", 
+            "service_api", 
+            "updated_at"
+        ]
 
 
 class LogEntrySerializer(serializers.ModelSerializer):
@@ -58,7 +73,9 @@ class LogEntrySerializer(serializers.ModelSerializer):
             "timestamp", 
             "target_object_type", 
             "target_object_id", 
-            "is_moderated", 
+            "moderation_status", 
+            "retry_count",
+            "last_error",
             "details"
         ]
         

@@ -35,7 +35,7 @@ class BaseUserViewSet(viewsets.ModelViewSet):
             return User.objects.none()
         
         # If the user is an admin, return all users
-        if user.check_admin_access():
+        if user.has_admin_access():
             return Reader.objects.all()
         
         # Else, return only their own user

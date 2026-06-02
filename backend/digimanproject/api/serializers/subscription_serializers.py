@@ -85,7 +85,7 @@ class SubscriptionMeSerializer(serializers.Serializer):
                 "features": plan.features, 
                 "description": plan.description,
                 "status": subscription.status, 
-                "is_active": subscription.check_active(),
+                "is_active": subscription.is_active(),
                 "last_purchase_status": subscription.last_purchase_status,
                 "is_auto_renewal": subscription.is_auto_renewal,
                 "start_date": subscription.start_date,

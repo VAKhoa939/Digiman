@@ -210,7 +210,7 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
         "chapter_number", 
         "get_title", 
         "upload_date", 
-        "check_premium",
+        "is_premium",
         "get_page_count", 
         "get_comment_count", 
         "get_previous_chapter", 
@@ -229,7 +229,7 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
             "title", 
             "chapter_number", 
             "upload_date", 
-            "check_premium",
+            "is_premium",
             "get_page_count", 
             "get_comment_count", 
             "get_previous_chapter", 
@@ -237,8 +237,9 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
         )}),
     )
     readonly_fields = (
+        "id",
         "upload_date",
-        "check_premium",
+        "is_premium",
         "get_page_count",
         "get_comment_count",
         "get_previous_chapter",

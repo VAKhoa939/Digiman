@@ -1,7 +1,9 @@
 from django.db.models.signals import post_save, post_delete
+from django.db import transaction
 from django.dispatch import receiver
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author, Comment
 from ..services.system_service import LogEntryService
+from ..tasks import run_moderation_pipeline_task
 
 
 @receiver(post_save, sender=MangaTitle)
@@ -46,9 +48,20 @@ def log_author_delete(sender, instance: Author, **kwargs):
 
 @receiver(post_save, sender=Comment)
 def log_comment_save(sender, instance: Comment, created: bool, **kwargs):
-    if getattr(instance, "_action_user", None) is None:
-        instance._action_user = instance.owner
-    LogEntryService.log_object_save(instance, created)
+    # For internal comment creation/update via Django admin
+    if getattr(instance, "_action_user", None) is not None:
+        LogEntryService.log_object_save(instance, created)
+        return
+    
+    # For normal user comment creation/update, add the action user to the object
+    # and run AI moderation pipeline
+    instance._action_user = instance.owner
+    with transaction.atomic():
+        entry = LogEntryService.log_object_save(instance, created)
+
+        transaction.on_commit(
+            lambda: run_moderation_pipeline_task.delay(str(entry.id))
+        )
 
 @receiver(post_delete, sender=Comment)
 def log_comment_delete(sender, instance: Comment, **kwargs):
