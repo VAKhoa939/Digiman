@@ -1,10 +1,11 @@
 """
-Chatbot service using Google Gemini.
+Chatbot service using GitHub Models (GPT-4o / GPT-4o-mini).
 
 Pipeline:
-  1. classify_and_extract(message) → intent + keywords + genres (via Gemini)
-  2. If intent is 'navigation' or 'guide' → answer directly with app context
-  3. If intent is 'recommendation' → search MangaTitle DB → inject results into prompt → Gemini answers
+  1. Single LLM call (fast model: gpt-4o-mini) classifies intent AND answers directly
+     for navigation/guide intents — returning JSON with {intent, keywords, genres, answer}.
+  2. If intent is 'recommendation' → search MangaTitle DB → inject results into a
+     second prompt → full model (gpt-4o) generates a grounded recommendation answer.
 """
 
 import json
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "").strip()
 GITHUB_MODEL = os.getenv("GITHUB_MODEL", "gpt-4o").strip()
+GITHUB_MODEL_FAST = os.getenv("GITHUB_MODEL_FAST", "gpt-4o-mini").strip()
 
 # ---------------------------------------------------------------------------
 # Static app context injected into every prompt
@@ -60,9 +62,11 @@ reading progress tracking, comment threads, dark/light theme.\
 # ---------------------------------------------------------------------------
 # Prompts
 # ---------------------------------------------------------------------------
-_CLASSIFICATION_PROMPT = """\
-Classify the user message intent. Reply ONLY with a valid JSON object — \
-no markdown, no code fences, no explanation.
+_CLASSIFY_AND_ANSWER_PROMPT = """\
+{app_context}
+
+Classify the user's message intent and respond accordingly.
+Reply ONLY with a valid JSON object — no markdown, no code fences, no explanation.
 
 Intent options:
   "navigation"     – user wants to find a page or UI feature
@@ -73,29 +77,22 @@ JSON schema:
 {{
   "intent": "<navigation|guide|recommendation>",
   "keywords": ["<manga search term>", ...],
-  "genres":   ["<genre name>", ...]
+  "genres":   ["<genre name>", ...],
+  "answer": "<2-4 sentence answer if intent is navigation or guide, else null>"
 }}
 
 Rules:
-• "keywords" and "genres" are ONLY relevant for "recommendation". \
-Set them to [] for other intents.
+• "keywords" and "genres" are ONLY for "recommendation". Set to [] for other intents.
+• For "navigation" or "guide": write a concise answer in "answer". \
+Include the relevant path if applicable.
+• For "recommendation": set "answer" to null — recommendations require a database lookup.
 • "genres" should use common manga genre names (e.g. Action, Romance, Fantasy, Horror, \
 Comedy, Drama, Sci-Fi, Slice of Life, Sports, Mystery, Thriller, Supernatural).
-
-User message: "{message}"\
-"""
-
-_NAVIGATION_GUIDE_PROMPT = """\
-{app_context}
-
-Answer the user question about Digiman concisely (2-4 sentences). \
-If the answer involves navigating somewhere, include the path.
 
 Previous conversation:
 {history}
 
-User: {message}
-DigiBot:\
+User message: "{message}"\
 """
 
 _RECOMMENDATION_PROMPT = """\
@@ -140,13 +137,14 @@ def _build_history_text(history: list) -> str:
     return "\n".join(lines)
 
 
-def _llm_generate(prompt: str, retries: int = 3) -> str:
-    """Call Gemini and return the text response.
+def _llm_generate(prompt: str, model: str = None, retries: int = 3) -> str:
+    """Call GitHub Models and return the text response.
 
+    Uses GITHUB_MODEL by default; pass model=GITHUB_MODEL_FAST for faster/cheaper calls.
     Retries up to `retries` times on 429 Rate Limit errors using
-    exponential backoff (2 s, 4 s, 8 s). Raises QuotaExhaustedError
-    if all attempts fail due to quota.
+    exponential backoff (2 s, 4 s, 8 s).
     """
+    model = model or GITHUB_MODEL
     if not GITHUB_TOKEN:
         raise RuntimeError("GITHUB_TOKEN is not set in environment variables.")
     client = OpenAI(
@@ -157,7 +155,7 @@ def _llm_generate(prompt: str, retries: int = 3) -> str:
     for attempt in range(retries):
         try:
             response = client.chat.completions.create(
-                model=GITHUB_MODEL,
+                model=model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1000,
                 temperature=0.7,
@@ -165,6 +163,8 @@ def _llm_generate(prompt: str, retries: int = 3) -> str:
             return response.choices[0].message.content.strip()
         except Exception as e:
             err_str = str(e)
+            print(f"[CHATBOT ERROR] {type(e).__name__}: {e}")  # temporary
+            logger.error("Chatbot recommendation failed: %s", e)
             is_quota = "429" in err_str or "quota" in err_str.lower() or "rate" in err_str.lower()
             if is_quota and attempt < retries - 1:
                 logger.warning(
@@ -184,55 +184,43 @@ def _llm_generate(prompt: str, retries: int = 3) -> str:
 class ChatbotService:
 
     # ------------------------------------------------------------------
-    # Step 1 – Classify intent and extract manga query parameters
+    # Step 1 – Classify intent and answer directly (navigation / guide)
     # ------------------------------------------------------------------
 
     @staticmethod
-    def classify_and_extract(message: str) -> dict:
+    def _classify_and_answer_direct(message: str, history: list) -> dict:
         """
-        Returns dict: {intent, keywords, genres}
-        Falls back to {'intent': 'guide', 'keywords': [], 'genres': []} on error.
+        Single LLM call (fast model) that classifies intent and, for
+        navigation/guide intents, generates the answer in the same response.
+        Returns dict: { intent, keywords, genres, answer }
+        For recommendation intent, answer is None — a second grounded call follows.
+        Falls back to { intent: 'guide', keywords: [], genres: [], answer: None } on error.
         """
-        prompt = _CLASSIFICATION_PROMPT.format(message=message)
-        try:
-            raw = _llm_generate(prompt)
-            # Strip accidental markdown fences
-            raw = raw.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
-            data = json.loads(raw)
-            intent = data.get("intent", "guide")
-            if intent not in ("navigation", "guide", "recommendation"):
-                intent = "guide"
-            return {
-                "intent": intent,
-                "keywords": [str(k) for k in data.get("keywords", [])],
-                "genres": [str(g) for g in data.get("genres", [])],
-            }
-        except Exception as e:
-            logger.warning("Chatbot intent classification failed: %s", e)
-            return {"intent": "guide", "keywords": [], "genres": []}
-
-    # ------------------------------------------------------------------
-    # Step 2a – Direct answer for navigation / guide
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def answer_direct(message: str, history: list) -> str:
-        prompt = _NAVIGATION_GUIDE_PROMPT.format(
+        prompt = _CLASSIFY_AND_ANSWER_PROMPT.format(
             app_context=APP_CONTEXT,
             history=_build_history_text(history),
             message=message,
         )
         try:
-            return _llm_generate(prompt)
+            raw = _llm_generate(prompt, model=GITHUB_MODEL_FAST)
+            raw = raw.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
+            data = json.loads(raw)
+            intent = data.get("intent", "guide")
+            if intent not in ("navigation", "guide", "recommendation"):
+                intent = "guide"
+            answer = data.get("answer") or None
+            # Safety: recommendation must not carry a pre-generated answer (no DB grounding yet)
+            if intent == "recommendation":
+                answer = None
+            return {
+                "intent": intent,
+                "keywords": [str(k) for k in data.get("keywords", [])],
+                "genres": [str(g) for g in data.get("genres", [])],
+                "answer": answer,
+            }
         except Exception as e:
-            err_str = str(e)
-            logger.error("Chatbot direct answer failed: %s", e)
-            if "429" in err_str or "quota" in err_str.lower():
-                return (
-                    "⚠️ DigiBot is a bit overwhelmed right now (API quota reached). "
-                    "Please wait a minute and try again."
-                )
-            return "Sorry, I'm having trouble connecting right now. Please try again."
+            logger.warning("Chatbot classify_and_answer failed: %s", e)
+            return {"intent": "guide", "keywords": [], "genres": [], "answer": None}
 
     # ------------------------------------------------------------------
     # Step 2b – Database search + recommendation
@@ -305,6 +293,7 @@ class ChatbotService:
             return answer, manga_cards
         except Exception as e:
             err_str = str(e)
+            print(f"[CHATBOT ERROR] {type(e).__name__}: {e}")  # temporary
             logger.error("Chatbot recommendation failed: %s", e)
             if "429" in err_str or "quota" in err_str.lower():
                 return (
@@ -326,13 +315,12 @@ class ChatbotService:
         if not message:
             return {"intent": "guide", "answer": "Please send a message.", "manga_cards": []}
 
-        classified = ChatbotService.classify_and_extract(message)
+        classified = ChatbotService._classify_and_answer_direct(message, history)
         intent = classified["intent"]
+        answer = classified.get("answer")
         manga_cards = []
 
-        if intent in ("navigation", "guide"):
-            answer = ChatbotService.answer_direct(message, history)
-        else:
+        if intent == "recommendation" or answer is None:
             answer, manga_cards = ChatbotService.answer_recommendation(
                 message, history,
                 classified["keywords"],
