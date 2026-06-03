@@ -2,8 +2,49 @@ from django.contrib import admin
 from django.shortcuts import redirect
 from django.contrib import messages
 
-from ..models.system_models import LogEntry, FlaggedContent, ModerationThreshold
+from ..models.system_models import Report, LogEntry, FlaggedContent, ModerationThreshold
 from ..services.system_service import LogEntryService
+
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "reporter",
+        "category",
+        "target_content_type",
+        "target_content_id",
+        "status",
+        "created_at",
+    )
+    list_filter = ("status", "category", "target_content_type")
+    ordering = ("-created_at",)
+    fields = (
+        "id",
+        "reporter",
+        "category",
+        "description",
+        "target_content_type",
+        "target_content_id",
+        "status",
+        "created_at",
+    )
+    readonly_fields = (
+        "id",
+        "reporter",
+        "category",
+        "description",
+        "target_content_type",
+        "target_content_id",
+        "created_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 
 
 @admin.register(LogEntry)
