@@ -174,7 +174,7 @@ class FlaggedContentService:
     
     @staticmethod
     @transaction.atomic
-    def resolve_flag(flag: FlaggedContent, action_type: LogEntry.ActionTypeChoices) -> None:
+    def resolve_flag(flag: FlaggedContent, action_type: LogEntry.ActionTypeChoices = LogEntry.ActionTypeChoices.RESOLVE_FLAG) -> None:
         flag.resolve()
         LogEntryService.create_log_entry(None, action_type, flag)
 

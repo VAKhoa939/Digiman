@@ -52,7 +52,13 @@ class PageInline(admin.StackedInline):
     model = Page
     form = PageForm
     extra = 1
-    fields = ("page_number", "image_url", "image_upload",)
+    fields = (
+        "id", 
+        "page_number", 
+        "image_url", 
+        "image_upload",
+    )
+    readonly_fields = ("id",)
     ordering = ("page_number",)
 
 
@@ -61,13 +67,14 @@ class CommentInline(admin.StackedInline):
     form = CommentForm
     extra = 1
     fields = (
+        "id",
         "parent_comment", 
         "owner",
         "text", 
         "attached_image_url", 
         "attached_image_upload",
     )
-    readonly_fields = ("created_at", "owner",)
+    readonly_fields = ("id", "created_at", "owner",)
     ordering = ("created_at",)
 
 
@@ -79,8 +86,14 @@ class GenreInline(admin.TabularInline):
 class ChapterInline(admin.TabularInline):
     model = Chapter
     extra = 1
-    fields = ("title", "chapter_number", "upload_date", "edit_link",)
-    readonly_fields = ("upload_date", "edit_link",)
+    fields = (
+        "id", 
+        "title", 
+        "chapter_number", 
+        "upload_date", 
+        "edit_link",
+    )
+    readonly_fields = ("id", "upload_date", "edit_link",)
     ordering = ("chapter_number",)
     
     def edit_link(self, obj: Chapter):
@@ -109,12 +122,12 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
     list_filter = ("publication_status", "is_visible")
     search_fields = ("title", "author__name")
     ordering = ("-publication_date",)
-    readonly_fields = ("publication_date",)
     list_per_page = 20
     inlines = [ChapterInline, CommentInline]
 
     fieldsets = (
         ("Manga Details", {"fields": (
+            "id",
             "title", 
             "alternative_title",
             "author", 
@@ -130,6 +143,7 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
             "last_free_chapter_amount",
         )}),
     )
+    readonly_fields = ("id", "publication_date",)
     
     def save_model(
         self, request: HttpRequest, obj: MangaTitle, form: forms.ModelForm, change: bool
@@ -243,10 +257,6 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
         "id",
         "upload_date",
         "is_premium",
-        "get_page_count",
-        "get_comment_count",
-        "get_previous_chapter",
-        "get_next_chapter",
     )
 
     def get_display_name(self, obj: Page) -> str:
@@ -319,6 +329,13 @@ class PageAdmin(LogUserMixin, admin.ModelAdmin):
     list_display = ("get_display_name", "chapter", "page_number", "image_url", )
     ordering = ("chapter", "page_number")
     list_per_page = 20
+    fields = (
+        "id",
+        "chapter",
+        "page_number",
+        "image_url",
+    )
+    readonly_fields = ("id", "chapter",)
 
     def get_display_name(self, obj: Page) -> str:
         return str(obj)
@@ -378,16 +395,16 @@ class CommentAdmin(LogUserMixin, admin.ModelAdmin):
     list_per_page = 20
     list_filter = ("status", "created_at", "owner", "manga_title", "chapter",)
     ordering = ("manga_title", "chapter",)
-    readonly_fields = ("created_at", "owner", "is_edited", "last_moderated_at",)
 
     fields = (
+        "id",
+        "text", 
+        "attached_image_url", 
+        "attached_image_upload",
         "parent_comment", 
         "owner", 
         "manga_title", 
         "chapter",
-        "text", 
-        "attached_image_url", 
-        "attached_image_upload",
         "created_at", 
         "status", 
         "hidden_reasons",
@@ -395,6 +412,7 @@ class CommentAdmin(LogUserMixin, admin.ModelAdmin):
         "moderation_status",
         "last_moderated_at",
     )
+    readonly_fields = ("id", "created_at", "owner", "is_edited", "last_moderated_at",)
 
     def get_display_name(self, obj: Comment) -> str:
         return str(obj)
