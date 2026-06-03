@@ -19,11 +19,16 @@ export async function saveReadingProgress(chapterId) {
 /**
  * Fetch all reading-progress entries for the logged-in reader.
  * Results are ordered by most recently read.
- * @returns {Promise<object[]>}
+ * @returns {Promise<object>}
  */
-export async function fetchReadingHistory() {
-  const res = await api.get("reading-progress/");
-  return res.data?.results ?? res.data;
+export async function fetchReadingHistory(page = 1, pageSize = 20) {
+  const res = await api.get("reading-progress/", {
+    params: {
+      page,
+      page_size: pageSize,
+    },
+  });
+  return res.data;
 }
 
 /**

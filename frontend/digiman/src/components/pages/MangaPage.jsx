@@ -18,15 +18,21 @@ import PremiumModal from '../smallComponents/PremiumModal';
 import { toastError, toastSuccess, toastInfo } from '../../utils/toast';
 import { useReport } from '../../customHooks/useReport';
 import ReportModal from '../smallComponents/ReportModal';
+import Pagination from '../smallComponents/Pagination';
+
+const CHAPTERS_PAGE_SIZE = 20;
 
 const MangaRoute = () => {
   const { mangaId } = useParams();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const currentChaptersPage = Math.max(1, Number(searchParams.get('chapters_page')) || 1);
 
   const { 
     mangaData, mangaIsLoading, mangaError,
     genresData, genresIsLoading, genresError,
-    chaptersData, chaptersIsLoading, chaptersError
-  } = useMangaPage(mangaId);
+    chaptersData, chaptersTotal, chaptersPageSize, firstChapterId, chaptersIsLoading, chaptersError
+  } = useMangaPage(mangaId, { page: currentChaptersPage, pageSize: CHAPTERS_PAGE_SIZE });
 
   if (mangaError) return <div className="text-danger">No manga found.</div>;
 
@@ -39,6 +45,10 @@ const MangaRoute = () => {
         genresIsLoading={genresIsLoading}
         genresError={genresError}
         chapters={chaptersData}
+        chaptersTotal={chaptersTotal}
+        chaptersPage={currentChaptersPage}
+        chaptersPageSize={chaptersPageSize}
+        firstChapterId={firstChapterId}
         chaptersIsLoading={chaptersIsLoading}
         chaptersError={chaptersError}
         averageRating={mangaData.averageRating ?? 0}
@@ -53,7 +63,7 @@ const MangaPage = ({
   chapterCount, dateUpdated, publicationDate, isPremium,
   averageRating = 0, readCount = 0,
   genres, genresIsLoading, genresError,
-  chapters, chaptersIsLoading, chaptersError,
+  chapters, chaptersTotal = 0, chaptersPage = 1, chaptersPageSize = CHAPTERS_PAGE_SIZE, firstChapterId = null, chaptersIsLoading, chaptersError,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -310,7 +320,7 @@ const MangaPage = ({
               <button
                 className="btn btn-primary me-2"
                 onClick={() => {
-                  if (chapterCount > 0) navigate(`/manga/${id}/chapter/${chapters[0].id}`);
+                  if (chapterCount > 0 && firstChapterId) navigate(`/manga/${id}/chapter/${firstChapterId}`);
                   else try{ window.dispatchEvent(new CustomEvent('digiman:toast', { detail: { type: 'info', message: 'No chapters available' } })); }catch(_){ }
                 }}
               >Read</button>
@@ -383,6 +393,14 @@ const MangaPage = ({
               ))
             ) : <li className="list-group-item text-muted">No chapters found.</li>}
           </ul>)}
+          <Pagination
+            total={chaptersTotal}
+            page={chaptersPage}
+            pageSize={chaptersPageSize}
+            pageParam="chapters_page"
+            pageSizeParam="chapters_page_size"
+            manageHeadLinks={false}
+          />
         </div>
       </div>
       {/* You might also like */}
