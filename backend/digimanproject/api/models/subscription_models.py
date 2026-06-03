@@ -1,12 +1,12 @@
 from __future__ import annotations
-from typing import Any, Optional, Dict, List
+from typing import Any, Dict, List
 from datetime import datetime
 from django.db import models
 from django.utils import timezone
 from django.contrib import admin
 
 import uuid
-from ..utils.helper_functions import update_instance
+from ..utils.helper_functions import update_instance, remove_unchanged_and_denied_fields
 
 from typing import TYPE_CHECKING
 
@@ -246,7 +246,7 @@ class ReaderSubscription(models.Model):
     def has_access(self, feature: str) -> bool:
         return self.subscription_plan.has_access(feature)
     
-    def update_metadata(self, **metadata: Any) -> None:
+    def update_metadata(self, **metadata: Any) -> bool:
         """Allowed fields: 
         subscription_plan, status, is_auto_renewal, last_purchase_status,
         start_date, next_billing_date, ended_at, last_payment_transaction,
@@ -264,7 +264,8 @@ class ReaderSubscription(models.Model):
             "external_subscription_id", 
             "external_customer_id",
         ]
-        update_instance(self, allowed_fields, **metadata)
+        metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
+        return update_instance(self, **metadata)
 
     def start_purchase(self) -> None:
         """Update last purchase status to pending"""

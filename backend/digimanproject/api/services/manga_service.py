@@ -4,6 +4,8 @@ from django.db import transaction
 from ..models.manga_models import MangaTitle, Page, Chapter, Comment
 from ..models.user_models import User
 from ..services.image_service import ImageService, BucketNames
+from ..services.system_service import LogEntryService
+from ..tasks import run_moderation_pipeline_task
 
 class MangaTitleService:
     @staticmethod
@@ -123,7 +125,6 @@ class PageService:
 
 class CommentService:    
     @staticmethod
-    @transaction.atomic
     def create_comment(data: dict, owner: User, image_file=None) -> Comment:
         # Validate data
         if not owner:
@@ -146,12 +147,24 @@ class CommentService:
         if image_url:
             data["attached_image_url"] = image_url
 
-        comment = Comment.objects.create(**data)
+        # Add moderation status to data
+        data["moderation_status"] = Comment.ModerationStatusChoices.PENDING
 
+        # Create comment and log entry in a single transaction
+        with transaction.atomic():
+            comment = Comment.objects.create(**data)
+
+            if not comment._action_user:
+                comment._action_user = owner
+            LogEntryService.log_object_save(comment, True)
+
+            # Run moderation pipeline after transaction
+            transaction.on_commit(
+                lambda: run_moderation_pipeline_task.delay(str(comment.id))
+            )
         return comment
     
     @staticmethod
-    @transaction.atomic
     def update_comment(comment: Comment, data: dict, image_file=None) -> Comment:
         # If the status is deleted, only the status should be updated
         status = data.get("status")
@@ -191,9 +204,20 @@ class CommentService:
             # Delete image if it's an empty string
             if data.get("attached_image_url") == "":
                 ImageService.delete_image(comment.attached_image_url, bucket)
+        
+        # Update other comment fields and create log entry in a single transaction
+        with transaction.atomic():
+            if not comment.update_metadata(**data):
+                return comment    # Nothing to update
 
-        # Update other fields
-        comment.update_metadata(**data)
+            if not comment._action_user:
+                comment._action_user = comment.owner
+            LogEntryService.log_object_save(comment, False)
+
+            # Run moderation pipeline after transaction
+            transaction.on_commit(
+                lambda: run_moderation_pipeline_task.delay(str(comment.id))
+            )
         return comment
 
     @staticmethod

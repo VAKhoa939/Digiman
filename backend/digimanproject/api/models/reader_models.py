@@ -1,11 +1,11 @@
 from __future__ import annotations
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional
 from datetime import datetime
 from django.db import models
 from django.utils import timezone
 
 import uuid
-from ..utils.helper_functions import get_target_object, update_instance
+from ..utils.helper_functions import update_instance
 
 from typing import TYPE_CHECKING
 

@@ -4,7 +4,7 @@ from django.db import transaction
 from ..models.user_models import User, Reader, Administrator
 from ..models.manga_models import Comment
 from ..models.system_models import LogEntry, FlaggedContent, ModerationThreshold, LogEntryTargetObjectType
-
+from ..models.common_choice_classes import ModerationStatusChoices
 from ..utils.helper_functions import cast_user_to_subclass
 
 from typing import Any, Dict, Optional, Tuple
@@ -95,12 +95,13 @@ class LogEntryService:
                 LogEntry.ActionTypeChoices.UPDATE,
             }
             and isinstance(target_object, TypesInModeration)
+            and target_object.moderation_status == ModerationStatusChoices.PENDING
         ):
             details = LogEntryDetailFactory.get_moderation_detail(target_object)
 
         moderation_status = (
-            LogEntry.ModerationStatusChoices.PENDING if details 
-            else LogEntry.ModerationStatusChoices.SAFE
+            ModerationStatusChoices.PENDING if details 
+            else ModerationStatusChoices.SAFE
         )
         return LogEntry.objects.create(
             user=user,

@@ -12,14 +12,23 @@ M = TypeVar("M", bound=Model)
 S = TypeVar("S", bound=Serializer)
 
 @transaction.atomic
-def update_instance(instance: type[M], allowed_fields: Set, **data: Any) -> None:
+def update_instance(instance: type[M], **data: Any) -> bool:
     updated_fields = []
     for field, value in data.items():
-        if field in allowed_fields:
-            setattr(instance, field, value)
-            updated_fields.append(field)
+        setattr(instance, field, value)
+        updated_fields.append(field)
     if updated_fields:
         instance.save(update_fields=updated_fields)
+        instance.refresh_from_db(fields=updated_fields)
+        return True
+    return False
+
+def remove_unchanged_and_denied_fields(instance: type[M], allowed_fields: Set, **data: Any) -> Any:
+    new_data = {}
+    for field, value in data.items():
+        if field in allowed_fields and getattr(instance, field) != value:
+            new_data[field] = value
+    return new_data
 
 def get_target_object(
     target_object_id: uuid.UUID, 

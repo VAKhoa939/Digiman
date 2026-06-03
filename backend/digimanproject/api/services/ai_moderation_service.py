@@ -1,4 +1,5 @@
 from ..models.system_models import LogEntry, FlaggedContent
+from ..models.common_choice_classes import ModerationStatusChoices
 from .perspective_api_service import PerspectiveAPIService
 from .sightengine_service import SightengineService
 from .system_service import FlaggedContentService, TypesInModeration
@@ -25,12 +26,14 @@ class AIModerationService:
         """
         entry = LogEntry.objects.get(id=entry_id)
 
-        if entry.get_moderation_status() != LogEntry.ModerationStatusChoices.PENDING:
+        if entry.get_moderation_status() != ModerationStatusChoices.PENDING:
             return
         
         try:
             target_object = entry.get_target_object()
-            if not target_object or not isinstance(target_object, TypesInModeration):
+            if (not target_object 
+                or not isinstance(target_object, TypesInModeration)
+                or target_object.moderation_status != ModerationStatusChoices.PENDING):
                 raise ValueError("Target object not found or not in moderation")
         except Exception as e:
             # Log error but continue with next entries
@@ -40,8 +43,8 @@ class AIModerationService:
             return
 
         try:
-            entry.set_moderation_status(LogEntry.ModerationStatusChoices.PROCESSING)
-            target_object.set_moderation_status(LogEntry.ModerationStatusChoices.PROCESSING)
+            entry.set_moderation_status(ModerationStatusChoices.PROCESSING)
+            target_object.set_moderation_status(ModerationStatusChoices.PROCESSING)
             print(f"Moderating entry {str(entry)}")
             AIModerationService.process_log_entry(entry)
         except Exception as e:
@@ -49,7 +52,7 @@ class AIModerationService:
             logger.error(f"[Moderation Error] Entry {str(entry)}: {e}")
             print(f"[Moderation Error] Entry {str(entry)}: {e}")
             entry.set_failed_moderation_attempt(str(e))
-            target_object.set_moderation_status(LogEntry.ModerationStatusChoices.FAILED)
+            target_object.set_moderation_status(ModerationStatusChoices.FAILED)
 
     @staticmethod
     def process_log_entry(entry: LogEntry) -> None:
@@ -60,7 +63,7 @@ class AIModerationService:
         deciding if content is unsafe, and creating FlaggedContent objects.
         """
         details = entry.get_details()
-        overall_moderation_status = LogEntry.ModerationStatusChoices.SAFE
+        overall_moderation_status = ModerationStatusChoices.SAFE
 
         attrs: List[Dict[str, Any]] = details.get("attributes", [])
         for attr in attrs:
@@ -83,13 +86,13 @@ class AIModerationService:
             if not is_flagged and not is_banned:
                 continue # Content is safe, continue to next attribute
             if is_banned:
-                moderation_status = FlaggedContent.ModerationStatusChoices.BANNED
-                if overall_moderation_status != LogEntry.ModerationStatusChoices.BANNED:
-                    overall_moderation_status = LogEntry.ModerationStatusChoices.BANNED
+                moderation_status = FlaggedContent.FlagStatusChoices.BANNED
+                if overall_moderation_status != ModerationStatusChoices.BANNED:
+                    overall_moderation_status = ModerationStatusChoices.BANNED
             else:
-                moderation_status = FlaggedContent.ModerationStatusChoices.FLAGGED
-                if overall_moderation_status == LogEntry.ModerationStatusChoices.SAFE:
-                    overall_moderation_status = LogEntry.ModerationStatusChoices.FLAGGED
+                moderation_status = FlaggedContent.FlagStatusChoices.FLAGGED
+                if overall_moderation_status == ModerationStatusChoices.SAFE:
+                    overall_moderation_status = ModerationStatusChoices.FLAGGED
             FlaggedContentService.create_flag(
                 log_entry=entry,
                 content_name=content_name,

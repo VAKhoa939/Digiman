@@ -146,7 +146,9 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
             obj.pk = manga.pk
         else:
             # update form
-            MangaTitleService.update_manga_title(obj, form.cleaned_data, cover_image_file)
+            old_obj = MangaTitle.objects.get(pk=obj.pk)
+            old_obj._action_user = request.user
+            MangaTitleService.update_manga_title(old_obj, form.cleaned_data, cover_image_file)
 
     def delete_model(self, request, obj):
         # Attach the current user to the object for logging
@@ -195,7 +197,8 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
 
             image_file = form_instance.cleaned_data.pop("attached_image_upload")
             if obj.pk:
-                CommentService.update_comment(obj, form_instance.cleaned_data, image_file)
+                old_obj = Comment.objects.get(pk=obj.pk)
+                CommentService.update_comment(old_obj, form_instance.cleaned_data, image_file)
             else:
                 comment = CommentService.create_comment(form_instance.cleaned_data, request.user, image_file)
                 obj.pk = comment.pk # Make sure the obj is attached
@@ -292,7 +295,8 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
                 print("saving page", str(obj))
                 image_file = form_instance.cleaned_data.pop("image_upload")
                 if obj.pk:
-                    PageService.update_page(obj, form_instance.cleaned_data, image_file)
+                    old_obj = Page.objects.get(pk=obj.pk)
+                    PageService.update_page(old_obj, form_instance.cleaned_data, image_file)
                 else:
                     page = PageService.create_page(form_instance.cleaned_data, image_file)
                     obj.pk = page.pk # Make sure the obj is attached
@@ -300,7 +304,8 @@ class ChapterAdmin(LogUserMixin, admin.ModelAdmin):
                 print("saving comment", str(obj))
                 image_file = form_instance.cleaned_data.pop("attached_image_upload")
                 if obj.pk:
-                    CommentService.update_comment(obj, form_instance.cleaned_data, image_file)
+                    old_obj = Comment.objects.get(pk=obj.pk)
+                    CommentService.update_comment(old_obj, form_instance.cleaned_data, image_file)
                 else:
                     comment = CommentService.create_comment(form_instance.cleaned_data, request.user, image_file)
                     obj.pk = comment.pk # Make sure the obj is attached
@@ -333,7 +338,9 @@ class PageAdmin(LogUserMixin, admin.ModelAdmin):
             page = PageService.create_page(form.cleaned_data, image_file)
             obj.pk = page.pk # Make sure the obj is attached
         else:
-            PageService.update_page(obj, form.cleaned_data, image_file)
+            old_obj = Page.objects.get(pk=obj.pk)
+            old_obj._action_user = request.user
+            PageService.update_page(old_obj, form.cleaned_data, image_file)
 
     def delete_model(self, request, obj):
         # Attach the current user to the object for logging
@@ -366,11 +373,12 @@ class CommentAdmin(LogUserMixin, admin.ModelAdmin):
         "created_at", 
         "get_parent_comment", 
         "status",
+        "moderation_status",
     )
     list_per_page = 20
     list_filter = ("status", "created_at", "owner", "manga_title", "chapter",)
-    ordering = ("-created_at", "manga_title", "chapter",)
-    readonly_fields = ("created_at", "owner",)
+    ordering = ("manga_title", "chapter",)
+    readonly_fields = ("created_at", "owner", "is_edited", "last_moderated_at",)
 
     fields = (
         "parent_comment", 
@@ -383,6 +391,9 @@ class CommentAdmin(LogUserMixin, admin.ModelAdmin):
         "created_at", 
         "status", 
         "hidden_reasons",
+        "is_edited",
+        "moderation_status",
+        "last_moderated_at",
     )
 
     def get_display_name(self, obj: Comment) -> str:
@@ -406,7 +417,9 @@ class CommentAdmin(LogUserMixin, admin.ModelAdmin):
             comment = CommentService.create_comment(form.cleaned_data, request.user, image_file)
             obj.pk = comment.pk # Make sure the obj is attached
         else:
-            CommentService.update_comment(obj, form.cleaned_data, image_file)
+            old_obj = Comment.objects.get(pk=obj.pk)
+            old_obj._action_user = request.user
+            CommentService.update_comment(old_obj, form.cleaned_data, image_file)
 
     def delete_model(self, request, obj):
         # Attach the current user to the object for logging
