@@ -4,7 +4,9 @@ from datetime import datetime
 from django.db import models
 from django.utils import timezone
 import uuid
-from ..utils.helper_functions import get_target_object, update_instance, cast_user_to_subclass
+
+from .common_choice_classes import ModerationStatusChoices
+from ..utils.helper_functions import get_target_object, update_instance, cast_user_to_subclass, remove_unchanged_and_denied_fields
 from django.contrib import admin
 
 from typing import TYPE_CHECKING
@@ -104,7 +106,7 @@ class FlaggedContent(models.Model):
         READER = "reader", "Reader"
         ADMINISTRATOR = "administrator", "Administrator"
 
-    class ModerationStatusChoices(models.TextChoices):
+    class FlagStatusChoices(models.TextChoices):
         FLAGGED = "flagged", "Flagged"
         BANNED = "banned", "Banned"
     
@@ -117,8 +119,8 @@ class FlaggedContent(models.Model):
 
     moderation_status: str = models.CharField(
         max_length=20,
-        choices=ModerationStatusChoices.choices,
-        default=ModerationStatusChoices.FLAGGED
+        choices=FlagStatusChoices.choices,
+        default=FlagStatusChoices.FLAGGED
     )
     flagged_at: datetime = models.DateTimeField(default=timezone.now)
     is_resolved: bool = models.BooleanField(default=False)
@@ -197,12 +199,13 @@ class ModerationThreshold(models.Model):
         self.updated_at = timezone.now()
         super(ModerationThreshold, self).save(*args, **kwargs)
 
-    def update_metadata(self, **metadata: Any) -> None:
+    def update_metadata(self, **metadata: Any) -> bool:
         """Allowed fields: flag_threshold, ban_threshold, is_active"""
         allowed_fields = [
             "flag_threshold", "ban_threshold", "is_active"
         ]
-        update_instance(self, allowed_fields, **metadata)
+        metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
+        return update_instance(self, **metadata)
 
 
 class LogEntry(models.Model):
@@ -229,14 +232,6 @@ class LogEntry(models.Model):
         FLAGGED_CONTENT = "flaggedcontent", "FlaggedContent"
         PENALTY = "penalty", "Penalty"
         MODERATION_THRESHOLD = "moderationthreshold", "ModerationThreshold"
-
-    class ModerationStatusChoices(models.TextChoices):
-        PENDING = "pending", "Pending"
-        PROCESSING = "processing", "Processing"
-        SAFE = "safe", "Safe"
-        FLAGGED = "flagged", "Flagged"
-        BANNED = "banned", "Banned"
-        FAILED = "failed", "Failed"
 
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
@@ -309,14 +304,15 @@ class LogEntry(models.Model):
         self.moderation_status = status
         self.save(update_fields=["moderation_status"])
 
-    def update_metadata(self, **metadata: Any) -> None:
+    def update_metadata(self, **metadata: Any) -> bool:
         """Allowed fields: moderation_status, retry_count, last_error"""
         allowed_fields = [
             "moderation_status", 
             "retry_count", 
             "last_error"
         ]
-        update_instance(self, allowed_fields, **metadata)
+        metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
+        return update_instance(self, **metadata)
 
     def set_failed_moderation_attempt(self, last_error: str) -> None:
         self.update_metadata(
