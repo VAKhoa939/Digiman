@@ -1,13 +1,18 @@
 import React, { useState } from 'react'
+import { useReport } from '../../customHooks/useReport'
+import ReportModal from './ReportModal'
 
 // Simple presentational Comment component. Accepts props to render a comment.
 export default function Comment({
 	name = 'Guest', text = '', created_at = null, avatar = null, 
 	className, isOwner = false, imageUrl, 
 	status = 'active', hiddenReasons = '', isEdited = false, isAdminView = false, 
+	commentId = null, isAuthenticated = false, ownerId = null,
 	onEdit = () => {}, onDelete = () => {}, onToggleHidden = () => {},
 }){
 	const [revealed, setRevealed] = useState(false);
+	const report = useReport({ targetContentType: "comment", targetContentId: commentId });
+	const userReport = useReport({ targetContentType: "user", targetContentId: ownerId });
 	// helper to derive avatar color from name
 	function avatarColor(n){
 		if(!n) return 'var(--accent)'
@@ -20,12 +25,11 @@ export default function Comment({
 	const isDeleted = status === 'deleted';
 	const isHidden = status === 'hidden';
 
-
 	return (
 		<div className={`comment-rect ${className||''}`}>
 			<div className="comment-row">
 				{avatar ? (
-					<img src={avatar} alt={name} className="me-3" style={{width:48, height:48, objectFit:'cover', borderRadius:8}} />
+					<img src={avatar} alt={name} className="me-3" loading="eager" style={{width:48, height:48, objectFit:'cover', borderRadius:8}} />
 				) : (
 					<div className="comment-avatar me-3" style={{background: avatarColor(name)}}>
 						{name ? name.charAt(0).toUpperCase() : 'G'}
@@ -37,8 +41,15 @@ export default function Comment({
 						<div>
 								<span className="comment-username">{name}</span>
 								<span className="comment-meta"> • {created_at ? new Date(created_at).toLocaleString() : ''}</span>
-								{!isDeleted && !isHidden && isEdited && <span className="text-muted"> (edited)</span>}
-						</div>
+								{!isDeleted && !isHidden && isEdited && <span className="text-muted"> (edited)</span>}							{!isDeleted && !isHidden && !isOwner && !isAdminView && isAuthenticated && ownerId && (
+								<button
+									type="button"
+									className="btn btn-sm btn-link p-0 text-muted ms-1"
+									title="Report user"
+									style={{ fontSize: '0.7rem', verticalAlign: 'middle' }}
+									onClick={(e) => { e.stopPropagation(); userReport.openReport(); }}
+								>Report user</button>
+							)}						</div>
 						<div className="comment-actions">
 						{/* owner actions: edit / delete */}
 						{!isDeleted && isOwner && (
@@ -51,8 +62,19 @@ export default function Comment({
 							</button>
 						</div>
 						)}
-						</div>
-					</div>
+						</div>						{/* report button: visible to authenticated non-owners on active comments */}
+						{!isDeleted && !isHidden && !isOwner && !isAdminView && isAuthenticated && commentId && (
+							<button
+								type="button"
+								className="btn btn-sm btn-link p-0 text-muted ms-1"
+								title="Report comment"
+								onClick={(e) => { e.stopPropagation(); report.openReport(); }}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16">
+									<path d="M14.778.085A.5.5 0 0 1 15 .5V8a.5.5 0 0 1-.314.464L14.5 8l.186.464-.003.001-.006.003-.023.009a12 12 0 0 1-.397.15c-.264.095-.631.223-1.047.35-.816.252-1.879.523-2.71.523-.847 0-1.548-.28-2.158-.525l-.028-.01C7.68 8.71 7.14 8.5 6.5 8.5c-.7 0-1.638.23-2.437.477A20 20 0 0 0 3 9.342V15.5a.5.5 0 0 1-1 0V.5a.5.5 0 0 1 1 0v.282c.226-.079.496-.17.79-.26C4.606.272 5.67 0 6.5 0c.84 0 1.524.277 2.121.519l.043.018C9.286.788 9.828 1 10.5 1c.7 0 1.638-.23 2.437-.477a20 20 0 0 0 1.349-.476l.019-.007.004-.002h.001"/>
+								</svg>
+							</button>
+						)}					</div>
 					<div className="comment-body">
 						{isDeleted ? (
 							<span className="text-muted">
@@ -78,6 +100,24 @@ export default function Comment({
 					)}
 				</div>
 			</div>
+		<ReportModal
+			show={report.show}
+			onClose={report.closeReport}
+			onSubmit={report.handleSubmit}
+			loading={report.loading}
+			error={report.error}
+			success={report.success}
+			categories={report.categories}
+		/>
+		<ReportModal
+			show={userReport.show}
+			onClose={userReport.closeReport}
+			onSubmit={userReport.handleSubmit}
+			loading={userReport.loading}
+			error={userReport.error}
+			success={userReport.success}
+			categories={userReport.categories}
+		/>
 		</div>
 	)
 }
