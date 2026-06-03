@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react'
-import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
+import { useParams, Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import Comment from '../smallComponents/Comment'
 import CommentComposer from '../smallComponents/CommentComposer'
+import Pagination from '../smallComponents/Pagination'
 import { useAuth } from '../../context/AuthContext'
 import useGetComments from '../../customHooks/useGetComments'
 import Spinner from '../smallComponents/Spinner'
@@ -10,10 +11,13 @@ import { mapInputCommentData } from '../../utils/transform'
 import uploadProgressHandler from '../../utils/uploadProgress'
 import emitToast from '../../utils/toast'
 
+const COMMENTS_PAGE_SIZE = 20
+
 export default function CommentsPage({ inline = false }) {
   const { mangaId, chapterId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { isAuthenticated, user, fetchUserLoading } = useAuth()
 
   const [uploading, setUploading] = useState(false)
@@ -30,21 +34,37 @@ export default function CommentsPage({ inline = false }) {
   const [replyToId, setReplyToId] = useState(null)
   const [replySubmitting, setReplySubmitting] = useState(false)
   const [replyUploadProgress, setReplyUploadProgress] = useState(0)
+  const currentCommentsPage = Math.max(1, Number(searchParams.get('comments_page')) || 1)
+  const commentOrdering = sortMode === 'newest' ? '-created_at' : 'created_at'
+  const commentQueryKey = ['comments', mangaId, chapterId ?? null, currentCommentsPage, COMMENTS_PAGE_SIZE, commentOrdering]
 
-  const { comments, isLoading, error } = useGetComments(mangaId, chapterId)
+  const { comments, total, isLoading, error, totalPages } = useGetComments(
+    mangaId,
+    chapterId,
+    currentCommentsPage,
+    COMMENTS_PAGE_SIZE,
+    commentOrdering
+  )
   const { create, edit } = useCreateEditComment()
 
   const commentsById = useMemo(() => new Map(comments.map((c) => [c.id, c])), [comments])
 
-  const sortedComments = useMemo(() => {
-    const list = [...comments]
-    list.sort((a, b) => {
-      const aTime = new Date(a.created_at || 0).getTime()
-      const bTime = new Date(b.created_at || 0).getTime()
-      return sortMode === 'newest' ? bTime - aTime : aTime - bTime
+  function setCommentsPage(page) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (page <= 1) next.delete('comments_page')
+      else next.set('comments_page', String(page))
+      return next
     })
-    return list
-  }, [comments, sortMode])
+  }
+
+  function handleSortChange(nextSortMode) {
+    if (nextSortMode === sortMode) return
+    setSortMode(nextSortMode)
+    setCommentsPage(1)
+    cancelReply()
+    cancelEdit()
+  }
 
   async function handlePostSubmit({ text, attachedImage }) {
     if (uploading) return
@@ -67,7 +87,9 @@ export default function CommentsPage({ inline = false }) {
         chapter_id: chapterId ?? null,
         current_user_id: user?.id ?? null,
         onUploadProgress: (ev) => uploadProgressHandler(ev, setUploadProgress),
+        queryKey: commentQueryKey,
       })
+      if (commentOrdering === '-created_at' && currentCommentsPage !== 1) setCommentsPage(1)
       setUploadProgress(100)
     } catch (err) {
       console.error('post comment failed', err)
@@ -126,7 +148,9 @@ export default function CommentsPage({ inline = false }) {
         chapter_id: chapterId ?? null,
         current_user_id: user?.id ?? null,
         onUploadProgress: (ev) => uploadProgressHandler(ev, setReplyUploadProgress),
+        queryKey: commentQueryKey,
       })
+      if (commentOrdering === '-created_at' && currentCommentsPage !== 1) setCommentsPage(1)
       setReplyUploadProgress(100)
       cancelReply()
     } catch (err) {
@@ -219,12 +243,12 @@ export default function CommentsPage({ inline = false }) {
         </div>
 
         <div className="comment-list-controls">
-          <div className="small text-muted">{comments.length} Responses</div>
+          <div className="small text-muted">{total} Responses</div>
           <div className="comment-sort ms-auto" role="tablist" aria-label="Comment order">
             <button
               type="button"
               className={`comment-sort-btn ${sortMode === 'newest' ? 'is-active' : ''}`}
-              onClick={() => setSortMode('newest')}
+              onClick={() => handleSortChange('newest')}
               role="tab"
               aria-selected={sortMode === 'newest'}
             >
@@ -233,7 +257,7 @@ export default function CommentsPage({ inline = false }) {
             <button
               type="button"
               className={`comment-sort-btn ${sortMode === 'oldest' ? 'is-active' : ''}`}
-              onClick={() => setSortMode('oldest')}
+              onClick={() => handleSortChange('oldest')}
               role="tab"
               aria-selected={sortMode === 'oldest'}
             >
@@ -245,8 +269,8 @@ export default function CommentsPage({ inline = false }) {
         <div>
           {isLoading && <Spinner />}
           {error ? <p className="text-center py-3 text-danger">Failed to load comments.</p> :
-          (sortedComments && sortedComments.length > 0 ? (
-            sortedComments.map((comment) => {
+          (comments && comments.length > 0 ? (
+            comments.map((comment) => {
               const parentComment = comment.parentCommentId ? commentsById.get(comment.parentCommentId) : null
               const isReplyBoxOpen = replyToId === comment.id
 
@@ -325,6 +349,19 @@ export default function CommentsPage({ inline = false }) {
             <div className="text-muted">No comments yet. Be the first to comment!</div>
           ))}
         </div>
+
+        <Pagination
+          total={total}
+          page={currentCommentsPage}
+          pageSize={COMMENTS_PAGE_SIZE}
+          pageParam="comments_page"
+          pageSizeParam="comments_page_size"
+          manageHeadLinks={!inline}
+          onPageChange={() => {
+            cancelReply()
+            cancelEdit()
+          }}
+        />
       </>}
     </div>
   )
