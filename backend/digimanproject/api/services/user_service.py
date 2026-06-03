@@ -93,7 +93,7 @@ class UserService:
             if not updated:
                 return user   # Nothing to update
 
-            if not user._action_user:
+            if getattr(user, "_action_user", None) is None:
                 user._action_user = user
             LogEntryService.log_object_save(user, False)
 

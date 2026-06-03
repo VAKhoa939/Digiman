@@ -22,8 +22,12 @@ export default function useGetComments(mangaId, chapterId) {
 		enabled: navigator.onLine
 	});
 
+	const commentsData = Array.isArray(data)
+		? data
+		: (Array.isArray(data?.results) ? data.results : []);
+
 	return {
-		comments: data?.map(mapComment) || [],
+		comments: commentsData.map(mapComment),
 		isLoading,
 		error,
 	};

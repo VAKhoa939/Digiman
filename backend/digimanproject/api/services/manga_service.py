@@ -3,6 +3,7 @@ import uuid
 from django.db import transaction
 from ..models.manga_models import MangaTitle, Page, Chapter, Comment
 from ..models.user_models import User
+from ..models.common_choice_classes import ModerationStatusChoices
 from ..services.image_service import ImageService, BucketNames
 from ..services.system_service import LogEntryService
 from ..tasks import run_moderation_pipeline_task
@@ -148,13 +149,13 @@ class CommentService:
             data["attached_image_url"] = image_url
 
         # Add moderation status to data
-        data["moderation_status"] = Comment.ModerationStatusChoices.PENDING
+        data["moderation_status"] = ModerationStatusChoices.PENDING
 
         # Create comment and log entry in a single transaction
         with transaction.atomic():
             comment = Comment.objects.create(**data)
 
-            if not comment._action_user:
+            if getattr(comment, "_action_user", None) is None:
                 comment._action_user = owner
             LogEntryService.log_object_save(comment, True)
 
@@ -210,7 +211,7 @@ class CommentService:
             if not comment.update_metadata(**data):
                 return comment    # Nothing to update
 
-            if not comment._action_user:
+            if getattr(comment, "_action_user", None) is None:
                 comment._action_user = comment.owner
             LogEntryService.log_object_save(comment, False)
 

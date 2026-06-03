@@ -15,7 +15,7 @@ export async function fetchCommentsByChapter(chapterId) {
 export async function postComment(
     commentData, attachedImage = null, onUploadProgress = null
 ) {
-    const config = {};
+    const config = { timeout: attachedImage ? 180000 : 60000 };
     const payload = buildCommentPayload(commentData, attachedImage);
 
     if (payload instanceof FormData) {
@@ -27,13 +27,13 @@ export async function postComment(
 
     const res = await api.post("comments/", payload, config);
     if (res.data && res.data.detail) throw new Error(res.data.detail);
-    return res.data;
+    return res.data.results ?? res.data;
 }
 
 export async function editComment(
     comment, commentData, attachedImage = null, onUploadProgress = null
 ) {
-    const config = {};
+    const config = { timeout: attachedImage ? 180000 : 60000 };
     const payload = buildCommentPayload(commentData, attachedImage);
 
     if (payload instanceof FormData) {
