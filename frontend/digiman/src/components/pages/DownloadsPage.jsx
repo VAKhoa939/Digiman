@@ -1,12 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { loadDownloads, updateDownload, removeDownload, startDownload, removeDownloadedChapter, getDownloadedChapterSize } from '../../utils/downloads'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import CloseIcon from '@mui/icons-material/Close'
+import Pagination from '../smallComponents/Pagination'
+
+const DOWNLOADS_PAGE_SIZE = 10
 
 export default function DownloadsPage(){
+  const [searchParams, setSearchParams] = useSearchParams()
   const [downloads, setDownloads] = useState(() => loadDownloads())
   const timers = useRef({})
   const [sizes, setSizes] = useState({}) // id -> bytes
+  const downloadingPage = Math.max(1, Number(searchParams.get('downloads_active_page')) || 1)
+  const downloadedPage = Math.max(1, Number(searchParams.get('downloads_done_page')) || 1)
+  const failedPage = Math.max(1, Number(searchParams.get('downloads_failed_page')) || 1)
 
   useEffect(()=>{
     setDownloads(loadDownloads())
@@ -94,6 +101,36 @@ export default function DownloadsPage(){
   const downloading = downloads.filter(d=>d.status==='downloading')
   const downloaded = downloads.filter(d=>d.status==='downloaded')
   const failed = downloads.filter(d=>d.status==='failed')
+  const pagedDownloading = useMemo(() => {
+    const start = (downloadingPage - 1) * DOWNLOADS_PAGE_SIZE
+    return downloading.slice(start, start + DOWNLOADS_PAGE_SIZE)
+  }, [downloading, downloadingPage])
+  const pagedDownloaded = useMemo(() => {
+    const start = (downloadedPage - 1) * DOWNLOADS_PAGE_SIZE
+    return downloaded.slice(start, start + DOWNLOADS_PAGE_SIZE)
+  }, [downloaded, downloadedPage])
+  const pagedFailed = useMemo(() => {
+    const start = (failedPage - 1) * DOWNLOADS_PAGE_SIZE
+    return failed.slice(start, start + DOWNLOADS_PAGE_SIZE)
+  }, [failed, failedPage])
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams)
+    let changed = false
+    const clampPage = (param, totalItems) => {
+      const totalPages = Math.max(1, Math.ceil(totalItems / DOWNLOADS_PAGE_SIZE))
+      const current = Math.max(1, Number(searchParams.get(param)) || 1)
+      if (current > totalPages) {
+        if (totalPages <= 1) next.delete(param)
+        else next.set(param, String(totalPages))
+        changed = true
+      }
+    }
+    clampPage('downloads_active_page', downloading.length)
+    clampPage('downloads_done_page', downloaded.length)
+    clampPage('downloads_failed_page', failed.length)
+    if (changed) setSearchParams(next)
+  }, [downloading.length, downloaded.length, failed.length, searchParams, setSearchParams])
 
   useEffect(()=>{
     let mounted = true
@@ -124,7 +161,7 @@ export default function DownloadsPage(){
       <section className="mt-4">
         <h5>Downloading</h5>
         {downloading.length===0 ? <div className="text-muted">No active downloads.</div> : (
-          downloading.map(d => (
+          pagedDownloading.map(d => (
             <div key={d.id} className="d-flex align-items-center bg-light p-2 rounded mb-2">
               <div className="flex-grow-1">
                 <div className="fw-bold">{d.chapterTitle} {d.mangaTitle ? `– ${d.mangaTitle}` : ''}</div>
@@ -138,12 +175,13 @@ export default function DownloadsPage(){
             </div>
           ))
         )}
+        <Pagination total={downloading.length} page={downloadingPage} pageSize={DOWNLOADS_PAGE_SIZE} pageParam="downloads_active_page" pageSizeParam="downloads_active_page_size" manageHeadLinks={false} />
       </section>
 
       <section className="mt-4">
         <h5>Downloaded</h5>
         {downloaded.length===0 ? <div className="text-muted">No downloaded items yet.</div> : (
-          downloaded.map(d => (
+          pagedDownloaded.map(d => (
             <div key={d.id} className="d-flex align-items-center bg-light p-2 rounded mb-2">
               <div className="flex-grow-1">
                 <div className="fw-bold">{d.chapterTitle} {d.mangaTitle ? `– ${d.mangaTitle}` : ''} <span className="badge bg-success ms-2">Downloaded</span></div>
@@ -164,12 +202,13 @@ export default function DownloadsPage(){
             </div>
           ))
         )}
+        <Pagination total={downloaded.length} page={downloadedPage} pageSize={DOWNLOADS_PAGE_SIZE} pageParam="downloads_done_page" pageSizeParam="downloads_done_page_size" manageHeadLinks={false} />
       </section>
 
       <section className="mt-4">
         <h5>Failed</h5>
         {failed.length===0 ? <div className="text-muted">No failed downloads.</div> : (
-          failed.map(d => (
+          pagedFailed.map(d => (
             <div key={d.id} className="d-flex align-items-center bg-light p-2 rounded mb-2">
               <div className="flex-grow-1">
                 <div className="fw-bold">{d.chapterTitle} {d.mangaTitle ? `– ${d.mangaTitle}` : ''}</div>
@@ -183,6 +222,7 @@ export default function DownloadsPage(){
             </div>
           ))
         )}
+        <Pagination total={failed.length} page={failedPage} pageSize={DOWNLOADS_PAGE_SIZE} pageParam="downloads_failed_page" pageSizeParam="downloads_failed_page_size" manageHeadLinks={false} />
       </section>
     </div>
   )

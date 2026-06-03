@@ -19,8 +19,8 @@ export default function useChapterPage(chapterId, mangaId) {
 		isLoading: chaptersListIsLoading,
 		error: chaptersListError,
 	} = useQuery({
-		queryKey: ["chapters", mangaId],
-		queryFn: () => fetchMangaTitleChapters(mangaId),
+		queryKey: ["chapters", mangaId, 'all'],
+		queryFn: () => fetchMangaTitleChapters(mangaId, true, 1, 20, true),
 		staleTime: staleTime,
 		retry: navigator.onLine ? 1 : 0,
 		enabled: navigator.onLine,
@@ -76,11 +76,14 @@ export default function useChapterPage(chapterId, mangaId) {
 			
 			// --- Live API version ---
 			if (chapterMeta && pages && mounted) {
+				const chaptersListItems = Array.isArray(chaptersListData)
+					? chaptersListData
+					: (Array.isArray(chaptersListData?.results) ? chaptersListData.results : []);
 				setChapter({
 					...mapChapter(chapterMeta),
 					pages: pages.map(mapPage),
 				});
-				setChaptersList(chaptersListData?.map(mapChapter) || []);
+				setChaptersList(chaptersListItems.map(mapChapter) || []);
 				setError(chapterMetaError || pagesError || chaptersListError);
 				setLoading(false);
 				console.log("Loaded chapter: ", chapterMeta);
