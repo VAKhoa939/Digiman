@@ -8,6 +8,9 @@ export default function Comment({
 	className, isOwner = false, imageUrl, 
 	status = 'active', hiddenReasons = '', isEdited = false, isAdminView = false, 
 	commentId = null, isAuthenticated = false, ownerId = null,
+	replyTargetName = null,
+	replyTargetText = null,
+	onReply = null,
 	onEdit = () => {}, onDelete = () => {}, onToggleHidden = () => {},
 }){
 	const [revealed, setRevealed] = useState(false);
@@ -63,7 +66,7 @@ export default function Comment({
 						</div>
 						)}
 						</div>						{/* report button: visible to authenticated non-owners on active comments */}
-						{!isDeleted && !isHidden && !isOwner && !isAdminView && isAuthenticated && commentId && (
+						{!isDeleted && !isHidden && !isOwner && !isAdminView && isAuthenticated && commentId && ownerId && (
 							<button
 								type="button"
 								className="btn btn-sm btn-link p-0 text-muted ms-1"
@@ -76,6 +79,17 @@ export default function Comment({
 							</button>
 						)}					</div>
 					<div className="comment-body">
+						{replyTargetName && !isDeleted && !isHidden && (
+							<div className="comment-reply-quote">
+								<div className="comment-reply-quote-header">
+									<span className="comment-reply-quote-name">{replyTargetName}</span>
+									<span className="comment-reply-quote-said">said:</span>
+								</div>
+								<div className="comment-reply-quote-body">
+									{replyTargetText || 'Original comment unavailable'}
+								</div>
+							</div>
+						)}
 						{isDeleted ? (
 							<span className="text-muted">
 								This message is deleted by the owner
@@ -96,6 +110,17 @@ export default function Comment({
 							  className={`comment-image ${revealed ? 'revealed' : ''}`}
 							  onClick={() => setRevealed(r => !r)}
 							/>
+						</div>
+					)}
+					{!isDeleted && !isHidden && isAuthenticated && typeof onReply === 'function' && (
+						<div className="comment-footer-actions">
+							<button
+								type="button"
+								className="btn btn-sm btn-link p-0 comment-reply-btn"
+								onClick={(e)=>{ e.stopPropagation(); onReply(); }}
+							>
+								Reply
+							</button>
 						</div>
 					)}
 				</div>

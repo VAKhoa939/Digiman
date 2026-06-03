@@ -7,7 +7,7 @@ export default function useCreateEditComment() {
 	const createMutation = useMutation(
 		({ 
 			commentData, attachedImage = null, manga_title_id = undefined, 
-			chapter_id = undefined, onUploadProgress = null 
+			chapter_id = undefined, onUploadProgress = null, current_user_id = null
 		}) => postComment(commentData, attachedImage, onUploadProgress),
 		{
 			// Optimistic update: insert a temporary comment into the cached
@@ -17,11 +17,17 @@ export default function useCreateEditComment() {
 				await queryClient.cancelQueries({ queryKey: key });
 				const previous = queryClient.getQueryData(key);
 
+				// Avoid showing a fake/pending comment while an image file is still uploading.
+				if (variables.attachedImage) {
+					return { key, previous };
+				}
+
 				const optimistic = {
 					id: `optimistic-${Date.now()}`,
+					parent_comment_id: variables.commentData.parent_comment ?? null,
 					owner_name: 'You',
 					owner_avatar: null,
-					owner_id: null,
+					owner_id: variables.current_user_id,
 					text: variables.commentData.text || '',
 					attached_image_url: null,
 					created_at: new Date().toISOString(),
@@ -30,7 +36,10 @@ export default function useCreateEditComment() {
 					hidden_reasons: null,
 				};
 
-				const next = previous ? { ...previous, results: [optimistic, ...(previous.results || [])] } : { results: [optimistic] };
+				const previousList = Array.isArray(previous)
+					? previous
+					: (Array.isArray(previous?.results) ? previous.results : []);
+				const next = [optimistic, ...previousList];
 				queryClient.setQueryData(key, next);
 				return { key, previous };
 			},
@@ -59,9 +68,9 @@ export default function useCreateEditComment() {
 
 	async function create({ 
 		commentData, attachedImage = null, manga_title_id = undefined, 
-		chapter_id = undefined, onUploadProgress = null 
+		chapter_id = undefined, onUploadProgress = null, current_user_id = null
 	} = {}) {
-		return createMutation.mutateAsync({ commentData, attachedImage, manga_title_id, chapter_id, onUploadProgress })
+		return createMutation.mutateAsync({ commentData, attachedImage, manga_title_id, chapter_id, onUploadProgress, current_user_id })
 	}
 
 	async function edit({ 

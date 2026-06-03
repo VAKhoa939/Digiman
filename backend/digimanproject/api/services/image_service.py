@@ -10,6 +10,7 @@ class ImageService:
         """
         Upload an image to a given Supabase bucket and return the public URL.
         """
+        file_name: str | None = None
         try:
             file_ext: str = file.name.split('.')[-1]
             file_name: str = f"{uuid.uuid4()}.{file_ext}"
@@ -29,7 +30,8 @@ class ImageService:
         except Exception as e:
             # Rollback: Attempt to delete the file if it was uploaded
             try:
-                supabase.storage.from_(bucket).remove([file_name])
+                if file_name:
+                    supabase.storage.from_(bucket).remove([file_name])
             except Exception as rollback_error:
                 # Log the rollback error (optional)
                 print(f"Rollback failed: {rollback_error}")

@@ -50,6 +50,7 @@ export function mapComment(fetchedData) {
   if (!fetchedData) return null;
   return {
     id: fetchedData.id,
+    parentCommentId: fetchedData.parent_comment_id,
     name: fetchedData.owner_name,
     avatar: fetchedData.owner_avatar,
     ownerId: fetchedData.owner_id,
@@ -63,7 +64,12 @@ export function mapComment(fetchedData) {
 }
 
 export function mapInputCommentData(
-  text, mangaId, chapterId, editPreview = null, isDeleted = false
+  text,
+  mangaId,
+  chapterId,
+  editPreview = null,
+  isDeleted = false,
+  parentCommentId = null
 ) {
   // if isDeleted, only status should be set
   if (isDeleted) return { status: "deleted" };
@@ -78,6 +84,7 @@ export function mapInputCommentData(
     text: text.trim(),
     manga_title: manga_title,
     chapter: chapterId ?? null,
+    parent_comment: parentCommentId,
     attached_image_url: attached_image_url
   };
 }
