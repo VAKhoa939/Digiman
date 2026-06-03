@@ -296,6 +296,9 @@ export default function CommentsPage({ inline = false }){
                       status={c.status}
                       isEdited={c.isEdited}
                       isOwner={isAuthenticated && user && user.id === c.ownerId}
+                      commentId={c.id}
+                      ownerId={c.ownerId}
+                      isAuthenticated={isAuthenticated}
                       onEdit={() => startEdit(c)}
                       onDelete={() => deleteComment(c.id)}
                     />

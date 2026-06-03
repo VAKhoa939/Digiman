@@ -44,6 +44,9 @@ export default defineConfig (({ mode}) => {
       },
       workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+          cleanupOutdatedCaches: true,
+          skipWaiting: true,
+          clientsClaim: true,
           runtimeCaching: [
             {
               // Only cache same-origin images (app icons, static assets).
@@ -66,7 +69,7 @@ export default defineConfig (({ mode}) => {
     })
   ],
   define: {
-    'process.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL) // Replace in service worker
+    'process.env.VITE_API_URL': JSON.stringify(apiUrl)
   }
-};
+  };
 });
