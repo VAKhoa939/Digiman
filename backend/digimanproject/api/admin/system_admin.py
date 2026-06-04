@@ -64,9 +64,13 @@ class LogEntryAdmin(admin.ModelAdmin):
         "user", 
         "action_type", 
         "timestamp", 
+        "moderation_status", 
+        "retry_count",
+        "last_error",
+        "moderation_started_at",
+        "moderation_finished_at",
         "target_object_type", 
         "target_object_id", 
-        "moderation_status", 
         "details",
     )
 
@@ -88,7 +92,8 @@ class FlaggedContentAdmin(admin.ModelAdmin):
         "target_object_type", 
         "content_name", 
         "dominant_attribute", 
-        "severity_score", 
+        "severity_score",
+        "flag_status", 
         "flagged_at",
         "is_resolved",
     )
@@ -100,6 +105,7 @@ class FlaggedContentAdmin(admin.ModelAdmin):
         "severity_score", 
         "reason", 
         "details", 
+        "flag_status",
         "flagged_at", 
         "is_content_image", 
         "content_name", 

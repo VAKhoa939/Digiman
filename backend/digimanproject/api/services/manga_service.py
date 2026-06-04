@@ -1,12 +1,10 @@
-from typing import Optional
-import uuid
 from django.db import transaction
-from ..models.manga_models import MangaTitle, Page, Chapter, Comment
+from ..models.manga_models import MangaTitle, Page, Comment
 from ..models.user_models import User
 from ..models.common_choice_classes import ModerationStatusChoices
 from ..services.image_service import ImageService, BucketNames
 from ..services.system_service import LogEntryService
-from ..tasks import run_moderation_pipeline_task
+from ..tasks import enqueue_moderation_task
 
 class MangaTitleService:
     @staticmethod
@@ -157,12 +155,10 @@ class CommentService:
 
             if getattr(comment, "_action_user", None) is None:
                 comment._action_user = owner
-            LogEntryService.log_object_save(comment, True)
+            entry = LogEntryService.log_object_save(comment, True)
 
             # Run moderation pipeline after transaction
-            transaction.on_commit(
-                lambda: run_moderation_pipeline_task.delay(str(comment.id))
-            )
+            transaction.on_commit(lambda: enqueue_moderation_task(entry.id))
         return comment
     
     @staticmethod
@@ -213,12 +209,10 @@ class CommentService:
 
             if getattr(comment, "_action_user", None) is None:
                 comment._action_user = comment.owner
-            LogEntryService.log_object_save(comment, False)
+            entry = LogEntryService.log_object_save(comment, False)
 
             # Run moderation pipeline after transaction
-            transaction.on_commit(
-                lambda: run_moderation_pipeline_task.delay(str(comment.id))
-            )
+            transaction.on_commit(lambda: enqueue_moderation_task(entry.id))
         return comment
 
     @staticmethod

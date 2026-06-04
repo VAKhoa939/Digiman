@@ -5,7 +5,7 @@ from ..models.user_models import User, Reader, Administrator, RoleChoices
 from ..models.common_choice_classes import ModerationStatusChoices
 from ..services.image_service import ImageService, BucketNames
 from .system_service import LogEntryService
-from ..tasks import run_moderation_pipeline_task
+from ..tasks import enqueue_moderation_task
 
 from typing import Union
 
@@ -53,13 +53,11 @@ class UserService:
 
             # Encrypt password
             user.update_password(data["password"])
-            
-            LogEntryService.log_object_save(user, True)
+
+            entry = LogEntryService.log_object_save(user, True)
 
             # Run moderation pipeline after transaction
-            transaction.on_commit(
-                lambda: run_moderation_pipeline_task.delay(user.id)
-            )
+            transaction.on_commit(lambda: enqueue_moderation_task(entry.id))
 
         return user
 
@@ -95,12 +93,10 @@ class UserService:
 
             if getattr(user, "_action_user", None) is None:
                 user._action_user = user
-            LogEntryService.log_object_save(user, False)
+            entry = LogEntryService.log_object_save(user, False)
 
             # Run moderation pipeline after transaction
-            transaction.on_commit(
-                lambda: run_moderation_pipeline_task.delay(user.id)
-            )
+            transaction.on_commit(lambda: enqueue_moderation_task(entry.id))
         return user
 
     @staticmethod

@@ -90,13 +90,15 @@ class User(AbstractUser):
             "moderation_status",
             "last_moderated_at",
         }
-        print("metadata: ", metadata)
-        print("old data: ", self.__dict__)
-        metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
-        print("metadata: ", metadata)
+
         # set moderation_status to PENDING
         # if any content field (username) is updated
         if "username" in metadata:
+            # do not remove unchanged and denied fields
+            # if moderation_status is FAILED
+            # allowing to retry the update
+            if not self.moderation_status == ModerationStatusChoices.FAILED:
+                metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
             metadata["moderation_status"] = ModerationStatusChoices.PENDING
 
         return update_instance(self, **metadata)
@@ -119,6 +121,12 @@ class User(AbstractUser):
             return
         self.moderation_status = status
         self.save(update_fields=["moderation_status"])
+    
+    def set_moderation_failed_attempt(self, retry_count: int) -> None:
+        if retry_count >= 2:
+            self.set_moderation_status(ModerationStatusChoices.FAILED)
+        else:
+            self.set_moderation_status(ModerationStatusChoices.PENDING)
 
 
 class Reader(User):
@@ -150,14 +158,15 @@ class Reader(User):
             "display_name", 
             "avatar", 
         }
-        print("metadata: ", metadata)
-        print("old data: ", self.__dict__)
-        metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
-        print("metadata: ", metadata)
         # set moderation_status to PENDING
         # if any content field (username, display_name, avatar) is updated
         content_fields = {"username", "display_name", "avatar"}
         if any(field in content_fields for field in metadata.keys()):
+            # do not remove unchanged and denied fields
+            # if moderation_status is FAILED
+            # allowing to retry the update
+            if not self.moderation_status == ModerationStatusChoices.FAILED:
+                metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
             metadata["moderation_status"] = ModerationStatusChoices.PENDING
             
         return update_instance(self, **metadata)

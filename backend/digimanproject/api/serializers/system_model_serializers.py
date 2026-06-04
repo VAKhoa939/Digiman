@@ -120,6 +120,7 @@ class FlaggedContentSerializer(serializers.ModelSerializer):
             "dominant_attribute", 
             "reason", 
             "details",
+            "flag_status",
             "flagged_at", 
             "is_resolved", 
             "is_content_image", 
@@ -158,6 +159,8 @@ class LogEntrySerializer(serializers.ModelSerializer):
             "moderation_status", 
             "retry_count",
             "last_error",
+            "moderation_started_at",
+            "moderation_finished_at",
             "details"
         ]
         

@@ -7,6 +7,8 @@ from ..models.system_models import LogEntry, FlaggedContent, ModerationThreshold
 from ..models.common_choice_classes import ModerationStatusChoices
 from ..utils.helper_functions import cast_user_to_subclass
 
+from uuid import UUID
+
 from typing import Any, Dict, Optional, Tuple
 
 TypesInModeration = (
@@ -132,7 +134,6 @@ class LogEntryService:
     @staticmethod
     def log_logout(user: User):
         LogEntryService.create_log_entry(user, LogEntry.ActionTypeChoices.LOGOUT, user)
-
 
 class FlaggedContentService:
     @staticmethod
