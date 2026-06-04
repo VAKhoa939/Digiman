@@ -378,6 +378,9 @@ class Comment(models.Model):
         else:
             return 0
         return comments.filter(created_at__lte=self.created_at).count()
+    
+    def get_hidden_reasons(self) -> str:
+        return self.hidden_reasons
 
     def toggle_hidden(self, hidden_reasons: str = "") -> None:
         self.status = (

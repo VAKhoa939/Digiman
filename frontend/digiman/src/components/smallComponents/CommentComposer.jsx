@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import FormatBoldIcon from '@mui/icons-material/FormatBold'
 import FormatItalicIcon from '@mui/icons-material/FormatItalic'
 import FormatUnderlinedIcon from '@mui/icons-material/FormatUnderlined'
@@ -15,10 +15,12 @@ export default function CommentComposer({
   showCancel = false,
   onCancel,
   className = '',
+  initialText = '',
+  initialPreviewUrl = '',
 }) {
-  const [text, setText] = useState('')
+  const [text, setText] = useState(initialText)
   const [selectedImage, setSelectedImage] = useState(null)
-  const [previewUrl, setPreviewUrl] = useState('')
+  const [previewUrl, setPreviewUrl] = useState(initialPreviewUrl)
   const postRef = useRef(null)
   const fileRef = useRef(null)
 
@@ -64,6 +66,13 @@ export default function CommentComposer({
     reader.readAsDataURL(f)
   }
 
+  useEffect(() => {
+    setText(initialText)
+    setSelectedImage(null)
+    setPreviewUrl(initialPreviewUrl)
+    if (fileRef.current) fileRef.current.value = ''
+  }, [initialText, initialPreviewUrl])
+
   function clearImage() {
     setSelectedImage(null)
     setPreviewUrl('')
@@ -73,9 +82,9 @@ export default function CommentComposer({
   async function handleSubmit(e) {
     e.preventDefault()
     if (submitting) return
-    if (!text.trim() && !selectedImage) return
+    if (!text.trim() && !selectedImage && !previewUrl) return
 
-    await onSubmit({ text, attachedImage: selectedImage })
+    await onSubmit({ text, attachedImage: selectedImage, previewUrl })
 
     // Reset only after successful submit.
     setText('')

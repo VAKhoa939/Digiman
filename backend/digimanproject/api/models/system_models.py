@@ -143,6 +143,9 @@ class FlaggedContent(models.Model):
         index = FlaggedContentService.get_flagged_content_index(self)
         return f"Flagged Content #{index} on {self.target_object_type}'s {self.content_name}"
     
+    def get_reason(self) -> str:
+        return self.reason
+    
     def get_target_object(self) -> Optional[FlaggedContentTargetObjectType]:
         from .manga_models import Comment
         from .user_models import User, Reader, Administrator

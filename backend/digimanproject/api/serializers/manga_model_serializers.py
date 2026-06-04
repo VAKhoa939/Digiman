@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, List
 from rest_framework import serializers
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author, Comment
+from ..services.system_service import FlaggedContentService
 from datetime import datetime
 
 
@@ -152,6 +153,7 @@ class CommentSerializer(serializers.ModelSerializer):
         allow_null=True,
         write_only=True,
     )
+    hidden_reasons = serializers.SerializerMethodField()
     
     class Meta:
         model = Comment
@@ -214,3 +216,9 @@ class CommentSerializer(serializers.ModelSerializer):
                 })
 
         return super().validate(attrs)
+    
+    def get_hidden_reasons(self, obj: Comment) -> List[str]:
+        if obj.get_hidden_reasons():
+            return [obj.get_hidden_reasons()]
+        return FlaggedContentService.get_flagged_reasons_by_target_object(
+            "comment", obj.id)
