@@ -25,6 +25,7 @@ class ReaderStatisticsService:
     # ------------------------------------------------------------------
 
     @staticmethod
+    @transaction.atomic
     def get_or_create_stats(
         reader_id: uuid.UUID, manga_title_id: uuid.UUID
     ) -> MangaReaderStatistics:
@@ -39,6 +40,7 @@ class ReaderStatisticsService:
     # ------------------------------------------------------------------
 
     @staticmethod
+    @transaction.atomic
     def mark_visited(
         reader_id: uuid.UUID, manga_title_id: uuid.UUID
     ) -> MangaReaderStatistics:
@@ -50,6 +52,7 @@ class ReaderStatisticsService:
         return stats
 
     @staticmethod
+    @transaction.atomic
     def mark_read(
         reader_id: uuid.UUID, manga_title_id: uuid.UUID
     ) -> MangaReaderStatistics:
@@ -61,6 +64,7 @@ class ReaderStatisticsService:
         return stats
 
     @staticmethod
+    @transaction.atomic
     def mark_commented(
         reader_id: uuid.UUID, manga_title_id: uuid.UUID
     ) -> MangaReaderStatistics:
@@ -76,6 +80,7 @@ class ReaderStatisticsService:
     # ------------------------------------------------------------------
 
     @staticmethod
+    @transaction.atomic
     def set_star_rating(
         reader_id: uuid.UUID, manga_title_id: uuid.UUID, rating: int
     ) -> MangaReaderStatistics:

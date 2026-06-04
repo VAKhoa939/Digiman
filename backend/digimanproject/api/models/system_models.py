@@ -117,7 +117,7 @@ class FlaggedContent(models.Model):
     reason: str = models.TextField()
     details: dict[str, Any] = models.JSONField(null=False, default=dict)
 
-    moderation_status: str = models.CharField(
+    flag_status: str = models.CharField(
         max_length=20,
         choices=FlagStatusChoices.choices,
         default=FlagStatusChoices.FLAGGED
@@ -142,6 +142,9 @@ class FlaggedContent(models.Model):
         from ..services.system_service import FlaggedContentService
         index = FlaggedContentService.get_flagged_content_index(self)
         return f"Flagged Content #{index} on {self.target_object_type}'s {self.content_name}"
+    
+    def get_reason(self) -> str:
+        return self.reason
     
     def get_target_object(self) -> Optional[FlaggedContentTargetObjectType]:
         from .manga_models import Comment
@@ -251,6 +254,8 @@ class LogEntry(models.Model):
     )
     retry_count: int = models.PositiveSmallIntegerField(default=0)
     last_error: str = models.TextField(null=True, blank=True)
+    moderation_started_at: datetime = models.DateTimeField(null=True, blank=True)
+    moderation_finished_at: datetime = models.DateTimeField(null=True, blank=True)
 
     target_object_type: str = models.CharField(choices=TargetObjectTypeChoices.choices)
     target_object_id: uuid.UUID = models.UUIDField()
@@ -300,23 +305,48 @@ class LogEntry(models.Model):
         }
         return get_target_object(self.target_object_id, self.target_object_type, mapping)
 
-    def set_moderation_status(self, status: str) -> None:
-        self.moderation_status = status
-        self.save(update_fields=["moderation_status"])
-
     def update_metadata(self, **metadata: Any) -> bool:
-        """Allowed fields: moderation_status, retry_count, last_error"""
+        """Allowed fields: moderation_status, retry_count, last_error, moderation_started_at, moderation_finished_at"""
         allowed_fields = [
             "moderation_status", 
             "retry_count", 
-            "last_error"
+            "last_error",
+            "moderation_started_at",
+            "moderation_finished_at",
         ]
         metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
         return update_instance(self, **metadata)
 
+    def set_moderation_status(self, status: str) -> None:
+        if not self.moderation_started_at and status == ModerationStatusChoices.PROCESSING:
+            self.update_metadata(
+                moderation_started_at=timezone.now(),
+                moderation_status=status
+            )
+            return
+        if status in {
+            ModerationStatusChoices.SAFE,
+            ModerationStatusChoices.FLAGGED,
+            ModerationStatusChoices.BANNED,
+        }:
+            self.update_metadata(
+                moderation_status=status,
+                moderation_finished_at=timezone.now(),
+            )
+            return
+        self.moderation_status = status
+        self.save(update_fields=["moderation_status"])
+
     def set_failed_moderation_attempt(self, last_error: str) -> None:
-        self.update_metadata(
-            moderation_status=self.ModerationStatusChoices.FAILED,
-            retry_count=self.retry_count + 1,
-            last_error=last_error
-        )
+        if self.retry_count >= 2:
+            self.update_metadata(
+                moderation_status=ModerationStatusChoices.FAILED,
+                retry_count=3,
+                last_error=last_error
+            )
+        else:
+            self.update_metadata(
+                moderation_status=ModerationStatusChoices.PENDING,
+                retry_count=self.retry_count + 1,
+                last_error=last_error
+            )

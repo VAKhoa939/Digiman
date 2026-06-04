@@ -378,6 +378,9 @@ class Comment(models.Model):
         else:
             return 0
         return comments.filter(created_at__lte=self.created_at).count()
+    
+    def get_hidden_reasons(self) -> str:
+        return self.hidden_reasons
 
     def toggle_hidden(self, hidden_reasons: str = "") -> None:
         self.status = (
@@ -406,12 +409,16 @@ class Comment(models.Model):
             "moderation_status", 
             "last_moderated_at"
         }
-        metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
-    
+
         # set is_edited to True (if not already) and moderation_status to PENDING
         # if any content field (text or attached_image_url) is updated
         content_fields = {"text", "attached_image_url"}
         if any(field in content_fields for field in metadata.keys()):
+            # do not remove unchanged and denied fields
+            # if moderation_status is FAILED
+            # allowing to retry the update
+            if not self.moderation_status == ModerationStatusChoices.FAILED:
+                metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
             if not self.is_edited:
                 metadata["is_edited"] = True
                 allowed_fields.add("is_edited")
@@ -432,4 +439,10 @@ class Comment(models.Model):
             return
         self.moderation_status = status
         self.save(update_fields=["moderation_status"])
+    
+    def set_moderation_failed_attempt(self, retry_count: int) -> None:
+        if retry_count >= 2:
+            self.set_moderation_status(ModerationStatusChoices.FAILED)
+        else:
+            self.set_moderation_status(ModerationStatusChoices.PENDING)
         

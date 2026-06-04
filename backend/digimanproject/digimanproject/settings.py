@@ -281,6 +281,7 @@ JAZZMIN_SETTINGS = {
         "api.ReaderSubscription",
         "api.PaymentTransaction",
 
+        "api.Report",
         "api.FlaggedContent",
         "api.LogEntry",
         "api.ModerationThreshold",
@@ -303,6 +304,7 @@ JAZZMIN_SETTINGS = {
         "api.ReaderSubscription" : "fas fa-user-tag",
         "api.PaymentTransaction" : "fas fa-arrows-alt-h",
 
+        "api.Report": "fas fa-exclamation-triangle",
         "api.LogEntry": "fas fa-history",
         "api.FlaggedContent": "fas fa-flag",
         "api.ModerationThreshold": "fas fa-balance-scale",

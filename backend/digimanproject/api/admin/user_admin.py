@@ -61,17 +61,19 @@ class BaseUserAdmin(LogUserMixin, admin.ModelAdmin):
     list_filter: tuple[str, ...] = ("role", "status", "created_at", "moderation_status")
     search_fields: tuple[str, ...] = ("username", "email")
     ordering: tuple[str, ...] = ("-created_at",)
-    readonly_fields: tuple[str, ...] = ("created_at", "status")
 
     fields: tuple[str, ...] = (
+        "id",
         "username", 
         "email", 
         "password", 
         "role", 
         "status", 
         "created_at",
-        "moderation_status"
+        "moderation_status",
+        "last_moderated_at",
     )
+    readonly_fields: tuple[str, ...] = ("id", "created_at", "last_moderated_at",)
 
     class Media:
         js = ("api/admin/password_generator.js",)

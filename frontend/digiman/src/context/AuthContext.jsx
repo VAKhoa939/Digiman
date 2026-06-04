@@ -5,7 +5,7 @@ import {
 } from "../services/auth";
 import { fetchMySubscription } from "../services/subscriptionService";
 import { emitToast } from "../utils/toast";
-import { mapReaderSubscription } from "../utils/transform";
+import { mapReaderSubscription, mapUser } from "../utils/transform";
 
 const AuthContext = createContext(null);
 
@@ -18,14 +18,15 @@ export function AuthProvider({ children }) {
 
   const fetchUser = useCallback(async () => {
     try {
-      const data = await apiFetchUser();
-      setUser(data);
+      const fetchedData = await apiFetchUser();
+      const mappedUser = mapUser(fetchedData);
+      setUser(mappedUser);
       setIsAuthenticated(true);
 
       const fetchedSubscription = await fetchMySubscription();
       setSubscription(mapReaderSubscription(fetchedSubscription));
 
-      console.log("fetchUser successful", data, fetchedSubscription);
+      console.log("fetchUser successful", mappedUser, fetchedSubscription);
 
       return true;
     } catch (err) {
@@ -33,7 +34,7 @@ export function AuthProvider({ children }) {
       setSubscription(null);
       setIsAuthenticated(false);
       setIsErrorFetchingUser(true);
-      console.error("fetchUser failed\nMessage: " + err.message);
+      console.error("fetchUser failed\nMessage: " + err.message, err);
       return false;
     } finally {
       setfetchUserLoading(false);
@@ -54,7 +55,7 @@ export function AuthProvider({ children }) {
         return false;
       }
     } catch (err) {
-      console.error("Login failed\nMessage: " + err.message);
+      console.error("Login failed\nMessage: " + err.message, err);
       emitToast('error', 'Login failed. Please try again.');
       return false;
     }
@@ -75,6 +76,7 @@ export function AuthProvider({ children }) {
       }
       return false;
     } catch (err) {
+      console.error("Registration failed\nMessage: " + err.message, err);
       emitToast('error', 'Registration failed. Please try again.');
       return false;
     }
@@ -101,7 +103,7 @@ export function AuthProvider({ children }) {
       console.log("refetchSubscription successful", mappedSubscription);
       return mappedSubscription;
     } catch (err) {
-      console.error("refetchSubscription failed\nMessage: " + err.message);
+      console.error("refetchSubscription failed\nMessage: " + err.message, err);
       return subscription;
     }
   }, [subscription]);

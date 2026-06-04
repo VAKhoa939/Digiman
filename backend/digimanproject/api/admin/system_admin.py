@@ -3,7 +3,7 @@ from django.shortcuts import redirect
 from django.contrib import messages
 
 from ..models.system_models import Report, LogEntry, FlaggedContent, ModerationThreshold
-from ..services.system_service import LogEntryService
+from ..services.system_service import FlaggedContentService
 
 
 @admin.register(Report)
@@ -64,9 +64,13 @@ class LogEntryAdmin(admin.ModelAdmin):
         "user", 
         "action_type", 
         "timestamp", 
+        "moderation_status", 
+        "retry_count",
+        "last_error",
+        "moderation_started_at",
+        "moderation_finished_at",
         "target_object_type", 
         "target_object_id", 
-        "moderation_status", 
         "details",
     )
 
@@ -88,25 +92,31 @@ class FlaggedContentAdmin(admin.ModelAdmin):
         "target_object_type", 
         "content_name", 
         "dominant_attribute", 
-        "severity_score", 
+        "severity_score",
+        "flag_status", 
         "flagged_at",
+        "is_resolved",
     )
-    ordering = ("-flagged_at",)
+    ordering = ("-is_resolved", "-flagged_at",)
 
     fields = (
+        "id",
         "dominant_attribute", 
         "severity_score", 
         "reason", 
         "details", 
+        "flag_status",
         "flagged_at", 
         "is_content_image", 
         "content_name", 
         "content", 
         "target_object_type", 
         "target_object_id",
+        "is_resolved",
     )
-
     readonly_fields = (*fields,)
+
+    change_form_template = "admin/flagged_content_change_form.html"
 
     def get_queryset(self, request):
         return super().get_queryset(request).filter(is_resolved=False)
@@ -114,28 +124,26 @@ class FlaggedContentAdmin(admin.ModelAdmin):
     def get_display_name(self, obj: FlaggedContent) -> str:
         return str(obj)
     get_display_name.short_description = "Display name"
-
+    
     def response_change(self, request, obj):
-        if "_resolve_flag" in request.POST:
-            if isinstance(obj, FlaggedContent):
-                obj.resolve()
+        if not "_resolve_flag" in request.POST:
+            return super().response_change(request, obj)
+        
+        if isinstance(obj, FlaggedContent):
+            FlaggedContentService.resolve_flag(obj)
+            self.message_user(
+                request,
+                "Flag resolved successfully.",
+                level=messages.SUCCESS,
+            )
+        else:
+            self.message_user(
+                request,
+                "Object is not a FlaggedContent.",
+                level=messages.ERROR,
+            )
 
-                self.message_user(
-                    request,
-                    "Flag resolved successfully.",
-                    level=messages.SUCCESS,
-                )
-                LogEntryService.create_log_entry(None, LogEntry.ActionTypeChoices.RESOLVE_FLAG, obj)
-            else:
-                self.message_user(
-                    request,
-                    "Object is not a FlaggedContent.",
-                    level=messages.ERROR,
-                )
-
-            return redirect("admin:api_flaggedcontent_changelist")
-
-        return super().response_change(request, obj)
+        return redirect("admin:api_flaggedcontent_changelist")
 
     def save_model(self, request, obj, form, change):
         if change:
@@ -145,8 +153,8 @@ class FlaggedContentAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False
     
-    def has_delete_permission(self, request, obj=None):
-        return False
+    # def has_delete_permission(self, request, obj=None):
+    #     return False
 
 
 @admin.register(ModerationThreshold)
