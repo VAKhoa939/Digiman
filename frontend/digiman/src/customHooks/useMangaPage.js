@@ -1,40 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchMangaTitle, fetchMangaTitleChapters, fetchMangaTitleGenres } from "../services/mangaService";
 import { mapMangaTitle, mapChapter } from "../utils/transform";
-import mangaMockData from "../data/mangaData";
 
-export default function useMangaPage(id) {
-  const use_mock_data = import.meta.env.VITE_USE_MOCK_DATA || 'true';
-  if (use_mock_data === 'true') {
-    // --- Mock data version ---
-    const manga = (id && mangaMockData[id]) || Object.values(mangaMockData)[0];
-    return {
-      mangaData: {
-        id: manga.id,
-        title: manga.title,
-        altTitle: manga.altTitle,
-        coverUrl: manga.coverUrl,
-        author: manga.author,
-        artist: manga.artist,
-        synopsis: manga.synopsis,
-        status: manga.status,
-        chapterCount: manga.chapterCount,
-        dateUpdated: manga.dateUpdated,
-        publicationDate: manga.publicationDate,
-        previewChapterId: manga.previewChapterId,
-      },
-      mangaIsLoading: false,
-      mangaError: null,
-      genresData: manga.genres,
-      genresIsLoading: false,
-      genresError: null,
-      chaptersData: manga.chapters,
-      chaptersIsLoading: false,
-      chaptersError: null,
-    }
-  }
-
-  // --- Live API version ---
+export default function useMangaPage(id, { page = 1, pageSize = 20 } = {}) {
   const staleTime = 1000 * 60 * 5; // Cache result for 5 minutes
   const { 
     data: mangaData, isLoading: mangaIsLoading, error: mangaError 
@@ -57,18 +25,38 @@ export default function useMangaPage(id) {
   const { 
     data: chaptersData, isLoading: chaptersIsLoading, error: chaptersError 
   } = useQuery({
-    queryKey: ['chapters', id],
-    queryFn: () => fetchMangaTitleChapters(id),
+    queryKey: ['chapters', id, page, pageSize],
+    queryFn: () => fetchMangaTitleChapters(id, true, page, pageSize),
     staleTime: staleTime,
     retry: 1,
   });
 
+  const {
+    data: firstChapterData,
+  } = useQuery({
+    queryKey: ['chapters', id, 'first'],
+    queryFn: () => fetchMangaTitleChapters(id, true, 1, 1),
+    staleTime: staleTime,
+    retry: 1,
+  });
+
+  const chapterItems = Array.isArray(chaptersData)
+    ? chaptersData
+    : (Array.isArray(chaptersData?.results) ? chaptersData.results : []);
+  const firstChapterItems = Array.isArray(firstChapterData)
+    ? firstChapterData
+    : (Array.isArray(firstChapterData?.results) ? firstChapterData.results : []);
+
   return { 
     mangaData: mangaData ? mapMangaTitle(mangaData) : {}, 
     mangaIsLoading, mangaError, 
-    genresData: genresData?.results || [], 
+    genresData: genresData || [], 
     genresIsLoading, genresError, 
-    chaptersData: chaptersData?.results?.map(mapChapter) || [], 
+    chaptersData: chapterItems.map(mapChapter), 
+    chaptersTotal: typeof chaptersData?.count === 'number' ? chaptersData.count : chapterItems.length,
+    chaptersPageSize: pageSize,
+    currentChaptersPage: page,
+    firstChapterId: firstChapterItems[0]?.id ?? null,
     chaptersIsLoading, chaptersError
   };
 }

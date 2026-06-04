@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { fetchAllMangaTitles, fetchGenres } from '../../services/mangaService';
 import { mapMangaTitle } from '../../utils/transform';
-import MangaList from '../common/MangaList';
+import MangaList from '../smallComponents/MangaList';
+import Pagination from '../smallComponents/Pagination';
+
+const SEARCH_PAGE_SIZE = 20;
 
 export default function AdvancedSearchPage() {
   const navigate = useNavigate();
@@ -11,6 +14,7 @@ export default function AdvancedSearchPage() {
   const [genres, setGenres] = useState([]);
   
   const [results, setResults] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const location = useLocation();
 
@@ -34,9 +38,9 @@ export default function AdvancedSearchPage() {
     let mounted = true;
     (async () => {
       try {
-        const res = await fetchGenres();
+        const data = await fetchGenres();
         if (!mounted) return;
-        const list = Array.isArray(res) ? res : (res && Array.isArray(res.results) ? res.results : []);
+        const list = data || [];
         setAllGenres(list);
       } catch (err) {
         // ignore
@@ -51,6 +55,7 @@ export default function AdvancedSearchPage() {
   useEffect(() => {
     const qs = new URLSearchParams(location.search);
     const q = qs.get('q') || '';
+    const currentPage = Math.max(1, Number(qs.get('page')) || 1);
     const genreParam = qs.get('genre_names');
     const genresFromQs = genreParam ? genreParam.split(',').map(s => normalizeName(decodeURIComponent(s))) .filter(Boolean) : [];
     const statusParam = qs.get('publication_status') || '';
@@ -60,62 +65,48 @@ export default function AdvancedSearchPage() {
     setLocal((prev) => ({ ...prev, q, ordering: orderingParam, publication_status: statusParam }));
     setGenres(genresFromQs);
 
-    // trigger search when any query params are present (Search button navigates
-    // to a URL with query params) or when ordering explicitly requests latest-updated
-    const hasQs = Boolean(location.search && String(location.search).length > 0);
-    const shouldTrigger = hasQs || orderingParam === '-updated_at';
-    if (shouldTrigger) {
-      (async () => {
-        setLoading(true);
-        // If ordering requests latest-updated from Catalog's "View All", only send ordering param
-        // Map normalized keys back to display names when possible
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      try {
         const mappedGenreNames = genresFromQs.map(key => {
           const match = allGenres.find(g => normalizeName(g && g.name ? g.name : String(g)) === key);
           return match ? (match.name || String(match)) : key;
         });
         const params = { publication_status: statusParam, ordering: orderingParam, genre_names: mappedGenreNames };
-        const r = await searchBackend(q, params);
-        setResults(r);
-        setLoading(false);
-      })();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search]);
-
-  // On mount, show all manga by default (backend if available, otherwise mock fallback).
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoading(true);
-      try {
-        const all = await searchBackend('', {});
-        if (mounted) setResults(all || []);
+        const r = await searchBackend(q, params, currentPage);
+        if (!mounted) return;
+        setResults(r.items);
+        setTotal(r.total);
       } catch (err) {
-        if (mounted) setResults([]);
+        if (!mounted) return;
+        setResults([]);
+        setTotal(0);
       } finally {
         if (mounted) setLoading(false);
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search, allGenres]);
 
-  const searchBackend = async (term, params = {}) => {
+  const searchBackend = async (term, params = {}, page = 1) => {
     try {
       const backendParams = { ...params };
       // If ordering requests the latest updated list, prefer the paginated "all titles" API
       if (String(backendParams.ordering) === '-updated_at') {
         try {
-          const res = await fetchAllMangaTitles({ ordering: backendParams.ordering }, 1);
-          if (Array.isArray(res)) return res.map(mapMangaTitle);
-          if (res && Array.isArray(res.results)) return res.results.map(mapMangaTitle);
-          return [];
+          const data = await fetchAllMangaTitles({ ordering: backendParams.ordering }, page, SEARCH_PAGE_SIZE);
+          const items = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+          return { items: items.map(mapMangaTitle), total: Number(data?.count) || items.length };
         } catch (err) {
-          return [];
+          return { items: [], total: 0 };
         }
       }
 
-      // Serialize genre_names array as comma-separated list (backend may expect this)
-      if (Array.isArray(backendParams.genre_names)) backendParams.genre_names = backendParams.genre_names.join(',');
+      if (Array.isArray(backendParams.genre_names)) {
+        backendParams.genre_names = backendParams.genre_names.join(',');
+      }
       // Only include search/q when a non-empty term is provided — sending an empty search param
       // can cause some backends to ignore filters and return all results.
       if (term && String(term).trim()) {
@@ -123,13 +114,12 @@ export default function AdvancedSearchPage() {
         backendParams.q = term; // include alternative key in case backend expects `q`
       }
 
-      const res = await fetchAllMangaTitles(backendParams, 1);
-      if (Array.isArray(res)) return res.map(mapMangaTitle);
-      if (res && Array.isArray(res.results)) return res.results.map(mapMangaTitle);
-      return [];
+      const data = await fetchAllMangaTitles(backendParams, page, SEARCH_PAGE_SIZE);
+      const items = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+      return { items: items.map(mapMangaTitle), total: Number(data?.count) || items.length };
     } catch (err) {
       // backend unavailable — return empty result set
-      return [];
+      return { items: [], total: 0 };
     }
   };
 
@@ -140,7 +130,7 @@ export default function AdvancedSearchPage() {
     if (local.q && String(local.q).trim()) params.set('q', String(local.q).trim());
     if (local.ordering) params.set('ordering', local.ordering);
     if (local.publication_status && local.publication_status !== '') params.set('publication_status', local.publication_status);
-    if (Array.isArray(genres) && genres.length) {
+    if (genres.length) {
       // Map normalized keys back to display names when serializing
       const displayNames = genres.map(key => {
         const match = allGenres.find(g => normalizeName(g && g.name ? g.name : String(g)) === key);
@@ -148,6 +138,7 @@ export default function AdvancedSearchPage() {
       });
       params.set('genre_names', displayNames.join(','));
     }
+    params.delete('page');
 
     // Update the URL with current search/filter params; use navigate so
     // the existing effect that watches `location.search` will run the search.
@@ -244,6 +235,7 @@ export default function AdvancedSearchPage() {
         limit={1000}
         className="search-results"
       />
+      <Pagination total={total} page={Math.max(1, Number(new URLSearchParams(location.search).get('page')) || 1)} pageSize={SEARCH_PAGE_SIZE} />
     </div>
   );
 }

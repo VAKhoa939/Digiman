@@ -5,7 +5,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from ..models.user_models import User, Reader, Administrator
+from ..models.user_models import User, Reader, Administrator, RoleChoices
 from ..serializers.user_model_serializers import (
     UserSerializer, ReaderSerializer, AdministratorSerializer
 )
@@ -31,13 +31,16 @@ class BaseUserViewSet(viewsets.ModelViewSet):
         For other users, returns only their own user.
         """
         user = self.request.user
-        if not isinstance(user, User):
+        if not user or not isinstance(user, User):
             return User.objects.none()
-        if user.role == User.RoleChoices.ADMIN:
+        
+        # If the user is an admin, return all users
+        if user.has_admin_access():
             return Reader.objects.all()
-        UserModel = UserService.get_user_model(user.role)
-        return UserModel.objects.filter(pk=user.pk)
-
+        
+        # Else, return only their own user
+        UserModel = UserService.get_user_model(user.get_role())
+        return UserModel.objects.get(pk=user.pk)
 
     def perform_create(self, serializer: UserSerializerType):
         # Get uploaded avatar file (if provided)

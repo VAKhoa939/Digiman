@@ -1,19 +1,21 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework.request import Request
+from rest_framework.views import View
+
 from ..models.user_models import User
 
 class AdminWriteOnly(BasePermission):
     """
-    Read: everyone allowed
-    Write: only users where user.role == ADMIN
+    Read: everyone allowed (including visitors)
+    Write: only authenticated users where their role are Admins
     """
-    def has_permission(self, request, view):
-        # Safe methods = GET, HEAD, OPTIONS -> always allowed
+    def has_permission(self, request: Request, view: View) -> bool:
+        # Safe (Read) methods = GET, HEAD, OPTIONS -> always allowed
         if request.method in SAFE_METHODS:
             return True
 
-        # If not authenticated -> cannot write
-        if not request.user or not request.user.is_authenticated:
+        # Write methods = POST, PUT, PATCH, DELETE -> only authenticated admins
+        user = request.user
+        if not user or not isinstance(user, User) or not user.is_authenticated:
             return False
-
-        # Only allow write if user is an Admin
-        return request.user.role == User.RoleChoices.ADMIN
+        return user.has_admin_access()

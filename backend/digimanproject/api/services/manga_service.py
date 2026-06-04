@@ -1,11 +1,12 @@
-from typing import Optional
-import uuid
 from django.db import transaction
-from ..models.manga_models import MangaTitle, Page, Chapter
+from ..models.manga_models import MangaTitle, Page, Comment
+from ..models.user_models import User
+from ..models.common_choice_classes import ModerationStatusChoices
 from ..services.image_service import ImageService, BucketNames
+from ..services.system_service import LogEntryService
+from ..tasks import enqueue_moderation_task
 
-
-class MangaService:
+class MangaTitleService:
     @staticmethod
     @transaction.atomic
     def create_manga_title(data: dict, cover_image_file=None) -> MangaTitle:
@@ -67,8 +68,9 @@ class MangaService:
         if manga.cover_image:
             ImageService.delete_image(manga.cover_image, BucketNames.MANGA_CONTENT)
         manga.delete()
-
     
+
+class PageService:
     @staticmethod
     @transaction.atomic
     def create_page(data: dict, image_file=None) -> Page:
@@ -119,30 +121,110 @@ class MangaService:
 
         page.delete()
 
-    @staticmethod
-    def get_previous_chapter_id(chapter: Chapter) -> Optional[str]:
-        return (
-            Chapter.objects
-            .filter(
-                manga_title=chapter.manga_title, 
-                chapter_number__lt=chapter.chapter_number)
-            .order_by("-chapter_number")
-            .values_list("id", flat=True)
-            .first()
-        )
 
+class CommentService:    
     @staticmethod
-    def get_next_chapter_id(chapter: Chapter) -> Optional[str]:
-        return (
-            Chapter.objects
-            .filter(
-                manga_title=chapter.manga_title, 
-                chapter_number__gt=chapter.chapter_number)
-            .order_by("chapter_number")
-            .values_list("id", flat=True)
-            .first()
-        )
+    def create_comment(data: dict, owner: User, image_file=None) -> Comment:
+        # Validate data
+        if not owner:
+            raise ValueError("Owner is required.")
+        if (not data.get("text")
+            and not data.get("attached_image_url") 
+            and not image_file
+        ):
+            raise ValueError("Either 'text' or 'attached_image' must be provided.")
+        if not data.get("manga_title") and not data.get("chapter"):
+            raise ValueError("Either 'manga_title' or 'chapter' must be provided.")
+
+        # Handle image upload
+        image_url = None
+        if image_file:
+            image_url = ImageService.upload_image(image_file, BucketNames.COMMENT_IMAGES)
+
+        data = data.copy()
+        data["owner"] = owner
+        if image_url:
+            data["attached_image_url"] = image_url
+
+        # Add moderation status to data
+        data["moderation_status"] = ModerationStatusChoices.PENDING
+
+        # Create comment and log entry in a single transaction
+        with transaction.atomic():
+            comment = Comment.objects.create(**data)
+
+            if getattr(comment, "_action_user", None) is None:
+                comment._action_user = owner
+            entry = LogEntryService.log_object_save(comment, True)
+
+            # Run moderation pipeline after transaction
+            transaction.on_commit(lambda: enqueue_moderation_task(entry.id))
+        return comment
     
     @staticmethod
-    def get_chapter_display_name(chapter_id: uuid.UUID) -> str:
-        return str(Chapter.objects.get(id=chapter_id))
+    def update_comment(comment: Comment, data: dict, image_file=None) -> Comment:
+        # If the status is deleted, only the status should be updated
+        status = data.get("status")
+        if status and status == Comment.StatusChoices.DELETED:
+            comment.set_deleted()
+            LogEntryService.resolve_old_entries_and_flags(
+                "comment",
+                comment.id,
+                ["text", "attached_image_url"]
+            )
+            return comment
+        # If the status is not deleted and the status is changed, 
+        # only the status and hidden_reasons should be updated
+        elif status and status != comment.status and status in {
+            Comment.StatusChoices.HIDDEN, Comment.StatusChoices.ACTIVE
+        }:
+            comment.toggle_hidden(data.get("hidden_reasons"))
+            return comment
+        
+        # Validate data
+        if (not data.get("text")
+            and not data.get("attached_image_url") 
+            and not image_file
+        ):
+            raise ValueError("Either 'text' or 'attached_image' must be provided.")
+        if not data.get("manga_title") and not data.get("chapter"):
+            raise ValueError("Either 'manga_title' or 'chapter' must be provided.")
+        
+        bucket = BucketNames.COMMENT_IMAGES
+        data = data.copy()
+
+        # Replace image if a new one is provided
+        if image_file:
+            # Upload new image
+            new_image_url = ImageService.upload_image(image_file, bucket)
+
+            # Delete old image if it exists
+            if comment.attached_image_url:
+                ImageService.delete_image(comment.attached_image_url, bucket)
+            data["attached_image_url"] = new_image_url
+        else:
+            # Delete image if it's an empty string
+            if data.get("attached_image_url") == "":
+                ImageService.delete_image(comment.attached_image_url, bucket)
+        
+        # Update other comment fields and create log entry in a single transaction
+        with transaction.atomic():
+            if not comment.update_metadata(**data):
+                return comment    # Nothing to update
+
+            if getattr(comment, "_action_user", None) is None:
+                comment._action_user = comment.owner
+            entry = LogEntryService.log_object_save(comment, False)
+
+            # Run moderation pipeline after transaction
+            transaction.on_commit(lambda: enqueue_moderation_task(entry.id))
+        return comment
+
+    @staticmethod
+    @transaction.atomic
+    def delete_comment(comment: Comment) -> None:
+        # Delete image if it exists
+        if comment.attached_image_url:
+            ImageService.delete_image(comment.attached_image_url, BucketNames.COMMENT_IMAGES)
+        comment.delete()
+        

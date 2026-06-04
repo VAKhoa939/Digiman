@@ -1,11 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchChapter, fetchMangaTitleChapters, fetchChapterPages } from "../services/mangaService";
 import { mapChapter, mapPage } from "../utils/transform";
-import { mockChapter, mockList } from "../data/chapterMock"
 import { useState, useEffect } from "react";
 import { loadDownloadedChapter } from "../utils/downloads";
-
-const useMock = import.meta.env.VITE_USE_MOCK_DATA === 'true';
 
 export default function useChapterPage(chapterId, mangaId) { 
   const [chapter, setChapter] = useState(null);
@@ -22,11 +19,11 @@ export default function useChapterPage(chapterId, mangaId) {
 		isLoading: chaptersListIsLoading,
 		error: chaptersListError,
 	} = useQuery({
-		queryKey: ["chapters", mangaId],
-		queryFn: () => fetchMangaTitleChapters(mangaId),
+		queryKey: ["chapters", mangaId, 'all'],
+		queryFn: () => fetchMangaTitleChapters(mangaId, true, 1, 20, true),
 		staleTime: staleTime,
 		retry: navigator.onLine ? 1 : 0,
-		enabled: !useMock && navigator.onLine,
+		enabled: navigator.onLine,
 	});
 
 	const { 
@@ -38,7 +35,7 @@ export default function useChapterPage(chapterId, mangaId) {
 		queryFn: () => fetchChapter(chapterId),
 		staleTime: staleTime,
 		retry: navigator.onLine ? 1 : 0,
-		enabled: !useMock && navigator.onLine,
+		enabled: navigator.onLine,
 	});
 
 	const {
@@ -50,7 +47,7 @@ export default function useChapterPage(chapterId, mangaId) {
 		queryFn: () => fetchChapterPages(chapterId),
 		staleTime: staleTime,
 		retry: navigator.onLine ? 1 : 0,
-		enabled: !useMock && navigator.onLine,
+		enabled: navigator.onLine,
 	});
 
 	useEffect(() => {
@@ -59,37 +56,34 @@ export default function useChapterPage(chapterId, mangaId) {
 
 		async function load() {
 			// --- Downloaded version ---
-			try{
-				const saved = await loadDownloadedChapter(mangaId, chapterId);
-				if (saved && mounted) {
-					const { chapter, pages, createdUrls: savedUrls } = saved;
+			if (!navigator.onLine) {
+				try{
+					const saved = await loadDownloadedChapter(mangaId, chapterId);
+					if (saved && mounted) {
+						const { chapter, pages, createdUrls: savedUrls } = saved;
 
-					// Track object URLs for cleanup
-					if (Array.isArray(savedUrls)) createdUrls.push(...savedUrls);
+						// Track object URLs for cleanup
+						if (Array.isArray(savedUrls)) createdUrls.push(...savedUrls);
 
-					console.log("Loaded downloaded chapter:", chapter);
-					setChapter({ ...chapter, pages }); // Use the `chapter` and `pages` from `saved`
-					setChaptersList([]); // No chapters list for downloaded chapters
-					setLoading(false);
-					return; // Exit early if downloaded chapter is found
-				}
-			}catch(e){ /* ignore and fall back to backend */ }
-
-			// --- Mock data version ---
-			if (useMock && mounted) {
-				setChapter(mockChapter);
-				setChaptersList(mockList);
-				setLoading(false);
-				return;
+						console.log("Loaded downloaded chapter:", chapter);
+						setChapter({ ...chapter, pages }); // Use the `chapter` and `pages` from `saved`
+						setChaptersList([chapter]); // Only show the loaded chapter
+						setLoading(false);
+						return; // Exit early if downloaded chapter is found
+					}
+				}catch(e){ /* ignore and fall back to backend */ }
 			}
 			
 			// --- Live API version ---
 			if (chapterMeta && pages && mounted) {
+				const chaptersListItems = Array.isArray(chaptersListData)
+					? chaptersListData
+					: (Array.isArray(chaptersListData?.results) ? chaptersListData.results : []);
 				setChapter({
 					...mapChapter(chapterMeta),
 					pages: pages.map(mapPage),
 				});
-				setChaptersList(chaptersListData?.results?.map(mapChapter) || []);
+				setChaptersList(chaptersListItems.map(mapChapter) || []);
 				setError(chapterMetaError || pagesError || chaptersListError);
 				setLoading(false);
 				console.log("Loaded chapter: ", chapterMeta);

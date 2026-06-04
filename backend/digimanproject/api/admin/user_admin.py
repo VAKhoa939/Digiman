@@ -3,7 +3,7 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.http import HttpRequest
 from django.utils.safestring import mark_safe
 from django import forms
-from ..models.user_models import User, Reader, Administrator
+from ..models.user_models import User, Reader, Administrator, RoleChoices
 from ..services.user_service import UserService, UserType
 from .mixins import LogUserMixin
 
@@ -50,13 +50,30 @@ class ReaderAdminForm(forms.ModelForm):
 # --- Base User Admin class ---
 
 class BaseUserAdmin(LogUserMixin, admin.ModelAdmin):
-    list_display: tuple[str, ...] = ("username", "email", "role", "status", "created_at")
-    list_filter: tuple[str, ...] = ("role", "status", "created_at")
+    list_display: tuple[str, ...] = (
+        "username", 
+        "email", 
+        "role", 
+        "status", 
+        "created_at", 
+        "moderation_status"
+    )
+    list_filter: tuple[str, ...] = ("role", "status", "created_at", "moderation_status")
     search_fields: tuple[str, ...] = ("username", "email")
     ordering: tuple[str, ...] = ("-created_at",)
-    readonly_fields: tuple[str, ...] = ("created_at", "status")
 
-    fields: tuple[str, ...] = ("username", "email", "password", "role", "status", "created_at")
+    fields: tuple[str, ...] = (
+        "id",
+        "username", 
+        "email", 
+        "password", 
+        "role", 
+        "status", 
+        "created_at",
+        "moderation_status",
+        "last_moderated_at",
+    )
+    readonly_fields: tuple[str, ...] = ("id", "created_at", "last_moderated_at",)
 
     class Media:
         js = ("api/admin/password_generator.js",)
@@ -95,21 +112,23 @@ class UserAdmin(BaseUserAdmin):
             new_user = UserService.create_user(form.cleaned_data)
             obj.pk = new_user.pk # Make sure the obj is attached
         else:
-            UserService.update_user(obj, form.cleaned_data)
+            old_obj = User.objects.get(pk=obj.pk)
+            old_obj._action_user = user
+            UserService.update_user(old_obj, form.cleaned_data)
 
 
 @admin.register(Reader)
 class ReaderAdmin(BaseUserAdmin):
     form = ReaderAdminForm
-    list_display: tuple[str, ...] = (*BaseUserAdmin.list_display, "display_name", "age")
+    list_display: tuple[str, ...] = (*BaseUserAdmin.list_display, "display_name")
     search_fields: tuple[str, ...] = (*BaseUserAdmin.search_fields, "display_name")
     readonly_fields: tuple[str, ...] = (*BaseUserAdmin.readonly_fields,)
     
-    fields: tuple[str, ...] = (*BaseUserAdmin.fields, "display_name", "avatar", "avatar_upload", "age")
+    fields: tuple[str, ...] = (*BaseUserAdmin.fields, "display_name", "avatar", "avatar_upload")
     
     def get_queryset(self, request: HttpRequest):
         """Filter the queryset to only include readers."""
-        return UserAdmin.get_queryset(self, request).filter(role=User.RoleChoices.READER)
+        return UserAdmin.get_queryset(self, request).filter(role=RoleChoices.READER)
 
 
     def save_model(
@@ -130,7 +149,9 @@ class ReaderAdmin(BaseUserAdmin):
             new_user = UserService.create_user(form.cleaned_data, avatar_file)
             obj.pk = new_user.pk # Make sure the obj is attached
         else:
-            UserService.update_user(obj, form.cleaned_data, avatar_file)
+            old_obj = Reader.objects.get(pk=obj.pk)
+            old_obj._action_user = user
+            UserService.update_user(old_obj, form.cleaned_data, avatar_file)
 
     def delete_model(self, request, obj):
         # Attach the current user to the object for logging
@@ -150,7 +171,7 @@ class AdministratorAdmin(BaseUserAdmin):
 
     def get_queryset(self, request):
         """Filter the queryset to only include administrators."""
-        return UserAdmin.get_queryset(self, request).filter(role=User.RoleChoices.ADMIN)
+        return UserAdmin.get_queryset(self, request).filter(role=RoleChoices.ADMIN)
 
     def save_model(
         self, request: HttpRequest, obj: UserType, 

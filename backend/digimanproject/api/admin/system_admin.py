@@ -1,26 +1,78 @@
 from django.contrib import admin
-from django.http import HttpRequest, JsonResponse
-from django import forms
-from django.urls import path
 from django.shortcuts import redirect
 from django.contrib import messages
-from django.core.cache import cache
 
-from ..models.system_models import LogEntry, FlaggedContent
-from ..services.system_service import SystemService
-from ..tasks import run_moderation_pipeline_task, STATUS_KEY
-from ..utils.celery_wake import wake_celery_worker
+from ..models.system_models import Report, LogEntry, FlaggedContent, ModerationThreshold
+from ..services.system_service import FlaggedContentService
+
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "reporter",
+        "category",
+        "target_content_type",
+        "target_content_id",
+        "status",
+        "created_at",
+    )
+    list_filter = ("status", "category", "target_content_type")
+    ordering = ("-created_at",)
+    fields = (
+        "id",
+        "reporter",
+        "category",
+        "description",
+        "target_content_type",
+        "target_content_id",
+        "status",
+        "created_at",
+    )
+    readonly_fields = (
+        "id",
+        "reporter",
+        "category",
+        "description",
+        "target_content_type",
+        "target_content_id",
+        "created_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 
 
 @admin.register(LogEntry)
 class LogEntryAdmin(admin.ModelAdmin):
     list_display = (
-        "get_display_name", "action_type", "get_user_display_name", 
-        "target_object_type", "target_object_id", "timestamp", 
-        "is_moderated"
+        "get_display_name", 
+        "action_type", 
+        "user", 
+        "target_object_type", 
+        "timestamp", 
+        "moderation_status",
     )
-    list_filter = ("action_type", "target_object_type")
+    list_filter = ("action_type", "user", "target_object_type",)
     ordering = ("-timestamp",)
+    fields = (
+        "id",
+        "user", 
+        "action_type", 
+        "timestamp", 
+        "moderation_status", 
+        "retry_count",
+        "last_error",
+        "moderation_started_at",
+        "moderation_finished_at",
+        "target_object_type", 
+        "target_object_id", 
+        "details",
+    )
 
     def get_display_name(self, obj: LogEntry) -> str:
         return str(obj)
@@ -36,20 +88,34 @@ class LogEntryAdmin(admin.ModelAdmin):
 @admin.register(FlaggedContent)
 class FlaggedContentAdmin(admin.ModelAdmin):
     list_display = (
-        "get_display_name", "target_object_type", "content_name", 
-        "dominant_attribute", "severity_score", "flagged_at"
+        "get_display_name", 
+        "target_object_type", 
+        "content_name", 
+        "dominant_attribute", 
+        "severity_score",
+        "flag_status", 
+        "flagged_at",
+        "is_resolved",
     )
-    ordering = ("-flagged_at",)
+    ordering = ("-is_resolved", "-flagged_at",)
 
     fields = (
-        "dominant_attribute", "severity_score", "reason", "details", 
-        "flagged_at", "is_content_image", "content_name", "content", 
-        "target_object_type", "target_object_id",
+        "id",
+        "dominant_attribute", 
+        "severity_score", 
+        "reason", 
+        "details", 
+        "flag_status",
+        "flagged_at", 
+        "is_content_image", 
+        "content_name", 
+        "content", 
+        "target_object_type", 
+        "target_object_id",
+        "is_resolved",
     )
-
     readonly_fields = (*fields,)
 
-    change_list_template = "admin/flagged_content_changelist.html"
     change_form_template = "admin/flagged_content_change_form.html"
 
     def get_queryset(self, request):
@@ -58,92 +124,26 @@ class FlaggedContentAdmin(admin.ModelAdmin):
     def get_display_name(self, obj: FlaggedContent) -> str:
         return str(obj)
     get_display_name.short_description = "Display name"
-
-    def get_urls(self):
-        urls = super().get_urls()
-        custom_urls = [
-            path(
-                "run-moderation/", 
-                self.admin_site.admin_view(self.run_moderation), 
-                name="run_moderation"
-            ),
-            path(
-                "moderation-status/", 
-                self.admin_site.admin_view(self.moderation_status), 
-                name="moderation_status"
-            ),
-        ]
-        return custom_urls + urls
-
-    def run_moderation(self, request: HttpRequest):
-        status = cache.get(STATUS_KEY, "idle")
-
-        if status in ("starting", "queued", "running"):
-            messages.warning(request, "Moderation pipeline is already running.")
-            return redirect("admin:api_flaggedcontent_changelist")
-        
-        
-        # Step 1: mark starting
-        cache.set(STATUS_KEY, "starting", timeout=300)
-
-        # Step 2: wake celery
-        awake = wake_celery_worker()
-
-        if not awake:
-            cache.set(STATUS_KEY, "failed", timeout=300)
-            messages.error(request, "Celery worker is unavailable.")
-            return redirect("admin:api_flaggedcontent_changelist")
-        
-        # Step 3: enqueue
-        run_moderation_pipeline_task.delay()
-        cache.set(STATUS_KEY, "queued", timeout=300)
-
-        messages.success(
-            request,
-            "Moderation pipeline started. This may take a few seconds. "
-            "You can continue using the admin normally.",
-        )
-        return redirect("admin:api_flaggedcontent_changelist")
     
-    def moderation_status(self, request):
-        return JsonResponse({
-            "status": cache.get(STATUS_KEY, "idle")
-        })
-
-    def changelist_view(self, request: HttpRequest, extra_context=None):
-        status = cache.get(STATUS_KEY, "idle")
-
-        if status == "completed":
-            messages.success(request, "Moderation pipeline completed successfully.")
-            cache.set(STATUS_KEY, "idle", timeout=300)
-
-        if status == "failed":
-            messages.error(request, "Moderation pipeline failed.")
-            cache.set(STATUS_KEY, "idle", timeout=300)
-
-        return super().changelist_view(request, extra_context)
-
     def response_change(self, request, obj):
-        if "_resolve_flag" in request.POST:
-            if isinstance(obj, FlaggedContent):
-                obj.resolve()
+        if not "_resolve_flag" in request.POST:
+            return super().response_change(request, obj)
+        
+        if isinstance(obj, FlaggedContent):
+            FlaggedContentService.resolve_flag(obj)
+            self.message_user(
+                request,
+                "Flag resolved successfully.",
+                level=messages.SUCCESS,
+            )
+        else:
+            self.message_user(
+                request,
+                "Object is not a FlaggedContent.",
+                level=messages.ERROR,
+            )
 
-                self.message_user(
-                    request,
-                    "Flag resolved successfully.",
-                    level=messages.SUCCESS,
-                )
-                SystemService.create_log_entry(None, LogEntry.ActionTypeChoices.RESOLVE_FLAG, obj)
-            else:
-                self.message_user(
-                    request,
-                    "Object is not a FlaggedContent.",
-                    level=messages.ERROR,
-                )
-
-            return redirect("admin:api_flaggedcontent_changelist")
-
-        return super().response_change(request, obj)
+        return redirect("admin:api_flaggedcontent_changelist")
 
     def save_model(self, request, obj, form, change):
         if change:
@@ -153,8 +153,37 @@ class FlaggedContentAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False
     
-    def has_change_permission(self, request, obj=None):
-        return True
-    
-    def has_delete_permission(self, request, obj=None):
-        return False
+    # def has_delete_permission(self, request, obj=None):
+    #     return False
+
+
+@admin.register(ModerationThreshold)
+class ModerationThresholdAdmin(admin.ModelAdmin):
+    list_display = (
+        "get_display_name",
+        "attribute",
+        "service_api",
+        "service_type",
+        "flag_threshold",
+        "ban_threshold",
+        "is_active",
+    )
+    ordering = ("service_api",)
+    fields = (
+        "id",
+        "attribute",
+        "service_type",
+        "service_api",
+        "flag_threshold",
+        "ban_threshold",
+        "is_active",
+        "updated_at",
+    )
+    readonly_fields = (
+        "id",
+        "updated_at",
+    )
+
+    def get_display_name(self, obj: ModerationThreshold) -> str:
+        return str(obj)
+    get_display_name.short_description = "Display name"

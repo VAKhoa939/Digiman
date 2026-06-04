@@ -57,12 +57,17 @@ function NavBar() {
             <ul className="navbar-nav ms-auto align-items-center">
                 <div className="d-flex align-items-center me-2">
                 <SearchBar />
-                <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Downloads" onClick={() => navigate('/downloads')}>
-                  <CloudDownloadIcon />
-                </button>
                 <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Advanced search" onClick={() => navigate('/search/advanced')}>
                   <FilterListIcon />
                 </button>
+                {isAuthenticated && <>
+                  <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Pricing" onClick={() => navigate('/pricing')}>
+                  Pricing
+                  </button>
+                  <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Downloads" onClick={() => navigate('/downloads')}>
+                    <CloudDownloadIcon />
+                  </button>
+                </>}
                 <ThemeToggle />
               </div>
 
@@ -99,7 +104,13 @@ function NavBar() {
                       <button className="dropdown-item" onClick={() => navigate('/library')}>Library</button>
                     </li>
                     <li>
+                      <button className="dropdown-item" onClick={() => navigate('/history')}>Reading History</button>
+                    </li>
+                    <li>
                       <button className="dropdown-item" onClick={() => navigate('/settings')}>Settings</button>
+                    </li>
+                    <li>
+                      <button className="dropdown-item" onClick={() => navigate('/subscription/status')}>Subscription Status</button>
                     </li>
                     {/* Admin link for users with administrative privileges */}
                     {(() => {

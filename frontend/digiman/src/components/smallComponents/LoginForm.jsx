@@ -13,7 +13,7 @@ const LoginModal = ({ onClose, onSwitchToRegister }) => {
   const { theme } = useTheme();
 
   useEffect(() => {
-    if (!modalRef.current || bsRef.current) return;
+      if (!modalRef.current || bsRef.current) return;
     const el = modalRef.current;
     // initialize Bootstrap modal. Delay `show()` slightly so the
     // element is guaranteed to be attached to the DOM and React has

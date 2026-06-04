@@ -5,9 +5,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from ..services.user_service import UserService
 from rest_framework_simplejwt.views import TokenRefreshView
-from ..services.system_service import SystemService
+
+from ..services.user_service import UserService
+from ..services.system_service import LogEntryService
 
 
 def set_refresh_cookie(response: Response, refresh_token: str, remember: bool):
@@ -64,8 +65,8 @@ class RegisterView(APIView):
         )
 
         # Log creation and login
-        SystemService.log_object_save(user, True)
-        SystemService.log_login(user)
+        LogEntryService.log_object_save(user, True)
+        LogEntryService.log_login(user)
 
         # Issue JWT
         refresh = RefreshToken.for_user(user)
@@ -109,7 +110,7 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED)
         
         # Log login
-        SystemService.log_login(user)
+        LogEntryService.log_login(user)
 
         # Issue JWT
         refresh = RefreshToken.for_user(user)
@@ -192,7 +193,7 @@ class LogoutView(APIView):
 
         # Log logout
         if getattr(request, "user", None) and request.user.is_authenticated:
-            SystemService.log_logout(request.user)
+            LogEntryService.log_logout(request.user)
         
         return response
     
@@ -215,22 +216,23 @@ class CurrentUserView(APIView):
         Response data:
         - body: (User/Reader/Administrator data)
         """
-        from ..models.user_models import User, Reader, Administrator
+        from ..models.user_models import User, Reader, Administrator, RoleChoices
         from ..serializers.user_model_serializers import UserSerializer, ReaderSerializer, AdministratorSerializer
         
         user = request.user
-        if not isinstance(user, User):
+        if not user or not isinstance(user, User):
             return Response(
                 {"detail": "Invalid user type."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         # Check if the user is also a Reader or Administrator
-        match user.role:
-            case User.RoleChoices.READER:
+        role = user.get_role()
+        match role:
+            case RoleChoices.READER:
                 user = Reader.objects.get(pk=user.pk)
                 serializer = ReaderSerializer(user)
-            case User.RoleChoices.ADMIN:
+            case RoleChoices.ADMIN:
                 user = Administrator.objects.get(pk=user.pk)
                 serializer = AdministratorSerializer(user)
             case _:
