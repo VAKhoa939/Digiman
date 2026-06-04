@@ -43,7 +43,7 @@ class AIModerationService:
             error_message = f"[Moderation Error] Entry {str(entry)}: {str(e)}"
             logger.error(error_message)
             entry.set_failed_moderation_attempt(error_message)
-            return
+            raise
 
         try:
             entry.set_moderation_status(ModerationStatusChoices.PROCESSING)
@@ -54,6 +54,7 @@ class AIModerationService:
             error_message = f"[Moderation Error] Entry {str(entry)}: {str(e)}"
             logger.error(error_message)
             AIModerationService.set_moderation_failed_attempt(entry.id, error_message)
+            raise
 
     @staticmethod
     def process_log_entry(entry: LogEntry) -> None:
@@ -134,6 +135,10 @@ class AIModerationService:
             entry.set_failed_moderation_attempt(error_message)
             if target_object and isinstance(target_object, TypesInModeration):
                 target_object.set_moderation_failed_attempt(retry_count=retry_count)
+
+            if retry_count >= 2:
+                logger.error(error_message)
+                print(error_message)
         except Exception as e:
             logger.error(f"Error setting moderation failed for entry {entry_id}: {str(e)}")
             print(f"Error setting moderation failed for entry {entry_id}: {str(e)}")
