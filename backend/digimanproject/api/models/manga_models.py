@@ -341,7 +341,7 @@ class Comment(models.Model):
     moderation_status: str = models.CharField(
         max_length=20,
         choices=ModerationStatusChoices.choices,
-        default=ModerationStatusChoices.SAFE
+        default=ModerationStatusChoices.PENDING
     )
     last_moderated_at = models.DateTimeField(null=True, blank=True)
 
