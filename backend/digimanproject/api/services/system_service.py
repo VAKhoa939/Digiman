@@ -91,6 +91,7 @@ class LogEntryService:
         ):
             target_object = target_object.get_target_object()
 
+        moderation_status = ModerationStatusChoices.SAFE
         if (
             action_type in {
                 LogEntry.ActionTypeChoices.CREATE, 
@@ -100,11 +101,8 @@ class LogEntryService:
             and target_object.moderation_status == ModerationStatusChoices.PENDING
         ):
             details = LogEntryDetailFactory.get_moderation_detail(target_object)
+            moderation_status = ModerationStatusChoices.PENDING
 
-        moderation_status = (
-            ModerationStatusChoices.PENDING if details 
-            else ModerationStatusChoices.SAFE
-        )
         return LogEntry.objects.create(
             user=user,
             action_type=action_type,
