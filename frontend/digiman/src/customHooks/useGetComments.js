@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchCommentsByChapter, fetchCommentsByMangaTitle } from "../services/commentServices";
+import { fetchCommentsByChapter, fetchCommentsByMangaTitle } from "../services/commentService";
 import { mapComment } from "../utils/transform";
 
 

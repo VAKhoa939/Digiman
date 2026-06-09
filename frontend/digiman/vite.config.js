@@ -61,7 +61,7 @@ export default defineConfig (({ mode}) => {
             {
               // RegExp gets inlined with the actual value — no process.env at runtime
               urlPattern: apiUrl ? new RegExp(`^${apiUrl}`) : /^$/,
-              handler: 'StaleWhileRevalidate',
+              handler: 'NetworkFirst', //'StaleWhileRevalidate',
               options: { cacheName: 'api-cache' }
             }
         ]
