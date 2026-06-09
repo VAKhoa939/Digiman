@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { 
   login as apiLogin, logout as apiLogout, fetchUser as apiFetchUser,
   register as apiRegister
-} from "../services/auth";
+} from "../services/authService";
 import { fetchMySubscription } from "../services/subscriptionService";
 import { emitToast } from "../utils/toast";
 import { mapReaderSubscription, mapUser } from "../utils/transform";

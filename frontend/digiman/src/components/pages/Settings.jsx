@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { updateProfile as apiUpdateProfile } from '../../services/auth';
+import { updateProfile as apiUpdateProfile } from '../../services/authService';
 import { useTheme } from '../../context/ThemeContext';
 
 export default function Settings() {
