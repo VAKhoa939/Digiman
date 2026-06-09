@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { postComment, editComment } from '../services/commentServices'
+import { postComment, editComment } from '../services/commentService'
 import { toastSuccess, toastError, toastInfo } from '../utils/toast'
 
 export default function useCreateEditComment() {
