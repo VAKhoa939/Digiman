@@ -1,4 +1,7 @@
+from django.db import transaction
+import datetime
 from ..models.system_models import LogEntry, FlaggedContent
+from ..models.common_choice_classes import ModerationStatusChoices
 from .perspective_api_service import PerspectiveAPIService
 from .sightengine_service import SightengineService
 from .system_service import FlaggedContentService, TypesInModeration
@@ -25,31 +28,33 @@ class AIModerationService:
         """
         entry = LogEntry.objects.get(id=entry_id)
 
-        if entry.get_moderation_status() != LogEntry.ModerationStatusChoices.PENDING:
-            return
+        if not entry or entry.get_moderation_status() != ModerationStatusChoices.PENDING:
+            error_message = f"Entry id {entry_id} not found or already moderated"
+            logger.error(error_message)
+            raise ValueError(error_message)
         
         try:
             target_object = entry.get_target_object()
-            if not target_object or not isinstance(target_object, TypesInModeration):
+            if (not target_object 
+                or not isinstance(target_object, TypesInModeration)
+                or target_object.moderation_status != ModerationStatusChoices.PENDING):
                 raise ValueError("Target object not found or not in moderation")
         except Exception as e:
-            # Log error but continue with next entries
-            logger.error(f"[Moderation Error] Entry {str(entry)}: {e}")
-            print(f"[Moderation Error] Entry {str(entry)}: {e}")
-            entry.set_failed_moderation_attempt(str(e))
-            return
+            error_message = f"[Moderation Error] Entry {str(entry)}: {str(e)}"
+            logger.error(error_message)
+            entry.set_failed_moderation_attempt(error_message)
+            raise
 
         try:
-            entry.set_moderation_status(LogEntry.ModerationStatusChoices.PROCESSING)
-            target_object.set_moderation_status(LogEntry.ModerationStatusChoices.PROCESSING)
-            print(f"Moderating entry {str(entry)}")
+            entry.set_moderation_status(ModerationStatusChoices.PROCESSING)
+            target_object.set_moderation_status(ModerationStatusChoices.PROCESSING)
+            logger.info(f"Moderating entry {str(entry)}")
             AIModerationService.process_log_entry(entry)
         except Exception as e:
-            # Log error but continue with next entries
-            logger.error(f"[Moderation Error] Entry {str(entry)}: {e}")
-            print(f"[Moderation Error] Entry {str(entry)}: {e}")
-            entry.set_failed_moderation_attempt(str(e))
-            target_object.set_moderation_status(LogEntry.ModerationStatusChoices.FAILED)
+            error_message = f"[Moderation Error] Entry {str(entry)}: {str(e)}"
+            logger.error(error_message)
+            AIModerationService.set_moderation_failed_attempt(entry.id, error_message)
+            raise
 
     @staticmethod
     def process_log_entry(entry: LogEntry) -> None:
@@ -60,11 +65,16 @@ class AIModerationService:
         deciding if content is unsafe, and creating FlaggedContent objects.
         """
         details = entry.get_details()
-        overall_moderation_status = LogEntry.ModerationStatusChoices.SAFE
+        overall_moderation_status = ModerationStatusChoices.SAFE
 
-        attrs: List[Dict[str, Any]] = details.get("attributes", [])
+        attrs: List[Dict[str, Any]] = details.get("attributes")
+        if not attrs:
+            raise ValueError("No attributes found in entry details")
+        
         for attr in attrs:
             # Extract attribute fields
+            if any(k not in attr for k in ["attributeName", "isImage", "content"]):
+                raise ValueError("Invalid attribute format")
             content_name = attr.get("attributeName")
             is_image = str(attr.get("isImage")).lower() == "true"
             content = attr.get("content")
@@ -83,13 +93,13 @@ class AIModerationService:
             if not is_flagged and not is_banned:
                 continue # Content is safe, continue to next attribute
             if is_banned:
-                moderation_status = FlaggedContent.ModerationStatusChoices.BANNED
-                if overall_moderation_status != LogEntry.ModerationStatusChoices.BANNED:
-                    overall_moderation_status = LogEntry.ModerationStatusChoices.BANNED
+                moderation_status = FlaggedContent.FlagStatusChoices.BANNED
+                if overall_moderation_status != ModerationStatusChoices.BANNED:
+                    overall_moderation_status = ModerationStatusChoices.BANNED
             else:
-                moderation_status = FlaggedContent.ModerationStatusChoices.FLAGGED
-                if overall_moderation_status == LogEntry.ModerationStatusChoices.SAFE:
-                    overall_moderation_status = LogEntry.ModerationStatusChoices.FLAGGED
+                moderation_status = FlaggedContent.FlagStatusChoices.FLAGGED
+                if overall_moderation_status == ModerationStatusChoices.SAFE:
+                    overall_moderation_status = ModerationStatusChoices.FLAGGED
             FlaggedContentService.create_flag(
                 log_entry=entry,
                 content_name=content_name,
@@ -106,3 +116,53 @@ class AIModerationService:
         entry.set_moderation_status(overall_moderation_status)
         target_object = entry.get_target_object()
         target_object.set_moderation_status(overall_moderation_status)
+
+    @staticmethod
+    @transaction.atomic
+    def set_moderation_failed_attempt(entry_id: UUID, error_message: str, is_failed_permanently: bool = False) -> None:
+        try:
+            entry = LogEntry.objects.get(id=entry_id)
+            target_object = entry.get_target_object()
+            if is_failed_permanently:
+                logger.error(error_message)
+                print(error_message)
+                entry.set_moderation_status(ModerationStatusChoices.FAILED)
+                if target_object and isinstance(target_object, TypesInModeration):
+                    target_object.set_moderation_status(ModerationStatusChoices.FAILED)
+                return
+
+            retry_count = entry.retry_count
+            entry.set_failed_moderation_attempt(error_message)
+            if target_object and isinstance(target_object, TypesInModeration):
+                target_object.set_moderation_failed_attempt(retry_count=retry_count)
+
+            if retry_count >= 2:
+                logger.error(error_message)
+                print(error_message)
+        except Exception as e:
+            logger.error(f"Error setting moderation failed for entry {entry_id}: {str(e)}")
+            print(f"Error setting moderation failed for entry {entry_id}: {str(e)}")
+
+
+class ModerationCleanupService:
+    TIMEOUT = 5 * 60  # 5 minutes
+
+    @staticmethod
+    @transaction.atomic
+    def cleanup_stuck_moderation_tasks(timeout: int = TIMEOUT) -> int:
+        """Cleans up old moderation tasks from the database."""
+        try:
+            cut_off_time = datetime.datetime.now() - datetime.timedelta(seconds=timeout)
+            stuck_entries = LogEntry.objects.filter(
+                moderation_status__in=[ModerationStatusChoices.PROCESSING, ModerationStatusChoices.PENDING],
+                moderation_started_at__lt=cut_off_time
+            )
+            count = 0
+            for entry in stuck_entries:
+                AIModerationService.set_moderation_failed_attempt(entry.id, "Moderation pipeline failed due to exceeded time limit", is_failed_permanently=True)
+                count += 1
+            return count
+        except Exception as e:
+            logger.error(f"Error cleaning up moderation tasks: {str(e)}")
+            print(f"Error cleaning up moderation tasks: {str(e)}")
+            return 0

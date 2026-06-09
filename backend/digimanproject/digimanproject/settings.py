@@ -206,12 +206,6 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 
 
-# Celery Wakeup
-
-IS_RENDER = env.bool("IS_RENDER", False)
-CELERY_WAKE_URL = env("CELERY_WAKE_URL", default="")
-
-
 # Django Redis Settings
 
 DJANGO_REDIS_URL = env("DJANGO_REDIS_URL")
@@ -281,6 +275,7 @@ JAZZMIN_SETTINGS = {
         "api.ReaderSubscription",
         "api.PaymentTransaction",
 
+        "api.Report",
         "api.FlaggedContent",
         "api.LogEntry",
         "api.ModerationThreshold",
@@ -303,6 +298,7 @@ JAZZMIN_SETTINGS = {
         "api.ReaderSubscription" : "fas fa-user-tag",
         "api.PaymentTransaction" : "fas fa-arrows-alt-h",
 
+        "api.Report": "fas fa-exclamation-triangle",
         "api.LogEntry": "fas fa-history",
         "api.FlaggedContent": "fas fa-flag",
         "api.ModerationThreshold": "fas fa-balance-scale",

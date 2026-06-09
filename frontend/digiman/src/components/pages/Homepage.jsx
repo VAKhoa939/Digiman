@@ -3,7 +3,7 @@ import { Container } from 'react-bootstrap';
 import MangaCard from '../../components/smallComponents/MangaCard';
 import Banner from '../../components/smallComponents/Banner';
 import RecommendationBlock from '../../components/smallComponents/RecommendationBlock';
-import MangaList from '../common/MangaList';
+import MangaList from '../smallComponents/MangaList';
 import { usePopular, useMostRead, useHomepageRecommendation } from '../../customHooks/useHomepage';
 import { useAuth } from '../../context/AuthContext';
 

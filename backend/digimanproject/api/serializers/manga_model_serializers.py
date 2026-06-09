@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, List
 from rest_framework import serializers
 from ..models.manga_models import MangaTitle, Chapter, Page, Genre, Author, Comment
+from ..services.system_service import FlaggedContentService
 from datetime import datetime
 
 
@@ -146,6 +147,13 @@ class CommentSerializer(serializers.ModelSerializer):
         allow_null=True,
         write_only=True,
     )
+    parent_comment = serializers.PrimaryKeyRelatedField(
+        queryset=Comment.objects.all(),
+        required=False,
+        allow_null=True,
+        write_only=True,
+    )
+    hidden_reasons = serializers.SerializerMethodField()
     
     class Meta:
         model = Comment
@@ -167,6 +175,7 @@ class CommentSerializer(serializers.ModelSerializer):
             "owner_avatar",
             "manga_title", 
             "chapter",
+            "parent_comment",
         ]
     
     def get_owner_name(self, obj: Comment) -> str:
@@ -179,4 +188,37 @@ class CommentSerializer(serializers.ModelSerializer):
         # Ensure `attached_image_url` is included in validated data even if it's an empty string
         if "attached_image_url" in self.initial_data:
             attrs["attached_image_url"] = self.initial_data.get("attached_image_url", None)
+
+        parent_comment = attrs.get("parent_comment")
+        if parent_comment is None and self.instance is not None:
+            parent_comment = self.instance.parent_comment
+
+        # Validate reply thread context: reply must target the same manga/chapter as its parent.
+        if parent_comment is not None:
+            if self.instance is not None and parent_comment.id == self.instance.id:
+                raise serializers.ValidationError({
+                    "parent_comment": "A comment cannot reply to itself."
+                })
+
+            effective_manga = attrs.get("manga_title")
+            if effective_manga is None and self.instance is not None:
+                effective_manga = self.instance.manga_title
+
+            effective_chapter = attrs.get("chapter")
+            if effective_chapter is None and self.instance is not None:
+                effective_chapter = self.instance.chapter
+
+            if effective_manga != parent_comment.manga_title or effective_chapter != parent_comment.chapter:
+                raise serializers.ValidationError({
+                    "parent_comment": (
+                        "Reply must belong to the same manga/chapter as its parent comment."
+                    )
+                })
+
         return super().validate(attrs)
+    
+    def get_hidden_reasons(self, obj: Comment) -> List[str]:
+        if obj.get_hidden_reasons():
+            return [obj.get_hidden_reasons()]
+        return FlaggedContentService.get_flagged_reasons_by_target_object(
+            "comment", obj.id)

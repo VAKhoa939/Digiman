@@ -4,10 +4,12 @@ from django.db import transaction
 from ..models.user_models import User, Reader, Administrator
 from ..models.manga_models import Comment
 from ..models.system_models import LogEntry, FlaggedContent, ModerationThreshold, LogEntryTargetObjectType
-
+from ..models.common_choice_classes import ModerationStatusChoices
 from ..utils.helper_functions import cast_user_to_subclass
 
-from typing import Any, Dict, Optional, Tuple
+from uuid import UUID
+
+from typing import Any, Dict, List, Optional, Tuple
 
 TypesInModeration = (
     User, Reader, Administrator, Comment
@@ -89,19 +91,18 @@ class LogEntryService:
         ):
             target_object = target_object.get_target_object()
 
+        moderation_status = ModerationStatusChoices.SAFE
         if (
             action_type in {
                 LogEntry.ActionTypeChoices.CREATE, 
                 LogEntry.ActionTypeChoices.UPDATE,
             }
             and isinstance(target_object, TypesInModeration)
+            and target_object.moderation_status == ModerationStatusChoices.PENDING
         ):
             details = LogEntryDetailFactory.get_moderation_detail(target_object)
+            moderation_status = ModerationStatusChoices.PENDING
 
-        moderation_status = (
-            LogEntry.ModerationStatusChoices.PENDING if details 
-            else LogEntry.ModerationStatusChoices.SAFE
-        )
         return LogEntry.objects.create(
             user=user,
             action_type=action_type,
@@ -132,6 +133,46 @@ class LogEntryService:
     def log_logout(user: User):
         LogEntryService.create_log_entry(user, LogEntry.ActionTypeChoices.LOGOUT, user)
 
+    @staticmethod
+    @transaction.atomic
+    def resolve_old_entries(target_object_type: str, target_object_id: UUID) -> int:
+        old_entries = LogEntry.objects.filter(
+            target_object_type=target_object_type,
+            target_object_id=target_object_id,
+            moderation_status__in=[
+                ModerationStatusChoices.PROCESSING, 
+                ModerationStatusChoices.PENDING,
+                ModerationStatusChoices.FLAGGED,
+                ModerationStatusChoices.BANNED
+            ],
+        )
+        old_entries.update(moderation_status=ModerationStatusChoices.SAFE)
+        return old_entries.count()
+
+    @staticmethod
+    @transaction.atomic
+    def resolve_old_entries_and_flags(
+            target_object_type: str, 
+            target_object_id: UUID,
+            content_attribute_names: List[str]
+        ) -> None:
+        try:
+            entry_count = LogEntryService.resolve_old_entries(
+                target_object_type, 
+                target_object_id
+            )
+            flag_count = 0
+            for content_attribute_name in content_attribute_names:
+                resolve_count = FlaggedContentService.resolve_old_flags(
+                    target_object_type, 
+                    target_object_id,
+                    content_attribute_name
+                )
+                flag_count += resolve_count
+            print(f"Resolved {entry_count} old entries and {flag_count} old flags.")
+            
+        except Exception as e:
+            print("Error resolving old entries and flags:", str(e))
 
 class FlaggedContentService:
     @staticmethod
@@ -173,7 +214,7 @@ class FlaggedContentService:
     
     @staticmethod
     @transaction.atomic
-    def resolve_flag(flag: FlaggedContent, action_type: LogEntry.ActionTypeChoices) -> None:
+    def resolve_flag(flag: FlaggedContent, action_type: LogEntry.ActionTypeChoices = LogEntry.ActionTypeChoices.RESOLVE_FLAG) -> None:
         flag.resolve()
         LogEntryService.create_log_entry(None, action_type, flag)
 
@@ -182,7 +223,7 @@ class FlaggedContentService:
         target_object_type: LogEntry.TargetObjectTypeChoices,
         target_object_id: uuid.UUID,
         content_name: str
-    ) -> None:
+    ) -> int:
         """
         Resolves all old flags for a specific target object's content.
         """
@@ -193,15 +234,47 @@ class FlaggedContentService:
             is_resolved=False
         )
         if not old_flags.exists():
-            return
+            return 0
         for flag in old_flags:
             FlaggedContentService.resolve_flag(flag, LogEntry.ActionTypeChoices.AUTO_RESOLVE_FLAG)
+
+        return old_flags.count()
     
     @staticmethod
     def get_flagged_content_index(flagged_content: FlaggedContent) -> int:
         return FlaggedContent.objects.filter(
             flagged_at__lte=flagged_content.flagged_at
         ).count()
+    
+    @staticmethod
+    def get_flagged_contents_by_target_object(
+        target_object_type: str,
+        target_object_id: uuid.UUID
+    ):
+        try:
+            return FlaggedContent.objects.filter(
+                target_object_type=target_object_type,
+                target_object_id=target_object_id
+            )
+        except Exception as e:
+            print(str(e))
+            raise
+    
+    @staticmethod
+    def get_flagged_reasons_by_target_object(
+        target_object_type: str,
+        target_object_id: uuid.UUID
+    ) -> List[str]:
+        try:
+            flagged_contents = FlaggedContentService.get_flagged_contents_by_target_object(target_object_type, target_object_id)
+        except:         
+            return []
+        flagged_contents = flagged_contents.filter(is_resolved=False)
+        reasons = []
+        for flagged_content in flagged_contents:
+            reasons.append(flagged_content.reason)
+        
+        return reasons
 
 
 class ModerationThresholdService:

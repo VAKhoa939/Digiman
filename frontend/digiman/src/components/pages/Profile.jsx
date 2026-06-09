@@ -11,11 +11,11 @@ export default function Profile() {
   const u = user || {
     id: '—',
     username: 'anonymous',
-    display_name: 'Anonymous User',
+    displayName: 'Anonymous User',
     role: 'reader',
   };
 
-  const avatarLetter = u.display_name ? u.display_name.charAt(0).toUpperCase() : (u.username ? u.username.charAt(0).toUpperCase() : 'U');
+  const avatarLetter = u.displayName ? u.displayName.charAt(0).toUpperCase() : (u.username ? u.username.charAt(0).toUpperCase() : 'U');
 
   const avatarStyle = {
     width: 96,
@@ -47,7 +47,7 @@ export default function Profile() {
               )}
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ fontSize: 20, fontWeight: 700 }}>{u.display_name || u.username}</div>
+                <div style={{ fontSize: 20, fontWeight: 700 }}>{u.displayName || u.display_name || u.username}</div>
                 <div style={{ color: 'var(--app-muted)' }}>@{u.username}</div>
               </div>
 

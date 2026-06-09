@@ -1,12 +1,13 @@
 from __future__ import annotations
-from typing import Any, Optional
+from typing import Any
 from datetime import datetime
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 
 import uuid
-from ..utils.helper_functions import update_instance
+from .common_choice_classes import ModerationStatusChoices
+from ..utils.helper_functions import update_instance, remove_unchanged_and_denied_fields
 
 from typing import TYPE_CHECKING
 
@@ -27,14 +28,6 @@ class User(AbstractUser):
         SUSPENDED = "suspended", "Suspended"
         DEACTIVATED = "deactivated", "Deactivated"
         DELETED = "deleted", "Deleted"
-
-    class ModerationStatusChoices(models.TextChoices):
-        PENDING = "pending", "Pending"
-        PROCESSING = "processing", "Processing"
-        SAFE = "safe", "Safe"
-        FLAGGED = "flagged", "Flagged"
-        BANNED = "banned", "Banned"
-        FAILED = "failed", "Failed"
     
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
@@ -87,7 +80,7 @@ class User(AbstractUser):
         self.status = User.StatusChoices.DELETED
         self.save(update_fields=["status"])
 
-    def update_metadata(self, **metadata: Any) -> None:
+    def update_metadata(self, **metadata: Any) -> bool:
         """Allowed fields: username, email, password, status, moderation_status, last_moderated_at"""
         allowed_fields = {
             "username", 
@@ -101,8 +94,14 @@ class User(AbstractUser):
         # set moderation_status to PENDING
         # if any content field (username) is updated
         if "username" in metadata:
-            metadata["moderation_status"] = User.ModerationStatusChoices.PENDING
-        update_instance(self, allowed_fields, **metadata)
+            # do not remove unchanged and denied fields
+            # if moderation_status is FAILED
+            # allowing to retry the update
+            if not self.moderation_status == ModerationStatusChoices.FAILED:
+                metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
+            metadata["moderation_status"] = ModerationStatusChoices.PENDING
+
+        return update_instance(self, **metadata)
 
     def set_moderation_status(self, status: str) -> None:
         """
@@ -111,9 +110,9 @@ class User(AbstractUser):
         Otherwise, only set moderation_status.
         """
         if status in {
-            User.ModerationStatusChoices.SAFE,
-            User.ModerationStatusChoices.FLAGGED,
-            User.ModerationStatusChoices.BANNED,
+            ModerationStatusChoices.SAFE,
+            ModerationStatusChoices.FLAGGED,
+            ModerationStatusChoices.BANNED,
         }:
             self.update_metadata(
                 moderation_status=status,
@@ -122,6 +121,12 @@ class User(AbstractUser):
             return
         self.moderation_status = status
         self.save(update_fields=["moderation_status"])
+    
+    def set_moderation_failed_attempt(self, retry_count: int) -> None:
+        if retry_count >= 2:
+            self.set_moderation_status(ModerationStatusChoices.FAILED)
+        else:
+            self.set_moderation_status(ModerationStatusChoices.PENDING)
 
 
 class Reader(User):
@@ -141,7 +146,7 @@ class Reader(User):
     def get_avatar(self):
         return self.avatar if self.avatar != "" else super().get_avatar()
 
-    def update_metadata(self, **metadata: Any) -> None:
+    def update_metadata(self, **metadata: Any) -> bool:
         """Allowed fields: username, email, password, status, moderation_status, last_moderated_at, display_name, avatar"""
         allowed_fields = {
             "username", 
@@ -153,40 +158,18 @@ class Reader(User):
             "display_name", 
             "avatar", 
         }
-
         # set moderation_status to PENDING
         # if any content field (username, display_name, avatar) is updated
         content_fields = {"username", "display_name", "avatar"}
         if any(field in content_fields for field in metadata.keys()):
-            metadata["moderation_status"] = Reader.ModerationStatusChoices.PENDING
+            # do not remove unchanged and denied fields
+            # if moderation_status is FAILED
+            # allowing to retry the update
+            if not self.moderation_status == ModerationStatusChoices.FAILED:
+                metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
+            metadata["moderation_status"] = ModerationStatusChoices.PENDING
             
-        update_instance(self, allowed_fields, **metadata)
-
-    """ Comment Management """
-    def post_comment(
-        self, text: Optional[str] = None,
-        attached_image_url: Optional[str] = None,
-        parent_comment: Optional["Comment"] = None, 
-        manga_title: Optional["MangaTitle"] = None, 
-        chapter: Optional["Chapter"] = None
-    ) -> "Comment":
-        from .manga_models import Comment
-        
-        return Comment.objects.create(
-            owner=self, text=text, attached_image_url=attached_image_url,
-            parent_comment=parent_comment, 
-            manga_title=manga_title, chapter=chapter
-        )
-
-    def update_comment(
-        self, comment: "Comment", 
-        text: Optional[str] = None,
-        attached_image_url: Optional[str] = None,
-    ) -> None:
-        comment.update_metadata(text=text, attached_image_url=attached_image_url)
-
-    def delete_comment(self, comment: "Comment") -> None:
-        comment.set_deleted()
+        return update_instance(self, **metadata)
     
     """ Subscription Management """
     def get_subscription(self) -> "ReaderSubscription":
@@ -201,21 +184,6 @@ class Reader(User):
         subscription = self.get_subscription()
         return (subscription.is_active()
             and subscription.has_access(feature))
-
-    """ Report Management """
-    def post_report(
-        self, content: str, target_content_type: str, 
-        target_content_id: uuid.UUID
-    ) -> "Report":
-        from .system_models import Report
-        
-        if target_content_type not in Report.TargetContentTypeChoices.values():
-            raise ValueError(f"Invalid target content type: {target_content_type}")
-        return Report.objects.create(
-            owner=self, content=content, 
-            target_content_type=target_content_type, 
-            target_content_id=target_content_id
-        )
 
 
 class Administrator(Reader):

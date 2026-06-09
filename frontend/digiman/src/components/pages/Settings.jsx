@@ -20,7 +20,7 @@ export default function Settings() {
   useEffect(() => {
     // populate from auth user when available
     if (user) {
-      setDisplayName(user.display_name || user.name || user.username || '');
+      setDisplayName(user.displayName || user.display_name || user.name || user.username || '');
       setEmailUsername(user.email || '');
     }
 

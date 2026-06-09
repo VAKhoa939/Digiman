@@ -75,10 +75,11 @@ class MangaReaderStatisticsViewSet(viewsets.ModelViewSet):
             )
         try:
             stats = ReaderStatisticsService.mark_visited(request.user.id, manga_title_id)
-        except Exception:
+        except Exception as e:
+            print(e)
             return Response(
-                {"detail": "Manga title not found."},
-                status=status.HTTP_404_NOT_FOUND,
+                {"detail": "An error occurred in mark_visited."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         return Response(self.get_serializer(stats).data)
 

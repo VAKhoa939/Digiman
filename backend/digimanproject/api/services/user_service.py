@@ -1,7 +1,11 @@
 from django.db import transaction
-from ..models.user_models import User, Reader, Administrator, RoleChoices
-from ..services.image_service import ImageService, BucketNames
 from rest_framework.request import Request
+
+from ..models.user_models import User, Reader, Administrator, RoleChoices
+from ..models.common_choice_classes import ModerationStatusChoices
+from ..services.image_service import ImageService, BucketNames
+from .system_service import LogEntryService
+from ..tasks import enqueue_moderation_task
 
 from typing import Union
 
@@ -14,7 +18,6 @@ class UserService:
     """
 
     @staticmethod
-    @transaction.atomic
     def create_user(data: dict, avatar_file=None) -> UserType:
         """
         Create a Reader or Administrator instance depending on role 
@@ -32,24 +35,33 @@ class UserService:
         if avatar_url:
             data["avatar"] = avatar_url
 
-        # Role-based user creation
-        if role == RoleChoices.READER:
-            user = Reader.objects.create(**data)
-        elif role == RoleChoices.ADMIN:
-            # Set admin-specific fields, allowing full access
-            data["is_superuser"] = True
-            data["is_staff"] = True
-            user = Administrator.objects.create(**data)
-        else:
-            raise ValueError(f"Invalid role: {role}")
+        # Add moderation status to data
+        data["moderation_status"] = ModerationStatusChoices.PENDING
 
-        # Encrypt password
-        user.update_password(data["password"])
+        # Create user and log entry in a single transaction
+        with transaction.atomic():
+            # Role-based user creation
+            if role == RoleChoices.READER:
+                user = Reader.objects.create(**data)
+            elif role == RoleChoices.ADMIN:
+                # Set admin-specific fields, allowing full access
+                data["is_superuser"] = True
+                data["is_staff"] = True
+                user = Administrator.objects.create(**data)
+            else:
+                raise ValueError(f"Invalid role: {role}")
+
+            # Encrypt password
+            user.update_password(data["password"])
+
+            entry = LogEntryService.log_object_save(user, True)
+
+            # Run moderation pipeline after transaction
+            transaction.on_commit(lambda: enqueue_moderation_task(entry.id))
 
         return user
 
     @staticmethod
-    @transaction.atomic
     def update_user(user: UserType, data: dict, avatar_file=None) -> UserType:
         """
         Update a user instance, optionally replacing avatar (and deleting old one).
@@ -72,8 +84,19 @@ class UserService:
         if new_password:    
             user.update_password(new_password)
 
-        # Update other fields
-        user.update_metadata(**data)
+        # Update other user fields and create log entry in a single transaction
+        with transaction.atomic():
+            updated = user.update_metadata(**data)
+            print("is updated: ", updated)
+            if not updated:
+                return user   # Nothing to update
+
+            if getattr(user, "_action_user", None) is None:
+                user._action_user = user
+            entry = LogEntryService.log_object_save(user, False)
+
+            # Run moderation pipeline after transaction
+            transaction.on_commit(lambda: enqueue_moderation_task(entry.id))
         return user
 
     @staticmethod

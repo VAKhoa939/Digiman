@@ -6,7 +6,8 @@ from django.utils import timezone
 from django.contrib import admin
 
 import uuid
-from ..utils.helper_functions import update_instance, update_instance, cast_user_to_subclass
+from .common_choice_classes import ModerationStatusChoices
+from ..utils.helper_functions import update_instance, remove_unchanged_and_denied_fields, cast_user_to_subclass
 
 from typing import TYPE_CHECKING
 
@@ -153,7 +154,7 @@ class MangaTitle(models.Model):
         chapters: models.Manager["Chapter"] = self.chapters
         return chapters.order_by("chapter_number").filter(chapter_number__gt=chapter.chapter_number).first()
 
-    def update_metadata(self, **metadata: Any) -> None:
+    def update_metadata(self, **metadata: Any) -> bool:
         """allowed_fields: title, alternative_title, author, description, 
         cover_image, publication_status, is_visible, is_premium,
         first_free_chapter_amount, last_free_chapter_amount"""
@@ -170,7 +171,8 @@ class MangaTitle(models.Model):
             "first_free_chapter_amount",
             "last_free_chapter_amount",
         }
-        update_instance(self, allowed_fields, **metadata)
+        metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
+        return update_instance(self, **metadata)
 
     def add_genre(self, genre: "Genre") -> None:
         self.genres.add(genre)
@@ -258,10 +260,11 @@ class Chapter(models.Model):
         comments: models.Manager["Comment"] = self.comments
         return comments.all()
     
-    def update_metadata(self, **metadata: Any) -> None:
+    def update_metadata(self, **metadata: Any) -> bool:
         """allowed_fields: title, chapter_number"""
         allowed_fields = {"title", "chapter_number"}
-        update_instance(self, allowed_fields, **metadata)
+        metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
+        return update_instance(self, **metadata)
 
     def get_last_page_number(self) -> int:
         pages: models.Manager["Page"] = self.pages
@@ -299,10 +302,11 @@ class Page(models.Model):
     def get_chapter(self) -> "Chapter":
         return self.chapter
     
-    def update_metadata(self, **metadata: Any) -> None:
+    def update_metadata(self, **metadata: Any) -> bool:
         """allowed_fields: page_number, image_url"""
         allowed_fields = {"page_number", "image_url"}
-        update_instance(self, allowed_fields, **metadata)
+        metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
+        return update_instance(self, **metadata)
 
 
 class Comment(models.Model):
@@ -310,14 +314,6 @@ class Comment(models.Model):
         ACTIVE = "active", "Active"
         DELETED = "deleted", "Deleted"
         HIDDEN = "hidden", "Hidden"
-
-    class ModerationStatusChoices(models.TextChoices):
-        PENDING = "pending", "Pending"
-        PROCESSING = "processing", "Processing"
-        SAFE = "safe", "Safe"
-        FLAGGED = "flagged", "Flagged"
-        BANNED = "banned", "Banned"
-        FAILED = "failed", "Failed"
 
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
@@ -369,15 +365,22 @@ class Comment(models.Model):
                 if self.owner else "")
     
     def get_comment_index(self) -> int:
-        if self.moderation_status != Comment.ModerationStatusChoices.SAFE:
+        if self.moderation_status != ModerationStatusChoices.SAFE:
             return 0
         if self.manga_title:
-            comments = self.manga_title.get_comments().order_by("created_at")
+            comments = (self.manga_title.get_comments()
+                        .filter(moderation_status=ModerationStatusChoices.SAFE)
+                        .order_by("created_at"))
         elif self.chapter:
-            comments = self.chapter.get_comments().order_by("created_at")
+            comments = (self.chapter.get_comments()
+                        .filter(moderation_status=ModerationStatusChoices.SAFE)
+                        .order_by("created_at"))
         else:
             return 0
         return comments.filter(created_at__lte=self.created_at).count()
+    
+    def get_hidden_reasons(self) -> str:
+        return self.hidden_reasons
 
     def toggle_hidden(self, hidden_reasons: str = "") -> None:
         self.status = (
@@ -392,7 +395,7 @@ class Comment(models.Model):
         self.status = Comment.StatusChoices.DELETED
         self.save(update_fields=["status"])
 
-    def update_metadata(self, **metadata: Any) -> None:
+    def update_metadata(self, **metadata: Any) -> bool:
         """
         Allowed fields: text, attached_image_url, status, hidden_reasons, moderation_status, last_moderated_at
         
@@ -411,16 +414,35 @@ class Comment(models.Model):
         # if any content field (text or attached_image_url) is updated
         content_fields = {"text", "attached_image_url"}
         if any(field in content_fields for field in metadata.keys()):
+            # do not remove unchanged and denied fields
+            # if moderation_status is FAILED
+            # allowing to retry the update
+            if not self.moderation_status == ModerationStatusChoices.FAILED:
+                metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
             if not self.is_edited:
                 metadata["is_edited"] = True
                 allowed_fields.add("is_edited")
-            metadata["moderation_status"] = Comment.ModerationStatusChoices.PENDING
+            metadata["moderation_status"] = ModerationStatusChoices.PENDING
             
-        update_instance(self, allowed_fields, **metadata)
+        return update_instance(self, **metadata)
 
     def set_moderation_status(self, status: str) -> None:
-        self.update_metadata(
-            moderation_status=status,
-            last_moderated_at=timezone.now(),
-        )
+        if status in {
+            ModerationStatusChoices.SAFE,
+            ModerationStatusChoices.FLAGGED,
+            ModerationStatusChoices.BANNED,
+        }:
+            self.update_metadata(
+                moderation_status=status,
+                last_moderated_at=timezone.now(),
+            )
+            return
+        self.moderation_status = status
+        self.save(update_fields=["moderation_status"])
+    
+    def set_moderation_failed_attempt(self, retry_count: int) -> None:
+        if retry_count >= 2:
+            self.set_moderation_status(ModerationStatusChoices.FAILED)
+        else:
+            self.set_moderation_status(ModerationStatusChoices.PENDING)
         

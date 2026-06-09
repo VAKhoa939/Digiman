@@ -4,7 +4,9 @@ from datetime import datetime
 from django.db import models
 from django.utils import timezone
 import uuid
-from ..utils.helper_functions import get_target_object, update_instance, cast_user_to_subclass
+
+from .common_choice_classes import ModerationStatusChoices
+from ..utils.helper_functions import get_target_object, update_instance, cast_user_to_subclass, remove_unchanged_and_denied_fields
 from django.contrib import admin
 
 from typing import TYPE_CHECKING
@@ -104,7 +106,7 @@ class FlaggedContent(models.Model):
         READER = "reader", "Reader"
         ADMINISTRATOR = "administrator", "Administrator"
 
-    class ModerationStatusChoices(models.TextChoices):
+    class FlagStatusChoices(models.TextChoices):
         FLAGGED = "flagged", "Flagged"
         BANNED = "banned", "Banned"
     
@@ -115,10 +117,10 @@ class FlaggedContent(models.Model):
     reason: str = models.TextField()
     details: dict[str, Any] = models.JSONField(null=False, default=dict)
 
-    moderation_status: str = models.CharField(
+    flag_status: str = models.CharField(
         max_length=20,
-        choices=ModerationStatusChoices.choices,
-        default=ModerationStatusChoices.FLAGGED
+        choices=FlagStatusChoices.choices,
+        default=FlagStatusChoices.FLAGGED
     )
     flagged_at: datetime = models.DateTimeField(default=timezone.now)
     is_resolved: bool = models.BooleanField(default=False)
@@ -140,6 +142,9 @@ class FlaggedContent(models.Model):
         from ..services.system_service import FlaggedContentService
         index = FlaggedContentService.get_flagged_content_index(self)
         return f"Flagged Content #{index} on {self.target_object_type}'s {self.content_name}"
+    
+    def get_reason(self) -> str:
+        return self.reason
     
     def get_target_object(self) -> Optional[FlaggedContentTargetObjectType]:
         from .manga_models import Comment
@@ -197,12 +202,13 @@ class ModerationThreshold(models.Model):
         self.updated_at = timezone.now()
         super(ModerationThreshold, self).save(*args, **kwargs)
 
-    def update_metadata(self, **metadata: Any) -> None:
+    def update_metadata(self, **metadata: Any) -> bool:
         """Allowed fields: flag_threshold, ban_threshold, is_active"""
         allowed_fields = [
             "flag_threshold", "ban_threshold", "is_active"
         ]
-        update_instance(self, allowed_fields, **metadata)
+        metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
+        return update_instance(self, **metadata)
 
 
 class LogEntry(models.Model):
@@ -230,14 +236,6 @@ class LogEntry(models.Model):
         PENALTY = "penalty", "Penalty"
         MODERATION_THRESHOLD = "moderationthreshold", "ModerationThreshold"
 
-    class ModerationStatusChoices(models.TextChoices):
-        PENDING = "pending", "Pending"
-        PROCESSING = "processing", "Processing"
-        SAFE = "safe", "Safe"
-        FLAGGED = "flagged", "Flagged"
-        BANNED = "banned", "Banned"
-        FAILED = "failed", "Failed"
-
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     user: Optional["User"] = models.ForeignKey(
@@ -256,6 +254,8 @@ class LogEntry(models.Model):
     )
     retry_count: int = models.PositiveSmallIntegerField(default=0)
     last_error: str = models.TextField(null=True, blank=True)
+    moderation_started_at: datetime = models.DateTimeField(null=True, blank=True)
+    moderation_finished_at: datetime = models.DateTimeField(null=True, blank=True)
 
     target_object_type: str = models.CharField(choices=TargetObjectTypeChoices.choices)
     target_object_id: uuid.UUID = models.UUIDField()
@@ -305,22 +305,48 @@ class LogEntry(models.Model):
         }
         return get_target_object(self.target_object_id, self.target_object_type, mapping)
 
-    def set_moderation_status(self, status: str) -> None:
-        self.moderation_status = status
-        self.save(update_fields=["moderation_status"])
-
-    def update_metadata(self, **metadata: Any) -> None:
-        """Allowed fields: moderation_status, retry_count, last_error"""
+    def update_metadata(self, **metadata: Any) -> bool:
+        """Allowed fields: moderation_status, retry_count, last_error, moderation_started_at, moderation_finished_at"""
         allowed_fields = [
             "moderation_status", 
             "retry_count", 
-            "last_error"
+            "last_error",
+            "moderation_started_at",
+            "moderation_finished_at",
         ]
-        update_instance(self, allowed_fields, **metadata)
+        metadata = remove_unchanged_and_denied_fields(self, allowed_fields, **metadata)
+        return update_instance(self, **metadata)
+
+    def set_moderation_status(self, status: str) -> None:
+        if not self.moderation_started_at and status == ModerationStatusChoices.PROCESSING:
+            self.update_metadata(
+                moderation_started_at=timezone.now(),
+                moderation_status=status
+            )
+            return
+        if status in {
+            ModerationStatusChoices.SAFE,
+            ModerationStatusChoices.FLAGGED,
+            ModerationStatusChoices.BANNED,
+        }:
+            self.update_metadata(
+                moderation_status=status,
+                moderation_finished_at=timezone.now(),
+            )
+            return
+        self.moderation_status = status
+        self.save(update_fields=["moderation_status"])
 
     def set_failed_moderation_attempt(self, last_error: str) -> None:
-        self.update_metadata(
-            moderation_status=self.ModerationStatusChoices.FAILED,
-            retry_count=self.retry_count + 1,
-            last_error=last_error
-        )
+        if self.retry_count >= 2:
+            self.update_metadata(
+                moderation_status=ModerationStatusChoices.FAILED,
+                retry_count=3,
+                last_error=last_error
+            )
+        else:
+            self.update_metadata(
+                moderation_status=ModerationStatusChoices.PENDING,
+                retry_count=self.retry_count + 1,
+                last_error=last_error
+            )
