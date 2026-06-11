@@ -131,6 +131,17 @@ a { color: #FFCB3D; }
   box-shadow: 0 6px 18px rgba(0,0,0,0.12);
   min-width: 180px;
 }
+.navbar-nav {
+  overflow: visible;
+}
+.navbar-nav .nav-item.dropdown,
+.navbar-nav .dropdown {
+  position: relative;
+}
+.navbar-nav .dropdown-menu {
+  position: absolute !important; 
+  z-index: 1200;
+}
 .dropdown-menu .dropdown-item {
   color: var(--app-fg) !important;
 }

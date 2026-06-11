@@ -54,26 +54,23 @@ function NavBar() {
           </button>
 
           <div className="collapse navbar-collapse" id="navbarColor02">
-            <ul className="navbar-nav ms-auto align-items-center">
-                <div className="d-flex align-items-center me-2">
-                <SearchBar />
-                <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Advanced search" onClick={() => navigate('/search/advanced')}>
-                  <FilterListIcon />
-                </button>
-                {isAuthenticated && <>
-                  <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Pricing" onClick={() => navigate('/pricing')}>
-                  Pricing
-                  </button>
-                  <button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Downloads" onClick={() => navigate('/downloads')}>
-                    <CloudDownloadIcon />
-                  </button>
-                </>}
-                <ThemeToggle />
-              </div>
+            <ul className="navbar-nav ms-auto align-items-center d-flex flex-row flex-wrap justify-content-center gap-2">
+              <li><SearchBar /></li>
+              <li><button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Advanced search" onClick={() => navigate('/search/advanced')}>
+                <FilterListIcon />
+              </button></li>
+              {isAuthenticated && <>
+                <li><button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Pricing" onClick={() => navigate('/pricing')}>
+                Pricing
+                </button></li>
+                <li><button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Downloads" onClick={() => navigate('/downloads')}>
+                  <CloudDownloadIcon />
+                </button></li>
+              </>}
+              <li><ThemeToggle /></li>
 
               {/* If authenticated, show profile and logout; otherwise show Login/Register */}
               {isAuthenticated ? (
-                <>
                 <li className="nav-item dropdown">
                   <a
                     className={`nav-link dropdown-toggle d-flex align-items-center ${linkTextClass}`}
@@ -101,24 +98,20 @@ function NavBar() {
                       <button className="dropdown-item" onClick={() => navigate('/profile')}>Profile</button>
                     </li>
                     <li>
-                      <button className="dropdown-item" onClick={() => navigate('/library')}>Library</button>
-                    </li>
-                    <li>
                       <button className="dropdown-item" onClick={() => navigate('/history')}>Reading History</button>
                     </li>
                     <li>
-                      <button className="dropdown-item" onClick={() => navigate('/settings')}>Settings</button>
+                      <button className="dropdown-item" onClick={() => navigate('/subscription/status')}>Subscription Status</button>
                     </li>
                     <li>
-                      <button className="dropdown-item" onClick={() => navigate('/subscription/status')}>Subscription Status</button>
+                      <button className="dropdown-item" onClick={() => navigate('/settings')}>Settings</button>
                     </li>
                     {/* Admin link for users with administrative privileges */}
                     {(() => {
                       const isAdmin = Boolean(user && (
                         user.is_staff || user.is_superuser || user.is_admin ||
                         (user.role && String(user.role).toLowerCase() === 'admin') ||
-                        (Array.isArray(user.roles) && user.roles.includes('admin')) ||
-                        (Array.isArray(user.groups) && user.groups.includes('admin'))
+                        (Array.isArray(user.roles) && user.roles.includes('admin'))
                       ));
                       return isAdmin ? (
                         <li>
@@ -136,7 +129,6 @@ function NavBar() {
                     </li>
                   </ul>
                 </li>
-                </>
               ) : (
                 <li className="nav-item dropdown">
                   <a
