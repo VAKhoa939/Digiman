@@ -102,8 +102,8 @@ export default function ReadingHistory() {
                 key={entry.id}
                 className="d-flex align-items-center gap-3 p-3 rounded"
                 style={{
-                  background: 'var(--app-surface, #111)',
-                  border: '1px solid var(--app-border, #222)',
+                  background: 'var(--app-bg, #111)',
+                  border: '1px solid var(--app-fg, #222)',
                 }}
               >
                 <Link to={entry.manga_title_id ? `/manga/${entry.manga_title_id}` : '#'}>
