@@ -6,21 +6,16 @@ import { useAuth } from '../../context/AuthContext';
 // username, id and role. Uses `useAuth()` to read user data fetched by the
 // `AuthProvider` (which calls `fetchUser()` on mount).
 export default function Profile() {
-  const { user, fetchUserLoading } = useAuth();
+  const { user, fetchUserLoading, subscription } = useAuth();
 
-  const u = user || {
-    id: '—',
-    username: 'anonymous',
-    displayName: 'Anonymous User',
-    role: 'reader',
-  };
-
-  const avatarLetter = u.displayName ? u.displayName.charAt(0).toUpperCase() : (u.username ? u.username.charAt(0).toUpperCase() : 'U');
+  const avatarLetter = user?.displayName ? user.displayName.charAt(0).toUpperCase() : (user?.username ? user.username.charAt(0).toUpperCase() : 'U');
 
   const avatarStyle = {
     width: 96,
     height: 96,
-    borderRadius: '50%',
+    minWidth: 96,
+    minHeight: 96,
+    borderRadius: 8,
     background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))',
     display: 'grid',
     placeItems: 'center',
@@ -30,36 +25,46 @@ export default function Profile() {
     boxShadow: '0 6px 18px rgba(0,0,0,0.2)'
   };
 
+  const details = [
+    { label: 'Email', value: user?.email || 'Not available' },
+    { label: 'Member since', value: user?.createdAt || 'Unknown' },
+    { label: 'Subscription', value: subscription?.planName || 'Free / no plan' },
+  ];
+
   return (
     <div className="profile-page">
       <div className="profile-header"></div>
-      <div className="profile-content" style={{ padding: '0 8px' }}>
+      <div className="profile-content" style={{ padding: '0 20px' }}>
         {fetchUserLoading ? (
           <div style={{ padding: 24 }}>Loading profile…</div>
         ) : (
           <>
-            <div className="profile-row" style={{ marginTop: -36, display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div className="profile-row" style={{ marginTop: -48, display: 'flex', alignItems: 'center', gap: 16 }}>
               {user.avatar ? (
-                <img src={user.avatar} className="me-3" style={{width:48, height:48, objectFit:'cover', borderRadius:8}} />
+                <img src={user.avatar} className="me-3" style={{width:96, height:96, minWidth:96, minHeight:96, objectFit:'cover', borderRadius:8}} />
               ) : (
                 <div style={avatarStyle} aria-hidden>{avatarLetter}</div>
 
               )}
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ fontSize: 20, fontWeight: 700 }}>{u.displayName || u.display_name || u.username}</div>
-                <div style={{ color: 'var(--app-muted)' }}>@{u.username}</div>
+                <div style={{ fontSize: 20, fontWeight: 700 }}>{user.displayName || user.username}</div>
+                <div style={{ color: 'var(--app-muted)' }}>@{user.username}</div>
               </div>
 
               <div style={{ marginLeft: 'auto', textAlign: 'right', color: 'var(--app-muted)' }}>
-                <div style={{ fontSize: 14 }}>ID: <strong style={{ color: 'var(--app-fg)' }}>{u.id}</strong></div>
-                <div style={{ fontSize: 14, marginTop: 6 }}>Role: <strong style={{ color: 'var(--app-fg)' }}>{u.role}</strong></div>
+                <div style={{ fontSize: 14 }}>ID: <strong style={{ color: 'var(--app-fg)' }}>{user.id}</strong></div>
+                <div style={{ fontSize: 14, marginTop: 6 }}>Role: <strong style={{ color: 'var(--app-fg)' }}>{user.role}</strong></div>
               </div>
             </div>
 
-            <div style={{ marginTop: 18 }}>
-              <h4>About</h4>
-              <p style={{ color: 'var(--app-primary)' }}>This profile shows data returned from the Auth context which is populated by the backend. Edit fields or upload avatar can be added later.</p>
+            <div className="profile-details-card" style={{ marginTop: 18 }}>
+              {details.map((item) => (
+                <div key={item.label} className="d-flex justify-content-between py-2 border-bottom">
+                  <strong>{item.label}</strong>
+                  <span>{item.value}</span>
+                </div>
+              ))}
             </div>
           </>
         )}
