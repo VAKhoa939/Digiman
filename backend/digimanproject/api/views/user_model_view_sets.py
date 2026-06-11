@@ -1,11 +1,9 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsetsstatus
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.request import Request
-from rest_framework.response import Response
 
-from ..models.user_models import User, Reader, Administrator, RoleChoices
+from ..models.user_models import User, Reader, Administrator
 from ..serializers.user_model_serializers import (
     UserSerializer, ReaderSerializer, AdministratorSerializer
 )
@@ -49,10 +47,6 @@ class BaseUserViewSet(viewsets.ModelViewSet):
         if isinstance(avatar_file, list):
             avatar_file = avatar_file[0]
 
-        # Add the action user to the validated data
-        data = serializer.validated_data
-        data["_action_user"] = request.user
-
         # Call service to handle creation logic
         user = UserService.create_user(serializer.validated_data, avatar_file)
         serializer.instance = user  # attach instance for response
@@ -64,7 +58,6 @@ class BaseUserViewSet(viewsets.ModelViewSet):
 
         # Add the action user to the object
         user = serializer.instance
-        user._action_user = request.user
 
         # Call service to handle creation logic
         updated_user = UserService.update_user(user, serializer.validated_data, avatar_file)
@@ -72,37 +65,7 @@ class BaseUserViewSet(viewsets.ModelViewSet):
         
     def perform_destroy(self, instance):
         raise PermissionDenied("Deleting users is not allowed.")
-
-    def destroy(self, request: Request, *args, **kwargs) -> Response:
-        """Custom destroy method to clear refresh token cookie on self-delete.
-        
-        Request data:
-        - headers: "Content-Type: application/json",
-        "Accept: application/json",
-        "Origin: ... (frontend url)",
-        "Referer: .../ (frontend url)",
-        "Authorization: Bearer ... (access token)"
-        - Cookie: "refresh_token=..."
-        
-        Response data:
-        - body: "detail"
-        """
-        instance = self.get_object()
-        is_self_deletion = request.user.pk == instance.pk
-
-        # Let DRF delete the user
-        self.perform_destroy(instance)
-
-        # Build response
-        response = Response(
-            {"detail": "User deleted."}, status=status.HTTP_204_NO_CONTENT)
-
-        # If self-delete, clear refresh cookie
-        if is_self_deletion:
-            response.delete_cookie("refresh_token")
-
-        return response
-
+    
 
 # ------------------- Specific ViewSets ------------------- #
 

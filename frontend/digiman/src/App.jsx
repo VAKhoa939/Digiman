@@ -15,7 +15,6 @@ import SubscriptionSuccess from './components/pages/SubscriptionSuccess'
 import PrivateRoute from './components/smallComponents/PrivateRoute'
 import Settings from './components/pages/Settings'
 import Profile from './components/pages/Profile'
-import Library from './components/pages/Library'
 import ReadingHistory from './components/pages/ReadingHistory';import { AuthProvider } from './context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Spinner from './components/smallComponents/Spinner';
@@ -113,7 +112,6 @@ function AppContent() {
           <Route path="/subscription/cancel" element={<div className="container py-4"><h1>Subscription canceled</h1><p>Your subscription was canceled or the checkout was closed.</p></div>} />
           <Route path="/subscription/status" element={<PrivateRoute><SubscriptionStatusPage /></PrivateRoute>} />
           <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
-          <Route path="/library" element={<PrivateRoute><Library /></PrivateRoute>} />
           <Route path="/history" element={<PrivateRoute><ReadingHistory /></PrivateRoute>} />
           <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
           <Route path="/login" element={<LoginModal onClose={onCloseModal} onSwitchToRegister={() => navigate('/register', { state: { background } })} />} />

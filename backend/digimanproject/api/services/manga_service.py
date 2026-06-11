@@ -172,6 +172,7 @@ class CommentService:
                 comment.id,
                 ["text", "attached_image_url"]
             )
+            LogEntryService.log_object_save(comment, False)
             return comment
         # If the status is not deleted and the status is changed, 
         # only the status and hidden_reasons should be updated
@@ -179,6 +180,7 @@ class CommentService:
             Comment.StatusChoices.HIDDEN, Comment.StatusChoices.ACTIVE
         }:
             comment.toggle_hidden(data.get("hidden_reasons"))
+            LogEntryService.log_object_save(comment, False)
             return comment
         
         # Validate data

@@ -66,6 +66,11 @@ class UserService:
         """
         Update a user instance, optionally replacing avatar (and deleting old one).
         """
+        status = data.get("status")
+        if status and status == User.StatusChoices.DELETED:
+            user.set_deleted()
+            LogEntryService.resolve_old_entries_and_flags(user.get_role(), user.get_id(), ["username", "display_name", "avatar"])
+            LogEntryService.log_object_save(user, False)
         bucket = BucketNames.USER_AVATARS
 
         # Replace avatar if a new one is provided
@@ -104,11 +109,23 @@ class UserService:
     def delete_user(user: UserType) -> None:
         """
         Delete a user instance, optionally deleting their avatar.
+
+        Action user must be an admin.
         """
+        if (getattr(user, "_action_user", None) is None 
+            or not User.objects.filter(pk=user._action_user.pk).exists()):
+            raise ValueError("Action user not found")
+        action_user = User.objects.get(pk=user._action_user.pk)
+        if not action_user.has_admin_access():
+            raise ValueError("Action user does not have admin access")
+        
+        # Delete avatar if it exists
         if user.avatar:
             ImageService.delete_image(user.avatar, BucketNames.USER_AVATARS)
-
+        
+        # Delete user and log deletion
         user.delete()
+        LogEntryService.log_object_delete(user)
 
     @staticmethod
     def get_user_model(role: str) -> UserType:
