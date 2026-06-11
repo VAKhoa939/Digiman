@@ -196,7 +196,7 @@ class FlaggedContentService:
             dominant_attribute=dominant_attribute,
             reason=reason,
             details=result,
-            moderation_status=moderation_status,
+            flag_status=moderation_status,
             content_name=content_name,
             content=content,
             is_content_image=is_image,
