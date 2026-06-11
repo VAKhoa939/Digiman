@@ -700,28 +700,26 @@ a { color: #FFCB3D; }
   transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
-:root[data-theme="dark"] .profile-page {
-  /* Human-hue pink (subtle peachy-pink) to stand out from the app background */
-  background: rgba(255,205,178,0.06); /* very pale peach/pink overlay */
-  border: 1px solid rgba(255,205,178,0.08);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
-}
-
-:root[data-theme="light"] .profile-page {
-  background: #ffc4c5; 
-  border: 1px solid rgba(255,180,150,0.12);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.04);
-}
-
 .profile-header {
   height: 140px;
   border-radius: 6px;
   background: linear-gradient(90deg, rgba(255,211,64,0.06), rgba(0,0,0,0.02));
 }
 
-.profile-content { box-sizing: border-box; }
+:root[data-theme="dark"] .profile-header {
+  /* Human-hue pink (subtle peachy-pink) to stand out from the app background */
+  background: rgba(255,205,178,0.06); /* very pale peach/pink overlay */
+  border: 1px solid rgba(255,205,178,0.08);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+}
 
-.profile-row { }
+:root[data-theme="light"] .profile-header {
+  background: #ffc4c5; 
+  border: 1px solid rgba(255,180,150,0.12);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+}
+
+.profile-content { box-sizing: border-box; }
 
 /* Catalog: visible action button that highlights with theme accent on hover */
 .manga-list {
