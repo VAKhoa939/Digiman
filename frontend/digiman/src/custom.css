@@ -43,7 +43,7 @@ button.btn-primary {
 
 /* Style the Digi part as white and man part as accent in the navbar brand */
 .brand-white { color: var(--app-fg); }
-.brand-yellow { color: var(--accent, #FFD400); }
+.brand-yellow { color: var(--accent, #E4B32C); }
 
 /* App-wide dark theme ------------------------------------------------------ */
 :root {
@@ -55,9 +55,9 @@ button.btn-primary {
 
 /* Theme variants: applied by setting `data-theme` on <html> or documentElement */
 :root[data-theme="dark"] {
-  --app-bg: #070708;
-  --app-fg: #E8EDF3;
-  --app-muted: #9AA3B2;
+  --app-bg: #000000;
+  --app-fg: #ffffff;
+  --app-muted: #8894a8;
   --card-bg: rgba(255,255,255,0.02);
   --accent: #FFCB3D;
   --accent-dark: #e6b233;
@@ -65,11 +65,11 @@ button.btn-primary {
 }
 
 :root[data-theme="light"] {
-  --app-bg: #FAFBFD;
-  --app-fg: #0B1220;
+  --app-bg: #FFFDF1;
+  --app-fg: #010101;
   --app-muted: #6B7280;
   --card-bg: #FFFFFF;
-  --accent: #FFD400;
+  --accent: #E4B32C;
   --accent-dark: #e6a800;
   --dropdown-bg: rgba(255,255,255,0.98);
 }
@@ -225,32 +225,84 @@ a { color: #FFCB3D; }
 
 /* Manga card used on catalog */
 .manga-card {
-  display: inline-block;
+  display: block;
   color: inherit;
+  text-decoration: none;
 }
 .manga-card .card {
+  height: 100%;
+  width: 100%;
   background: rgba(255,255,255,0.02);
   border: 1px solid rgba(255,255,255,0.04);
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 .manga-card .card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.5);
 }
-.manga-card .card-title {
+.manga-card-title {
   color: var(--app-fg);
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  line-height: 1.4;
+  min-height: 2.8em;
+}
+
+.manga-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: 0.5rem;
+}
+
+.manga-card-info {
+  flex: 1;
+}
+
+.manga-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.manga-rating {
+  color: var(--accent, #FFCB3D);
+  font-size: 0.85rem;
   font-weight: 600;
 }
-.bg-card { background: transparent; }
+.badge {
+  background-color: var(--app-fg);
+  color: var(--app-bg) !important;
+}
+/* Mobile */
+@media (max-width: 575px) {
+
+  .manga-card-title {
+    font-size: 0.85rem;
+  }
+
+  .manga-card-body {
+    padding: 0.5rem;
+  }
+
+  .manga-card-info .small:nth-child(1) {
+    display: none;
+  }
+}
 
 /* Responsive sizing for manga cards */
-@media (max-width: 575px) {
-  .manga-card .card { width: 140px !important; }
-  .manga-card img { height: 200px !important; }
-}
-@media (min-width: 576px) and (max-width: 991px) {
-  .manga-card .card { width: 170px !important; }
-  .manga-card img { height: 250px !important; }
+@media (max-width: 991px) {
+  .manga-card .card { width: 200px !important; min-width: 200px }
+  .manga-card img { height: 300px !important; min-height: 300px }
 }
 
 /* Default / large-screen card sizing to avoid oversized cards that overflow the page */
@@ -379,9 +431,9 @@ a { color: #FFCB3D; }
 :root[data-theme="dark"] .dm-hot-btn:focus,
 :root[data-theme="dark"] .dm-hot-btn:active,
 :root[data-theme="dark"] .dm-hot-btn.active {
-  background: #FFD400 !important;
+  background: #E4B32C !important;
   color: #000 !important;
-  border-color: #FFD400 !important;
+  border-color: #E4B32C !important;
 }
 :root[data-theme="dark"] .dm-hot-btn:hover svg,
 :root[data-theme="dark"] .dm-hot-btn:focus svg,
@@ -399,9 +451,9 @@ a { color: #FFCB3D; }
 :root[data-theme="light"] .dm-hot-btn:focus,
 :root[data-theme="light"] .dm-hot-btn:active,
 :root[data-theme="light"] .dm-hot-btn.active {
-  background: #e11d48 !important;
-  color: #fff !important;
-  border-color: #e11d48 !important;
+  background: #E4B32C !important;
+  color: #000 !important;
+  border-color: #E4B32C !important;
 }
 :root[data-theme="light"] .dm-hot-btn:hover svg,
 :root[data-theme="light"] .dm-hot-btn:focus svg,
@@ -458,17 +510,17 @@ a { color: #FFCB3D; }
   font-size: 2.25rem;
   font-weight: 700;
   letter-spacing: -0.5px;
-  color: #fff;
-  text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  color: var(--app-fg);
+  text-shadow: 2 2px 2px rgba(0,0,0,0.6);
 }
 .manga-page .manga-meta .badge {
   font-weight: 600;
 }
 .manga-page .manga-synopsis h5 {
-  color: #fff;
+  color: var(--app-fg);
 }
 .manga-page .chapter-list .list-group-item {
-  background: rgba(255,255,255,0.03);
+  background: var(--card-bg);
   border: 1px solid rgba(255,255,255,0.04);
 }
 
@@ -488,9 +540,9 @@ a { color: #FFCB3D; }
 
 /* Slightly adjust buttons inside download cards to fit dark theme */
 :root[data-theme="dark"] .bg-light .btn-warning {
-  background: #FFD400 !important;
+  background: #E4B32C !important;
   color: #000 !important;
-  border-color: #FFD400 !important;
+  border-color: #E4B32C !important;
 }
 :root[data-theme="dark"] .bg-light .btn-outline-danger {
   border-color: rgba(255,255,255,0.08) !important;
@@ -574,7 +626,7 @@ a { color: #FFCB3D; }
    marked with .outline. Uses theme accent with a sensible fallback. */
 .profile-container:focus-within,
 .profile-container.outline {
-  box-shadow: 0 0 0 4px var(--accent, #FFD400), 0 6px 18px rgba(0,0,0,0.45);
+  box-shadow: 0 0 0 4px var(--accent, #E4B32C), 0 6px 18px rgba(0,0,0,0.45);
   transform: translateY(-2px);
 }
 
@@ -645,8 +697,7 @@ a { color: #FFCB3D; }
 }
 
 :root[data-theme="light"] .profile-page {
-  /* Very light human-pink (peachy) background to contrast the page background */
-  background: #d5aae9; /* pale peach/pink */
+  background: #ffc4c5; 
   border: 1px solid rgba(255,180,150,0.12);
   box-shadow: 0 6px 18px rgba(0,0,0,0.04);
 }
@@ -662,6 +713,50 @@ a { color: #FFCB3D; }
 .profile-row { }
 
 /* Catalog: visible action button that highlights with theme accent on hover */
+.manga-list {
+  margin: 1.5rem 0;
+}
+
+.manga-list-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.manga-list-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--app-fg);
+}
+
+.manga-list-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.manga-list-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* Mobile */
+@media (max-width: 575px) {
+  .manga-list-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .manga-list-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .manga-list-grid {
+    justify-content: center;
+  }
+}
 .catalog-btn {
   background: transparent;
   color: var(--app-fg);
@@ -679,7 +774,7 @@ a { color: #FFCB3D; }
 
 /* Always-visible yellow outline variant for prominent CTAs */
 .catalog-btn.outline {
-  box-shadow: 0 0 0 4px var(--accent, #FFD400), 0 6px 18px rgba(0,0,0,0.12);
+  box-shadow: 0 0 0 4px var(--accent, #E4B32C), 0 6px 18px rgba(0,0,0,0.12);
 }
 .catalog-btn.outline:focus {
   outline: none;
@@ -709,8 +804,8 @@ a { color: #FFCB3D; }
 .reader-nav-btn.outline,
 .reader-nav-btn:focus-visible,
 .reader-nav-btn:focus {
-  box-shadow: 0 0 0 4px var(--accent, #FFD400), 0 8px 28px rgba(0,0,0,0.18);
-  border-color: var(--accent, #FFD400);
+  box-shadow: 0 0 0 4px var(--accent, #E4B32C), 0 8px 28px rgba(0,0,0,0.18);
+  border-color: var(--accent, #E4B32C);
   outline: none;
   z-index: 12;
   background-clip: padding-box;
@@ -729,7 +824,67 @@ a { color: #FFCB3D; }
     max-width: 180px;
   }
 }
+/* MangaPage styels */
+.tooltip-wrapper {
+  position: relative;
+  display: inline-block;
+}
 
+.tooltip-text {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+
+  background: rgba(0, 0, 0, 0.85);
+  color: white;
+
+  padding: 4px 8px;
+  border-radius: 4px;
+
+  white-space: nowrap;
+  font-size: 12px;
+
+  opacity: 0;
+  pointer-events: none;
+
+  transition: opacity 80ms ease-in;
+
+  z-index: 2500;
+}
+
+.tooltip-wrapper:hover .tooltip-text {
+  opacity: 1;
+}
+.manga-rating-display {
+  color: var(--accent);
+  font-size: 1rem;
+}
+.manga-rating-score {
+  font-size: 0.85rem;
+  color: var(--app-muted);
+}
+.rating-star {
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: var(--app-muted);
+  transition: color 80ms ease;
+  line-height: 1;
+}
+
+.rating-star.active {
+  color: var(--accent);
+}
+
+.manga-synopsis {
+  background: var(--surface);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.manga-synopsis p {
+  color: var(--text-muted);
+}
 /* PlanCard styles */
 .plan-card {
   border: 1px solid;
@@ -747,7 +902,7 @@ a { color: #FFCB3D; }
 .plan-card__badge {
   display: inline-block;
   padding: 4px 8px;
-  background-color: #FFD400;
+  background-color: #E4B32C;
   color: #666;
   font-weight: bold;
   border-radius: 4px;

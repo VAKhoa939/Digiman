@@ -34,7 +34,7 @@ function NavBar() {
   const linkTextClass = theme === 'dark' ? 'text-light' : 'text-dark'
   return (
     <>
-      <nav className={`navbar fixed-top navbar-expand-lg ${theme === 'dark' ? 'bg-dark navbar-dark' : 'bg-light navbar-light'}`} data-bs-theme={theme}>
+      <nav className={`navbar fixed-top navbar-expand-lg ${theme === 'dark' ? 'bg-dark navbar-dark' : 'bg-light navbar-light'}`} data-bs-theme={theme} style={{ borderBottom: '1px solid black' }}>
         <div className="container-fluid">
           <Link className="navbar-brand" to="/">
             <span style={{ color: brandPrimaryColor }}>Digi</span>
