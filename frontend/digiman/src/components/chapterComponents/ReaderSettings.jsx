@@ -41,7 +41,7 @@ export default function ReaderSettings({ show = false, settings = {}, onClose = 
 
   return (
     <div className="reader-settings-overlay" role="dialog" aria-modal="true">
-      <div ref={panelRef} className="reader-settings-panel bg-dark text-white p-4">
+      <div ref={panelRef} className="reader-settings-panel p-4">
         <div className="d-flex align-items-start justify-content-between mb-3">
           <h4 className="mb-0"><SettingsIcon fontSize="small" className="me-2" />Reader settings</h4>
           <button className="btn btn-sm btn-outline-light" onClick={onClose} aria-label="Close settings">✕</button>

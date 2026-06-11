@@ -606,6 +606,7 @@ a { color: #FFCB3D; }
 
 .chapter-reader-vertical img { max-width: 100%; }
 
+.reader-settings-panel { background: var(--app-bg); color: var(--app-fg);}
 /* Long-strip centering and max-width constraint
    Ensures individual pages in long_strip mode are horizontally centered
    and do not grow beyond a comfortable reading width on large screens.
