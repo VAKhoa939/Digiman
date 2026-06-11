@@ -41,6 +41,7 @@ export default function Comment({
 	const isDeleted = status === 'deleted';
 	const isHidden = status === 'hidden';
 	const isBanned = moderationStatus === 'banned';
+	const isFlagged = moderationStatus === 'flagged';
 	const isFailed = moderationStatus === 'failed';
 	const hiddenReasonsList = Array.isArray(hiddenReasons) ? hiddenReasons : hiddenReasons ? [hiddenReasons] : [];
 	const notDeletedOrHidden = !isDeleted && !isHidden;
@@ -48,6 +49,7 @@ export default function Comment({
 	const showEditButton = notDeletedOrHidden && isOwner;
 	const showDeleteButton = notDeletedOrHidden && isOwner && moderationStatus !== 'banned';
 	const showBannedMessage = notDeletedOrHidden && isBanned;
+	const showFlaggedTag = notDeletedOrHidden && isFlagged;
 	const showFailedMessage = notDeletedOrHidden && isFailed && isOwner;
 	const showReportButton = notDeletedOrHidden && !isBanned && !isFailed && !isOwner && isAuthenticated;
 	const showReplyComment = notDeletedOrHidden && !isBanned && !isFailed && replyTargetName;
@@ -70,6 +72,7 @@ export default function Comment({
 							<span className="comment-username">{ownerName}</span>
 							<span className="comment-meta"> • {createdAt ? new Date(createdAt).toLocaleString() : ''}</span>
 							{showEdited && <span className="text-muted"> (edited)</span>}
+							{showFlaggedTag && <span className="badge bg-warning text-dark ms-2" style={{fontSize:'0.7rem'}}>Flagged</span>}
 
 							{/* report button: visible to authenticated non-owners on active comments */}
 							{showReportButton && (
