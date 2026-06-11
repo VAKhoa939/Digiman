@@ -59,14 +59,13 @@ function NavBar() {
               <li><button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Advanced search" onClick={() => navigate('/search/advanced')}>
                 <FilterListIcon />
               </button></li>
-              {isAuthenticated && <>
-                <li><button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Pricing" onClick={() => navigate('/pricing')}>
+              {isAuthenticated &&
+              <li><button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Pricing" onClick={() => navigate('/pricing')}>
                 Pricing
-                </button></li>
-                <li><button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Downloads" onClick={() => navigate('/downloads')}>
-                  <CloudDownloadIcon />
-                </button></li>
-              </>}
+              </button></li>}
+              <li><button className={`btn btn-sm ${navButtonVariant} ms-2`} title="Downloads" onClick={() => navigate('/downloads')}>
+                <CloudDownloadIcon />
+              </button></li>
               <li><ThemeToggle /></li>
 
               {/* If authenticated, show profile and logout; otherwise show Login/Register */}
