@@ -12,14 +12,15 @@
 }
 
 :root[data-theme="light"] {
-  --bg: #ffffff;
+  --bg: #FFFDF1;
   --surface: #f7f9fb;
   --card-bg: #ffffff;
-  --text: #111827;
+  --text: #010101;
   --muted: #6b7280;
-  --accent: #e11d48;
-  --accent-dark: #b4163a;
+  --accent: #E4B32C;
+  --accent-dark: #e6c100;
   --danger: #dc2626;
+  --dropdown-bg: rgba(255,255,255,0.98);
 }
 
 /* Basic element bindings so components using plain elements benefit immediately */

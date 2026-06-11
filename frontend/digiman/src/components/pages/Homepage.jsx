@@ -28,12 +28,13 @@ function Homepage() {
           />
 
           {/* Most Read — sorted by reader count */}
-          <RecommendationBlock
-            title="Most Read"
-            items={mostRead}
+          <Banner
             isLoading={mostReadIsLoading}
             error={mostReadError}
-            viewAllPath="/search/advanced?ordering=-read_count"
+            slides={mostRead}
+            visible={6}
+            title="Most Read"
+            items={mostRead}
           />
 
           {/* Personalised recommendation (authenticated readers only) — based on last read manga */}

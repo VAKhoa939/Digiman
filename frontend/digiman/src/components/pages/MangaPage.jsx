@@ -203,26 +203,6 @@ const MangaPage = ({
 
   return (
     <div className="manga-page container py-4">
-      <style>{`
-        .tooltip-wrapper { position: relative; display: inline-block; }
-        .tooltip-text {
-          position: absolute;
-          bottom: 100%;
-          left: 50%;
-          transform: translateX(-50%);
-          background: rgba(0,0,0,0.85);
-          color: #fff;
-          padding: 4px 8px;
-          border-radius: 4px;
-          white-space: nowrap;
-          font-size: 12px;
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 80ms ease-in;
-          z-index: 2500;
-        }
-        .tooltip-wrapper:hover .tooltip-text { opacity: 1; }
-      `}</style>
       <div className="row">
         <div className="col-md-3 text-center">
           <img
@@ -234,7 +214,7 @@ const MangaPage = ({
         </div>
         <div className="col-md-9">
           <div className="d-flex align-items-center gap-2 mb-1">
-            <h1 className="manga-title mb-0">{title}</h1>
+            <h1 className="manga-title">{title}</h1>
             {isAuthenticated && id && (
               <button
                 type="button"
@@ -252,9 +232,9 @@ const MangaPage = ({
           {altTitle && <div className="text-muted small mb-2">{altTitle}</div>}
 
           <div className="d-flex align-items-center gap-3 mb-2">
-            <span style={{ color: 'var(--accent, #FFCB3D)', fontSize: '1rem' }}>
+            <span className="manga-rating-display">
               {'★'.repeat(Math.round(liveAvgRating))}{'☆'.repeat(5 - Math.round(liveAvgRating))}
-              <span className="ms-1 text-muted" style={{ fontSize: '0.85rem' }}>
+              <span className="manga-rating-score">
                 {liveAvgRating > 0 ? liveAvgRating.toFixed(1) : 'No ratings'}
               </span>
             </span>
@@ -272,13 +252,7 @@ const MangaPage = ({
                   onClick={() => handleStarClick(star)}
                   onMouseEnter={() => setHoverRating(star)}
                   onMouseLeave={() => setHoverRating(0)}
-                  style={{
-                    fontSize: '1.4rem',
-                    cursor: 'pointer',
-                    color: star <= (hoverRating || userRating) ? 'var(--accent, #FFCB3D)' : 'var(--app-muted, #6c757d)',
-                    transition: 'color 80ms',
-                    lineHeight: 1,
-                  }}
+                  className={`rating-star ${star <= (hoverRating || userRating) ? 'active' : ''}`}
                 >
                   ★
                 </span>
@@ -327,9 +301,9 @@ const MangaPage = ({
             )}
           </div>
 
-          <div className="manga-synopsis bg-dark p-3 rounded">
+          <div className="manga-synopsis">
             <h5 className="mb-2">Description</h5>
-            <p className="mb-0 text-white-50">{synopsis}</p>
+            <p className="mb-0">{synopsis}</p>
           </div>
         </div>
       </div>
@@ -358,7 +332,7 @@ const MangaPage = ({
                     <div className="small text-muted">{getTimeAgo(c.date)}</div>
                     {(c.isPremium) ?
                       <span className="badge bg-warning text-dark">Premium</span>
-                      : <span className="badge bg-white border text-dark">Free</span>
+                      : <span className="badge">Free</span>
                     }
                   </div>
                   {/* Download button */}
