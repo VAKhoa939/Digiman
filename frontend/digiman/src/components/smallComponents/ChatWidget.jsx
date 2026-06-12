@@ -70,8 +70,8 @@ const S = {
   bubble: (isBot) => ({
     maxWidth: '82%',
     alignSelf: isBot ? 'flex-start' : 'flex-end',
-    background: isBot ? 'var(--card-bg)' : 'var(--accent)',
-    color: isBot ? 'var(--text)' : '#000',
+    background: isBot ? 'var(--app-bg)' : 'var(--accent)',
+    color: isBot ? 'var(--app-fg)' : '#000',
     borderRadius: isBot ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
     padding: '8px 12px',
     fontSize: 13.5,
@@ -94,10 +94,10 @@ const S = {
         : 'rgba(251,191,36,.25)',
     color:
       intent === 'recommendation'
-        ? '#a5b4fc'
+        ? '#0b31ed'
         : intent === 'navigation'
-        ? '#86efac'
-        : '#fde68a',
+        ? '#009c39'
+        : '#d4b22d',
     fontWeight: 600,
     letterSpacing: '.5px',
     textTransform: 'uppercase',
