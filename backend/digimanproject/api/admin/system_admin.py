@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.shortcuts import redirect
 from django.contrib import messages
+from django.urls import reverse
+from django.utils.html import format_html
 
 from ..models.system_models import Report, LogEntry, FlaggedContent, ModerationThreshold
 from ..services.system_service import FlaggedContentService
@@ -28,16 +30,16 @@ class ReportAdmin(admin.ModelAdmin):
         "target_content_id",
         "status",
         "created_at",
+        "view_target_content_details",
     )
-    readonly_fields = (
-        "id",
-        "reporter",
-        "category",
-        "description",
-        "target_content_type",
-        "target_content_id",
-        "created_at",
-    )
+    readonly_fields = tuple(field for field in fields if field != "status")
+    
+    def view_target_content_details(self, obj: Report):
+        if obj.pk and not obj._state.adding and obj.target_content_id and obj.target_content_type:
+            url = reverse(f"admin:api_{obj.target_content_type.lower()}_change", args=[obj.target_content_id])
+            return format_html('<a href="{}">View</a>', url)
+        return ""
+    view_target_content_details.short_description = "View Target Content Details"
 
     def has_add_permission(self, request):
         return False
@@ -57,7 +59,7 @@ class LogEntryAdmin(admin.ModelAdmin):
         "timestamp", 
         "moderation_status",
     )
-    list_filter = ("action_type", "user", "target_object_type",)
+    list_filter = ("action_type", "user", "target_object_type", "moderation_status",)
     ordering = ("-timestamp",)
     fields = (
         "id",
@@ -72,11 +74,19 @@ class LogEntryAdmin(admin.ModelAdmin):
         "target_object_type", 
         "target_object_id", 
         "details",
+        "view_target_object_details",
     )
 
     def get_display_name(self, obj: LogEntry) -> str:
         return str(obj)
     get_display_name.short_description = "Display name"
+    
+    def view_target_object_details(self, obj: LogEntry):
+        if obj.pk and not obj._state.adding and obj.target_object_id and obj.target_object_type:
+            url = reverse(f"admin:api_{obj.target_object_type.lower()}_change", args=[obj.target_object_id])
+            return format_html('<a href="{}">View</a>', url)
+        return ""
+    view_target_object_details.short_description = "View Target Object Details"
 
     def has_add_permission(self, request):
         return False
@@ -97,7 +107,8 @@ class FlaggedContentAdmin(admin.ModelAdmin):
         "flagged_at",
         "is_resolved",
     )
-    ordering = ("-is_resolved", "-flagged_at",)
+    list_filter = ("flag_status", "target_object_type", "is_resolved",)
+    ordering = ("is_resolved", "-flagged_at",)
 
     fields = (
         "id",
@@ -113,17 +124,22 @@ class FlaggedContentAdmin(admin.ModelAdmin):
         "target_object_type", 
         "target_object_id",
         "is_resolved",
+        "view_target_object_details",
     )
     readonly_fields = (*fields,)
 
     change_form_template = "admin/flagged_content_change_form.html"
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).filter(is_resolved=False)
     
     def get_display_name(self, obj: FlaggedContent) -> str:
         return str(obj)
     get_display_name.short_description = "Display name"
+    
+    def view_target_object_details(self, obj: LogEntry):
+        if obj.pk and not obj._state.adding and obj.target_object_id and obj.target_object_type:
+            url = reverse(f"admin:api_{obj.target_object_type.lower()}_change", args=[obj.target_object_id])
+            return format_html('<a href="{}">View</a>', url)
+        return ""
+    view_target_object_details.short_description = "View Target Object Details"
     
     def response_change(self, request, obj):
         if not "_resolve_flag" in request.POST:

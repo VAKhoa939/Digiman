@@ -69,7 +69,6 @@ class UserService:
         status = data.get("status")
         if status and status == User.StatusChoices.DELETED:
             user.set_deleted()
-            LogEntryService.resolve_old_entries_and_flags(user.get_role(), user.get_id(), ["username", "display_name", "avatar"])
             LogEntryService.log_object_save(user, False)
         bucket = BucketNames.USER_AVATARS
 
