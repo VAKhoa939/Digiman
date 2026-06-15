@@ -53,7 +53,6 @@ class PageInline(admin.StackedInline):
     form = PageForm
     extra = 1
     fields = (
-        "id", 
         "page_number", 
         "image_url", 
         "image_upload",
@@ -67,15 +66,22 @@ class CommentInline(admin.StackedInline):
     form = CommentForm
     extra = 1
     fields = (
-        "id",
         "parent_comment", 
         "owner",
         "text", 
         "attached_image_url", 
         "attached_image_upload",
+        "view_details",
     )
-    readonly_fields = ("id", "created_at", "owner",)
-    ordering = ("created_at",)
+    readonly_fields = ("id", "created_at", "owner", "view_details",)
+    ordering = ("-created_at",)
+    
+    def view_details(self, obj: Comment):
+        if obj.pk and not obj._state.adding:
+            url = reverse("admin:api_comment_change", args=[obj.pk])
+            return format_html('<a href="{}">View</a>', url)
+        return ""
+    view_details.short_description = "View Comment Details"
 
 
 class GenreInline(admin.TabularInline):
@@ -87,21 +93,20 @@ class ChapterInline(admin.TabularInline):
     model = Chapter
     extra = 1
     fields = (
-        "id", 
         "title", 
         "chapter_number", 
         "upload_date", 
-        "edit_link",
+        "view_details",
     )
-    readonly_fields = ("id", "upload_date", "edit_link",)
+    readonly_fields = ("id", "upload_date", "view_details",)
     ordering = ("chapter_number",)
     
-    def edit_link(self, obj: Chapter):
-        if obj.pk:
+    def view_details(self, obj: Chapter):
+        if obj.pk and not obj._state.adding:
             url = reverse("admin:api_chapter_change", args=[obj.pk])
-            return format_html('<a href="{}">Edit</a>', url)
+            return format_html('<a href="{}">View</a>', url)
         return ""
-    edit_link.short_description = "Edit Chapter"
+    view_details.short_description = "View Chapter Details"
 
 
 # --- Admin classes ---
@@ -118,10 +123,11 @@ class MangaTitleAdmin(LogUserMixin, admin.ModelAdmin):
         "get_chapter_count", 
         "get_comment_count", 
         "get_latest_chapter_upload_date",
+        "publication_date",
     )
     list_filter = ("publication_status", "is_visible")
     search_fields = ("title", "author__name")
-    ordering = ("-publication_date",)
+    ordering = ("publication_date",)
     list_per_page = 20
     inlines = [ChapterInline, CommentInline]
 
