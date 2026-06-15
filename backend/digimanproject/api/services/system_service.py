@@ -133,46 +133,6 @@ class LogEntryService:
     def log_logout(user: User):
         LogEntryService.create_log_entry(user, LogEntry.ActionTypeChoices.LOGOUT, user)
 
-    @staticmethod
-    @transaction.atomic
-    def resolve_old_entries(target_object_type: str, target_object_id: UUID) -> int:
-        old_entries = LogEntry.objects.filter(
-            target_object_type=target_object_type,
-            target_object_id=target_object_id,
-            moderation_status__in=[
-                ModerationStatusChoices.PROCESSING, 
-                ModerationStatusChoices.PENDING,
-                ModerationStatusChoices.FLAGGED,
-                ModerationStatusChoices.BANNED
-            ],
-        )
-        old_entries.update(moderation_status=ModerationStatusChoices.SAFE)
-        return old_entries.count()
-
-    @staticmethod
-    @transaction.atomic
-    def resolve_old_entries_and_flags(
-            target_object_type: str, 
-            target_object_id: UUID,
-            content_attribute_names: List[str]
-        ) -> None:
-        try:
-            entry_count = LogEntryService.resolve_old_entries(
-                target_object_type, 
-                target_object_id
-            )
-            flag_count = 0
-            for content_attribute_name in content_attribute_names:
-                resolve_count = FlaggedContentService.resolve_old_flags(
-                    target_object_type, 
-                    target_object_id,
-                    content_attribute_name
-                )
-                flag_count += resolve_count
-            print(f"Resolved {entry_count} old entries and {flag_count} old flags.")
-            
-        except Exception as e:
-            print("Error resolving old entries and flags:", str(e))
 
 class FlaggedContentService:
     @staticmethod

@@ -167,11 +167,6 @@ class CommentService:
         status = data.get("status")
         if status and status == Comment.StatusChoices.DELETED:
             comment.set_deleted()
-            LogEntryService.resolve_old_entries_and_flags(
-                "comment",
-                comment.id,
-                ["text", "attached_image_url"]
-            )
             LogEntryService.log_object_save(comment, False)
             return comment
         # If the status is not deleted and the status is changed, 
