@@ -272,10 +272,6 @@ class ReaderSubscription(models.Model):
         status = self.LastPurchaseStatusChoices.PENDING
         self.update_metadata(last_purchase_status=status)
 
-    def toggle_auto_renewal(self) -> None:
-        is_auto_renewal = not self.is_auto_renewal
-        self.update_metadata(is_auto_renewal=is_auto_renewal)
-
 
 class PaymentTransaction(models.Model):
     class TransactionTypeChoices(models.TextChoices):

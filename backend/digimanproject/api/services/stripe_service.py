@@ -5,6 +5,7 @@ from django.db import transaction
 from ..models.user_models import Reader
 from ..models.subscription_models import SubscriptionPlan, ReaderSubscription, PaymentTransaction, PaymentProviderChoices
 from ..services.email_service import SubscriptionEmailService
+from ..services.system_service import LogEntryService
 from ..utils.helper_functions import stripe_ts_to_datetime
 from ..utils.stripe_client import stripe
 from ..utils.env_getters import env
@@ -137,6 +138,9 @@ class StripeService:
                     ended_at=None,
                     last_payment_transaction=transaction
                 )
+                
+                LogEntryService.log_subscription_purchase(subscription)
+
             elif transaction_type == PaymentTransaction.TransactionTypeChoices.AUTO_RENEWAL:
                 transaction, created = PaymentTransaction.objects.get_or_create(
                     external_transaction_id=external_transaction_id,
@@ -160,6 +164,9 @@ class StripeService:
                     next_billing_date=stripe_ts_to_datetime(next_billing_date),
                     last_payment_transaction=transaction
                 )
+
+                LogEntryService.log_subscription_auto_renewal(subscription)
+
             else:
                 return
         except:
@@ -190,10 +197,12 @@ class StripeService:
             update_fields = {}
             if subscription.is_auto_renewal == cancel_at_period_end:
                 update_fields["is_auto_renewal"] = not cancel_at_period_end
-            
+            print("log subscription renewal toggle", update_fields, subscription.is_auto_renewal, cancel_at_period_end)
             if not update_fields:
                 return
             subscription.update_metadata(**update_fields)
+
+            LogEntryService.log_subscription_renewal_toggle(subscription)
         except:
             print("\nError handling customer subscription updated event\n")
             raise
@@ -223,6 +232,8 @@ class StripeService:
                 external_subscription_id="",
                 external_customer_id=""
             )
+
+            LogEntryService.log_subscription_ended(subscription)
 
             SubscriptionEmailService.notify_ended_subscription(subscription)
         except:
