@@ -51,7 +51,7 @@ class ReaderSubscriptionAdmin(LogUserMixin, admin.ModelAdmin):
         'provider',
         'status',
     )
-    ordering = ('-start_date',)
+    ordering = ('-subscription_plan', 'status', '-start_date',)
     fields = (
         'id',
         'reader',

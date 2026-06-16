@@ -44,7 +44,7 @@ def on_comment_created(
         return
     try:
         owner = instance.owner
-        if owner is None or owner.role != RoleChoices.READER:
+        if owner is None or owner.role not in (RoleChoices.READER, RoleChoices.ADMIN):
             return
         manga_title = instance.manga_title or (
             instance.chapter.manga_title if instance.chapter else None

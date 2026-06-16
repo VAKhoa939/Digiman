@@ -218,8 +218,12 @@ class LogEntry(models.Model):
         CREATE = "create", "Create"
         UPDATE = "update", "Update"
         DELETE = "delete", "Delete"
-        AUTO_RESOLVE_FLAG = "autoresolveflag", "AutoResolveFlag"
-        RESOLVE_FLAG = "resolveflag", "ResolveFlag"
+        AUTO_RESOLVE_FLAG = "autoresolveflag", "Auto Resolve Flag"
+        RESOLVE_FLAG = "resolveflag", "Resolve Flag"
+        PURCHASE = "purchase", "Subscription Purchase"
+        AUTO_RENEWAL = "autorenewal", "Subscription Auto Renewal"
+        RENEWAL_TOGGLE = "renewaltoggle", "Subscription Renewal Toggle"
+        ENDED = "ended", "Subscription ended"
 
     class TargetObjectTypeChoices(models.TextChoices):
         MANGA_TITLE = "mangatitle", "MangaTitle"
@@ -235,6 +239,8 @@ class LogEntry(models.Model):
         FLAGGED_CONTENT = "flaggedcontent", "FlaggedContent"
         PENALTY = "penalty", "Penalty"
         MODERATION_THRESHOLD = "moderationthreshold", "ModerationThreshold"
+        SUBSCRIPTION_PLAN = "subscriptionplan", "SubscriptionPlan"
+        READER_SUBSCRIPTION = "readersubscription", "ReaderSubscription"
 
     id: uuid.UUID = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
@@ -287,6 +293,7 @@ class LogEntry(models.Model):
     def get_target_object(self) -> Optional[LogEntryTargetObjectType]:
         from .manga_models import MangaTitle, Chapter, Genre, Author, Page, Comment
         from .user_models import User, Reader, Administrator
+        from .subscription_models import SubscriptionPlan, ReaderSubscription
         
         mapping: Dict[str, LogEntryTargetObjectType] = {
             self.TargetObjectTypeChoices.MANGA_TITLE.value: MangaTitle,
@@ -301,7 +308,9 @@ class LogEntry(models.Model):
             self.TargetObjectTypeChoices.REPORT.value: Report,
             self.TargetObjectTypeChoices.FLAGGED_CONTENT.value: FlaggedContent,
             self.TargetObjectTypeChoices.PENALTY.value: Penalty,
-            self.TargetObjectTypeChoices.MODERATION_THRESHOLD.value: ModerationThreshold
+            self.TargetObjectTypeChoices.MODERATION_THRESHOLD.value: ModerationThreshold,
+            self.TargetObjectTypeChoices.SUBSCRIPTION_PLAN.value: SubscriptionPlan,
+            self.TargetObjectTypeChoices.READER_SUBSCRIPTION.value: ReaderSubscription
         }
         return get_target_object(self.target_object_id, self.target_object_type, mapping)
 

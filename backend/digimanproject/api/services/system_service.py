@@ -3,6 +3,7 @@ from django.db import transaction
 
 from ..models.user_models import User, Reader, Administrator
 from ..models.manga_models import Comment
+from ..models.subscription_models import ReaderSubscription
 from ..models.system_models import LogEntry, FlaggedContent, ModerationThreshold, LogEntryTargetObjectType
 from ..models.common_choice_classes import ModerationStatusChoices
 from ..utils.helper_functions import cast_user_to_subclass
@@ -132,6 +133,22 @@ class LogEntryService:
     @staticmethod
     def log_logout(user: User):
         LogEntryService.create_log_entry(user, LogEntry.ActionTypeChoices.LOGOUT, user)
+
+    @staticmethod
+    def log_subscription_purchase(instance: ReaderSubscription):
+        LogEntryService.create_log_entry(instance.reader, LogEntry.ActionTypeChoices.PURCHASE, instance)
+
+    @staticmethod
+    def log_subscription_auto_renewal(instance: ReaderSubscription):
+        LogEntryService.create_log_entry(instance.reader, LogEntry.ActionTypeChoices.AUTO_RENEWAL, instance)
+
+    @staticmethod
+    def log_subscription_renewal_toggle(instance: ReaderSubscription):
+        LogEntryService.create_log_entry(instance.reader, LogEntry.ActionTypeChoices.RENEWAL_TOGGLE, instance)
+
+    @staticmethod
+    def log_subscription_ended(instance: ReaderSubscription):
+        LogEntryService.create_log_entry(instance.reader, LogEntry.ActionTypeChoices.ENDED, instance)
 
 
 class FlaggedContentService:
