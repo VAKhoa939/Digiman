@@ -37,7 +37,7 @@ class SubscriptionEmailService:
     def notify_ended_subscription(subscription: ReaderSubscription) -> None:
         reader = subscription.get_reader()
         recipient_list = [reader.get_email()]
-        subject = "[Digiman] Subscription Expired"
+        subject = "[Digiman] Subscription Ended"
         message = f"""
             Hello {reader.get_display_name()},
 
