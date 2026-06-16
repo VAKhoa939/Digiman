@@ -12,11 +12,11 @@ class SubscriptionEmailService:
         if not created_at:
             raise Exception("Transaction created_at is null")
         recipient_list = [reader.get_email()]
-        subject = "Purchase Subscription Success"
+        subject = "[Digiman] Purchase Subscription Success"
         message = f"""
             Hello {reader.get_display_name()},
 
-            We are writing to inform you that your recent payment for subscription has been confirmed, and your subscription has been successfully activated.
+            We are writing to inform you that your recent payment for subscription at Digiman has been confirmed, and your subscription has been successfully activated.
             
             Your latest payment details are as follows:
             
@@ -37,11 +37,11 @@ class SubscriptionEmailService:
     def notify_ended_subscription(subscription: ReaderSubscription) -> None:
         reader = subscription.get_reader()
         recipient_list = [reader.get_email()]
-        subject = "Subscription Expired"
+        subject = "[Digiman] Subscription Expired"
         message = f"""
             Hello {reader.get_display_name()},
 
-            We are writing to inform you that your subscription has ended.
+            We are writing to inform you that your subscription at Digiman has ended.
             Please renew your subscription to continue using our service.
             
             Your subscription details are as follows:
@@ -66,11 +66,11 @@ class SubscriptionEmailService:
         if not created_at:
             raise Exception("Transaction created_at is null")
         recipient_list = [reader.get_email()]
-        subject = "Auto Renewal Payment Success"
+        subject = "[Digiman] Auto Renewal Payment Success"
         message = f"""
             Hello {reader.get_display_name()},
 
-            We are writing to inform you that your recent auto renewal payment has been confirmed, and your subscription has been successfully extended.
+            We are writing to inform you that your recent auto renewal payment for subscription at Digiman has been confirmed, and your subscription has been successfully extended.
             
             Your latest payment details are as follows:
             
@@ -94,7 +94,7 @@ class SubscriptionEmailService:
     ) -> None:
         reader = transaction.get_reader()
         recipient_list = [reader.get_email()]
-        subject = "Auto Renewal Payment Failed"
+        subject = "[Digiman] Auto Renewal Payment Failed"
         created_at = format_datetime_long(transaction.get_created_at())
         if not created_at:
             raise Exception("Transaction created_at is null")
@@ -110,7 +110,7 @@ class SubscriptionEmailService:
             message = f"""
                 Hello {reader.get_display_name()},
 
-                We are writing to inform you that your recent auto renewal payment has failed, and your subscription status has been changed to "Past Due".
+                We are writing to inform you that your recent auto renewal payment for subscription at Digiman has failed, and your subscription status has been changed to "Past Due".
                 Please check your payment method to ensure that it is still valid and has sufficient funds before Stripe attempts to charge it again.
                 {customer_portal_message}
                 You can also go to the Pricing page of our website to subscribe a new plan again.
@@ -128,7 +128,7 @@ class SubscriptionEmailService:
             message = f"""
                 Hello {reader.get_display_name()},
 
-                We are writing to inform you that your recent auto renewal payment has failed, and your subscription status has been changed to "Past Due".
+                We are writing to inform you that your recent auto renewal payment for subscription at Digiman has failed, and your subscription status has been changed to "Past Due".
                 All payment attempts have been exhausted.
 
                 Please go to the Pricing page of our website to subscribe a new plan again.
