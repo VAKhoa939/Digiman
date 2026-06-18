@@ -33,8 +33,7 @@ class StripeService:
             )
             return {"url": session.url, "id": session.id}
         except Exception as e:
-            print("\nError creating Stripe checkout session\n")
-            print(e)
+            print("\nError creating Stripe checkout session\n", str(e))
             raise
 
     @staticmethod
@@ -60,8 +59,8 @@ class StripeService:
                 external_customer_id=external_customer_id,
                 provider=PaymentProviderChoices.STRIPE
             )
-        except:
-            print("\nError handling checkout session completed event\n")
+        except Exception as e:
+            print("\nError handling checkout session completed event\n", str(e))
             raise
         
     @staticmethod
@@ -106,7 +105,7 @@ class StripeService:
             else:
                 return
         except Exception as e:
-            print("\nError processing event object in invoice paid event\n", e)
+            print("\nError processing event object in invoice paid event\n", str(e))
             raise
 
         try:
@@ -170,7 +169,7 @@ class StripeService:
             else:
                 return
         except Exception as e:
-            print("\nError handling invoice paid event\n", e)
+            print("\nError handling invoice paid event\n", str(e))
             raise
 
         try:
@@ -181,7 +180,7 @@ class StripeService:
             else:
                 return
         except Exception as e:
-            print("\nError sending email for invoice paid event\n", e)
+            print("\nError sending email for invoice paid event\n", str(e))
 
     @staticmethod
     @transaction.atomic
@@ -203,8 +202,8 @@ class StripeService:
             subscription.update_metadata(**update_fields)
 
             LogEntryService.log_subscription_renewal_toggle(subscription)
-        except:
-            print("\nError handling customer subscription updated event\n")
+        except Exception as e:
+            print("\nError handling customer subscription updated event\n", str(e))
             raise
 
     @staticmethod
@@ -234,11 +233,14 @@ class StripeService:
             )
 
             LogEntryService.log_subscription_ended(subscription)
-
-            SubscriptionEmailService.notify_ended_subscription(subscription)
-        except:
-            print("\nError handling customer subscription deleted event\n")
+        except Exception as e:
+            print("\nError handling customer subscription deleted event\n", str(e))
             raise
+
+        try:
+            SubscriptionEmailService.notify_ended_subscription(subscription)
+        except Exception as e:
+            print("\nError sending email for customer subscription deleted event\n", str(e))
         
     @staticmethod
     @transaction.atomic
@@ -271,16 +273,15 @@ class StripeService:
                 status=ReaderSubscription.SubscriptionStatusChoices.PAST_DUE,
                 last_payment_transaction=transaction
             )
-        except:
-            print("\nError handling invoice payment failed event\n")
+        except Exception as e:
+            print("\nError handling invoice payment failed event\n", str(e))
             raise
 
         try:
             customer_portal_url = StripeService.create_customer_portal_session(reader.get_id())
             SubscriptionEmailService.notify_failed_auto_renewal_payment(transaction, customer_portal_url)
         except Exception as e:
-            print("\nError sending email for invoice payment failed event\n")
-            print(e)
+            print("\nError sending email for invoice payment failed event\n", str(e))
 
     @staticmethod
     def create_customer(customer_email: str) -> str:
