@@ -46,7 +46,7 @@ class StripeService:
         Update reader subscription with Stripe subscription data.
         """
         print("\nCheckout session completed event\n")
-        pprint(obj)
+        #pprint(obj)
         try:
             metadata = obj["metadata"]
             reader_id = metadata["reader_id"]
@@ -75,7 +75,7 @@ class StripeService:
         Update reader subscription with Stripe invoice data and set status to ACTIVE.
         """
         print("\nInvoice paid event\n")
-        pprint(obj)
+        #pprint(obj)
 
         try:
             external_transaction_id = obj["id"]
@@ -105,8 +105,8 @@ class StripeService:
                 transaction_type = PaymentTransaction.TransactionTypeChoices.AUTO_RENEWAL
             else:
                 return
-        except:
-            print("\nError processing event object in invoice paid event\n")
+        except Exception as e:
+            print("\nError processing event object in invoice paid event\n", e)
             raise
 
         try:
@@ -169,8 +169,8 @@ class StripeService:
 
             else:
                 return
-        except:
-            print("\nError handling invoice paid event\n")
+        except Exception as e:
+            print("\nError handling invoice paid event\n", e)
             raise
 
         try:
@@ -180,14 +180,14 @@ class StripeService:
                 SubscriptionEmailService.notify_success_auto_renewal_payment(transaction)
             else:
                 return
-        except:
-            print("\nError sending email for invoice paid event\n")
+        except Exception as e:
+            print("\nError sending email for invoice paid event\n", e)
 
     @staticmethod
     @transaction.atomic
     def handle_customer_subscription_updated_event(obj: dict) -> None:
         print("\nCustomer subscription updated event\n")
-        pprint(obj)
+        #pprint(obj)
         try:
             external_subscription_id = obj["id"]
             cancel_at_period_end = obj["cancel_at_period_end"]
@@ -219,7 +219,7 @@ class StripeService:
     @transaction.atomic
     def handle_customer_subscription_deleted_event(obj: dict) -> None:
         print("\nCustomer subscription deleted event\n")
-        pprint(obj)
+        #pprint(obj)
         try:
             external_subscription_id = obj["id"]
             ended_at = obj["ended_at"]
@@ -244,7 +244,7 @@ class StripeService:
     @transaction.atomic
     def handle_invoice_payment_failed_event(obj: dict) -> None:
         print("\nInvoice payment failed event\n")
-        pprint(obj)
+        #pprint(obj)
         try:
             external_transaction_id = obj["id"]
             external_customer_id = obj["customer"]
